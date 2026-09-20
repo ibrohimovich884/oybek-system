@@ -9,7 +9,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <span className="sidebar__brand-name">Oybek-system</span>
+        <span className="sidebar__brand-name">OYBEK SysteM</span>
         <span className="sidebar__brand-tag">Shaxsiy panel</span>
       </div>
 

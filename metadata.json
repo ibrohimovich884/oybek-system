@@ -1,0 +1,8 @@
+{
+  "name": "OYBEK SysteM",
+  "description": "Shaxsiy boshqaruv paneli va kundalik xarajatlar nazorati (Money manager).",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

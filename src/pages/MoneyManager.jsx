@@ -1,40 +1,192 @@
-import { useMemo } from "react";
+import { useState, useRef } from "react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
+import WalletCards from "../components/money-manager/WalletCards.jsx";
 import ExpenseForm from "../components/money-manager/ExpenseForm.jsx";
 import ExpenseList from "../components/money-manager/ExpenseList.jsx";
-import { formatSum } from "../utils/format.js";
+import AnalyticsView from "../components/money-manager/AnalyticsView.jsx";
+import TransferModal from "../components/money-manager/TransferModal.jsx";
+import {
+  PlusCircle,
+  ListOrdered,
+  PieChart,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
 export default function MoneyManager() {
-  const { expenses, isLoading, downloadBackup } = useExpenses();
+  const {
+    expenses,
+    isLoading,
+    downloadBackup,
+    downloadCSV,
+    importBackup,
+  } = useExpenses();
 
-  const total = useMemo(
-    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
-    [expenses]
-  );
+  const [activeTab, setActiveTab] = useState("form"); // "form" | "history" | "analytics"
+  const [transferConfig, setTransferConfig] = useState(null);
+  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
+  const fileInputRef = useRef(null);
+
+  const handleOpenTransfer = (from, to) => {
+    setTransferConfig({ from, to });
+  };
+
+  const handleFileImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const res = await importBackup(text);
+        if (res.success) {
+          setFeedback({
+            type: "success",
+            message: "Ma'lumotlar muvaffaqiyatli tiklandi!",
+          });
+        } else {
+          setFeedback({
+            type: "error",
+            message: "Faylni yuklashda xatolik: " + res.error,
+          });
+        }
+      } catch (err) {
+        setFeedback({
+          type: "error",
+          message: "Faylni o'qishda xatolik yuz berdi.",
+        });
+      }
+      setTimeout(() => setFeedback(null), 4000);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   return (
-    <>
-      <h1 className="page-title">Money manager</h1>
-      <p className="page-subtitle">
-        Kunlik xarajatlaringizni yozib boring — miqdori, sababi, joyi va vaqti.
-      </p>
+    <div className="money-manager-page">
+      <div className="page-header-row">
+        <div>
+          <h1 className="page-title">Money manager</h1>
+          <p className="page-subtitle">
+            Naqd pul va plastik karta hisoblarini boshqaring, xarajat hamda daromadlarni hisoblab boring.
+          </p>
+        </div>
 
-      <ExpenseForm />
+        {/* Eksport & Import asboblar paneli */}
+        <div className="backup-toolbar">
+          <button
+            type="button"
+            className="btn btn--subtle"
+            onClick={downloadCSV}
+            title="Excel (CSV) fayl sifatida yuklab olish"
+          >
+            <FileSpreadsheet size={15} />
+            <span>Excel (CSV)</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn--subtle"
+            onClick={downloadBackup}
+            title="JSON nusxa yuklab olish"
+          >
+            <Download size={15} />
+            <span>JSON zaxira</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn--subtle"
+            onClick={() => fileInputRef.current?.click()}
+            title="JSON zaxira faylidan tiklash"
+          >
+            <Upload size={15} />
+            <span>Tiklash</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            style={{ display: "none" }}
+            onChange={handleFileImport}
+          />
+        </div>
+      </div>
 
-      <div className="toolbar">
-        <span className="toolbar__summary">
-          Jami: <span className="mono">{formatSum(total)}</span>
-        </span>
-        <button type="button" className="btn" onClick={downloadBackup}>
-          JSON backup yuklab olish
+      {/* Xabar bildirishnomasi */}
+      {feedback && (
+        <div className={`feedback-alert feedback-alert--${feedback.type}`}>
+          {feedback.type === "success" ? (
+            <CheckCircle2 size={16} />
+          ) : (
+            <AlertCircle size={16} />
+          )}
+          <span>{feedback.message}</span>
+        </div>
+      )}
+
+      {/* Hamyonlar va Balans kartalari */}
+      <WalletCards onOpenTransfer={handleOpenTransfer} />
+
+      {/* Asosiy ko'rinish tablari */}
+      <div className="money-tabs">
+        <button
+          type="button"
+          className={`money-tab-btn ${activeTab === "form" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("form")}
+        >
+          <PlusCircle size={16} />
+          <span>Yangi amal kiritish</span>
+        </button>
+        <button
+          type="button"
+          className={`money-tab-btn ${activeTab === "history" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("history")}
+        >
+          <ListOrdered size={16} />
+          <span>Amallar tarixi ({expenses.length})</span>
+        </button>
+        <button
+          type="button"
+          className={`money-tab-btn ${activeTab === "analytics" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("analytics")}
+        >
+          <PieChart size={16} />
+          <span>Tahlil & Statistika</span>
         </button>
       </div>
 
+      {/* Tanlangan bo'lim */}
       {isLoading ? (
         <p className="ledger-empty">Yuklanmoqda...</p>
+      ) : activeTab === "form" ? (
+        <div className="tab-content-fade">
+          <ExpenseForm />
+          <div className="section-divider">
+            <span>Oxirgi amallar</span>
+          </div>
+          <ExpenseList expenses={expenses.slice(0, 5)} />
+        </div>
+      ) : activeTab === "history" ? (
+        <div className="tab-content-fade">
+          <ExpenseList expenses={expenses} />
+        </div>
       ) : (
-        <ExpenseList expenses={expenses} />
+        <div className="tab-content-fade">
+          <AnalyticsView />
+        </div>
       )}
-    </>
+
+      {/* Tezkor hisoblararo o'tkazma modali */}
+      {transferConfig && (
+        <TransferModal
+          initialFrom={transferConfig.from}
+          initialTo={transferConfig.to}
+          onClose={() => setTransferConfig(null)}
+        />
+      )}
+    </div>
   );
 }
