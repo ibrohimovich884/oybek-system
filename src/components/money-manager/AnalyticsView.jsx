@@ -17,6 +17,7 @@ export default function AnalyticsView() {
     let expenseSum = 0;
     let incomeSum = 0;
     const categoryTotals = {};
+    const subcategoryTotals = {};
     const walletSpending = { naqd: 0, karta: 0 };
     let maxExpense = null;
 
@@ -24,14 +25,22 @@ export default function AnalyticsView() {
       const amt = Number(item.amount || 0);
       if (item.type === "expense") {
         expenseSum += amt;
-        const cat = item.category || "other_expense";
+        const cat = item.category || "Boshqa";
         if (!categoryTotals[cat]) {
           categoryTotals[cat] = { amount: 0, count: 0 };
         }
         categoryTotals[cat].amount += amt;
         categoryTotals[cat].count += 1;
 
-        if (item.wallet === "naqd") {
+        const sub = item.subcategory || "Boshqa";
+        if (!subcategoryTotals[sub]) {
+          subcategoryTotals[sub] = { amount: 0, count: 0, category: cat };
+        }
+        subcategoryTotals[sub].amount += amt;
+        subcategoryTotals[sub].count += 1;
+
+        const method = item.paymentMethod || item.wallet || "naqd";
+        if (method === "naqd") {
           walletSpending.naqd += amt;
         } else {
           walletSpending.karta += amt;
@@ -65,10 +74,25 @@ export default function AnalyticsView() {
       })
       .sort((a, b) => b.total - a.total);
 
+    const subcategoryList = Object.keys(subcategoryTotals)
+      .map((subName) => {
+        const total = subcategoryTotals[subName].amount;
+        const percentage = expenseSum > 0 ? ((total / expenseSum) * 100).toFixed(1) : 0;
+        return {
+          name: subName,
+          category: subcategoryTotals[subName].category,
+          total,
+          count: subcategoryTotals[subName].count,
+          percentage: Number(percentage),
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+
     return {
       expenseSum,
       incomeSum,
       categoryList,
+      subcategoryList,
       walletSpending,
       maxExpense,
       avgExpense:
@@ -81,7 +105,7 @@ export default function AnalyticsView() {
   if (!expenses.length) {
     return (
       <div className="analytics-empty">
-        <PieChart size={36} color="#a39c8e" />
+        <PieChart size={36} color="var(--text-muted)" />
         <p>Hozircha tahlil qilish uchun xarajatlar kiritilmagan.</p>
         <span className="field-hint">Xarajat yoki daromad kiritsangiz, bu yerda grafiklar va foizlar shakllanadi.</span>
       </div>
@@ -94,7 +118,7 @@ export default function AnalyticsView() {
       <div className="analytics-summary-grid">
         <div className="stat-card">
           <div className="stat-card__title">
-            <TrendingDown size={16} color="#f87171" />
+            <TrendingDown size={16} color="var(--expense)" />
             <span>Jami xarajat</span>
           </div>
           <div className="stat-card__value mono" style={{ color: "var(--expense)" }}>
@@ -107,7 +131,7 @@ export default function AnalyticsView() {
 
         <div className="stat-card">
           <div className="stat-card__title">
-            <TrendingUp size={16} color="#34d399" />
+            <TrendingUp size={16} color="var(--accent)" />
             <span>Jami daromad</span>
           </div>
           <div className="stat-card__value mono" style={{ color: "var(--accent)" }}>
@@ -115,7 +139,7 @@ export default function AnalyticsView() {
           </div>
           <span className="stat-card__sub">
             Sof tejamkorlik:{" "}
-            <strong className="mono" style={{ color: stats.incomeSum >= stats.expenseSum ? "#34d399" : "#f87171" }}>
+            <strong className="mono" style={{ color: stats.incomeSum >= stats.expenseSum ? "var(--accent)" : "var(--expense)" }}>
               {stats.incomeSum >= stats.expenseSum ? "+" : ""}
               {formatSum(stats.incomeSum - stats.expenseSum)}
             </strong>
@@ -124,7 +148,7 @@ export default function AnalyticsView() {
 
         <div className="stat-card">
           <div className="stat-card__title">
-            <Award size={16} color="#fbbf24" />
+            <Award size={16} color="var(--warning)" />
             <span>Eng katta xarajat</span>
           </div>
           <div className="stat-card__value mono">
@@ -145,7 +169,7 @@ export default function AnalyticsView() {
           <div className="wallet-spend-item">
             <div className="wallet-spend-item__head">
               <div className="wallet-spend-item__name">
-                <CreditCard size={15} color="#38bdf8" />
+                <CreditCard size={15} color="var(--karta)" />
                 <span>Plastik karta</span>
               </div>
               <span className="mono">{formatSum(stats.walletSpending.karta)}</span>
@@ -167,7 +191,7 @@ export default function AnalyticsView() {
           <div className="wallet-spend-item">
             <div className="wallet-spend-item__head">
               <div className="wallet-spend-item__name">
-                <Wallet size={15} color="#eab308" />
+                <Wallet size={15} color="var(--naqd)" />
                 <span>Naqd pul</span>
               </div>
               <span className="mono">{formatSum(stats.walletSpending.naqd)}</span>
@@ -226,6 +250,57 @@ export default function AnalyticsView() {
           ))}
         </div>
       </div>
+
+      {/* Kichik kategoriyalar (Subcategories) bo'yicha tahlil */}
+      {stats.subcategoryList?.length > 0 && (
+        <div className="analytics-section">
+          <h3 className="analytics-section__title">
+            Kichik kategoriyalar (subcategories) bo'yicha xarajatlar
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+            {stats.subcategoryList.map((sub, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.88rem", color: "var(--text)" }}>
+                    {sub.name}
+                  </span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent)" }} className="mono">
+                    {sub.percentage}%
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    {sub.category} ({sub.count} ta)
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }} className="mono">
+                    {formatSum(sub.total)}
+                  </span>
+                </div>
+                <div className="progress-bar-bg" style={{ height: 4, marginTop: 4 }}>
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${sub.percentage}%`,
+                      backgroundColor: "var(--accent)",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

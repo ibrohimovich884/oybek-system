@@ -80,30 +80,30 @@ export default function MoneyManager() {
         <div className="backup-toolbar">
           <button
             type="button"
-            className="btn btn--subtle"
+            className="btn btn--subtle backup-btn"
             onClick={downloadCSV}
             title="Excel (CSV) fayl sifatida yuklab olish"
           >
             <FileSpreadsheet size={15} />
-            <span>Excel (CSV)</span>
+            <span className="backup-btn__label">Excel</span>
           </button>
           <button
             type="button"
-            className="btn btn--subtle"
+            className="btn btn--subtle backup-btn"
             onClick={downloadBackup}
             title="JSON nusxa yuklab olish"
           >
             <Download size={15} />
-            <span>JSON zaxira</span>
+            <span className="backup-btn__label">Zaxira</span>
           </button>
           <button
             type="button"
-            className="btn btn--subtle"
+            className="btn btn--subtle backup-btn"
             onClick={() => fileInputRef.current?.click()}
             title="JSON zaxira faylidan tiklash"
           >
             <Upload size={15} />
-            <span>Tiklash</span>
+            <span className="backup-btn__label">Tiklash</span>
           </button>
           <input
             ref={fileInputRef}
@@ -138,7 +138,8 @@ export default function MoneyManager() {
           onClick={() => setActiveTab("form")}
         >
           <PlusCircle size={16} />
-          <span>Yangi amal kiritish</span>
+          <span className="tab-label-full">Yangi amal kiritish</span>
+          <span className="tab-label-short">Yangi amal</span>
         </button>
         <button
           type="button"
@@ -146,7 +147,8 @@ export default function MoneyManager() {
           onClick={() => setActiveTab("history")}
         >
           <ListOrdered size={16} />
-          <span>Amallar tarixi ({expenses.length})</span>
+          <span className="tab-label-full">Amallar tarixi ({expenses.length})</span>
+          <span className="tab-label-short">Tarix ({expenses.length})</span>
         </button>
         <button
           type="button"
@@ -154,7 +156,8 @@ export default function MoneyManager() {
           onClick={() => setActiveTab("analytics")}
         >
           <PieChart size={16} />
-          <span>Tahlil & Statistika</span>
+          <span className="tab-label-full">Tahlil & Statistika</span>
+          <span className="tab-label-short">Tahlil</span>
         </button>
       </div>
 

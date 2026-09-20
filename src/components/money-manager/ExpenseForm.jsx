@@ -9,6 +9,8 @@ import {
   CreditCard,
   Banknote,
   Sparkles,
+  Layers,
+  Tag,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import {
@@ -17,56 +19,84 @@ import {
   QUICK_TEMPLATES,
   WALLET_CONFIG,
 } from "../../constants/money.js";
-import { formatSum } from "../../utils/format.js";
+import { formatSum, toLocalDatetimeInput } from "../../utils/format.js";
 import CategoryIcon from "./CategoryIcon.jsx";
-
-function toLocalDatetimeInput(date) {
-  const d = date || new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const MM = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mm = pad(d.getMinutes());
-  return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
-}
 
 export default function ExpenseForm({ initialType = "expense", initialFrom = "karta", initialTo = "naqd" }) {
   const { addExpense, currentBalances } = useExpenses();
 
   const [type, setType] = useState(initialType); // "expense" | "income" | "transfer"
-  const [wallet, setWallet] = useState("karta");
+  const [paymentMethod, setPaymentMethod] = useState("naqd"); // "naqd" | "karta"
   const [fromWallet, setFromWallet] = useState(initialFrom);
   const [toWallet, setToWallet] = useState(initialTo);
-  const [category, setCategory] = useState("food");
+  const [category, setCategory] = useState("Qorin uchun");
+  const [subcategory, setSubcategory] = useState("Ichimlik");
+  const [customCategory, setCustomCategory] = useState("");
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customSubcategory, setCustomSubcategory] = useState("");
+  const [isCustomSubcategory, setIsCustomSubcategory] = useState(false);
   const [amount, setAmount] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState("");
   const [location, setLocation] = useState("");
   const [spentAt, setSpentAt] = useState(toLocalDatetimeInput(new Date()));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const amountId = useId();
+  const quantityId = useId();
   const reasonId = useId();
   const locationId = useId();
   const spentAtId = useId();
 
   const categories = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const currentCategoryObj = categories.find((c) => c.id === category);
 
   const handleTypeChange = (newType) => {
     setType(newType);
     if (newType === "income") {
-      setCategory("salary");
+      setCategory("Oylik maosh");
+      setSubcategory("Oylik");
     } else if (newType === "expense") {
-      setCategory("food");
+      setCategory("Qorin uchun");
+      setSubcategory("Ichimlik");
     }
+  };
+
+  const handleSwapTransfer = () => {
+    setFromWallet(toWallet);
+    setToWallet(fromWallet);
+  };
+
+  const addQuickAmount = (val) => {
+    setAmount((prev) => {
+      const current = Number(prev) || 0;
+      return String(current + val);
+    });
+  };
+
+  const handleCategorySelect = (catId) => {
+    setCategory(catId);
+    const catObj = categories.find((c) => c.id === catId);
+    if (catObj && catObj.subcategories?.length) {
+      setSubcategory(catObj.subcategories[0]);
+    }
+    setIsCustomCategory(false);
+    setIsCustomSubcategory(false);
   };
 
   const handleApplyTemplate = (tmpl) => {
     setType(tmpl.type);
     setAmount(String(tmpl.amount));
+    setQuantity(tmpl.quantity || 1);
     setCategory(tmpl.category);
-    setWallet(tmpl.wallet);
+    setSubcategory(tmpl.subcategory || (tmpl.category === "Oziq-ovqat" ? "Ichimlik" : "Ovqat"));
+    setIsCustomCategory(false);
+    setCustomCategory("");
+    setIsCustomSubcategory(false);
+    setCustomSubcategory("");
+    setPaymentMethod(tmpl.paymentMethod || tmpl.wallet || "naqd");
     setReason(tmpl.reason);
+    setLocation(tmpl.location || "");
     setSpentAt(toLocalDatetimeInput(new Date()));
   };
 
@@ -75,35 +105,50 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
     const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) return;
 
+    const numQuantity = Math.max(1, Number(quantity) || 1);
+    const resolvedCategory = isCustomCategory && customCategory.trim() ? customCategory.trim() : category;
+    const resolvedSubcategory = isCustomSubcategory && customSubcategory.trim() ? customSubcategory.trim() : subcategory;
+
     setIsSubmitting(true);
     try {
       if (type === "transfer") {
         await addExpense({
           type: "transfer",
           amount: numAmount,
+          quantity: 1,
           fromWallet,
           toWallet,
-          category: "transfer",
+          paymentMethod: fromWallet,
+          category: "O'tkazma",
+          subcategory: "O'tkazma",
           reason: reason || `${WALLET_CONFIG[fromWallet].label}dan ${WALLET_CONFIG[toWallet].label}ga o'tkazma`,
           location: location || "Bank / Bankomat",
-          spentAt: new Date(spentAt).toISOString(),
+          spentAt,
         });
       } else {
         await addExpense({
           type,
           amount: numAmount,
-          wallet,
-          category,
+          quantity: numQuantity,
+          paymentMethod,
+          wallet: paymentMethod,
+          category: resolvedCategory,
+          subcategory: resolvedSubcategory,
           reason,
           location,
-          spentAt: new Date(spentAt).toISOString(),
+          spentAt,
         });
       }
 
       // Tozalash
       setAmount("");
+      setQuantity(1);
       setReason("");
       setLocation("");
+      setCustomCategory("");
+      setIsCustomCategory(false);
+      setCustomSubcategory("");
+      setIsCustomSubcategory(false);
       setSpentAt(toLocalDatetimeInput(new Date()));
     } finally {
       setIsSubmitting(false);
@@ -128,14 +173,14 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
             >
               <span>{tmpl.label}</span>
               <span className="quick-chip__wallet">
-                {tmpl.wallet === "naqd" ? "Naqd" : "Karta"}
+                {(tmpl.paymentMethod || tmpl.wallet) === "naqd" ? "Naqd" : "Karta"}
               </span>
             </button>
           ))}
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="expense-form-custom">
+      <form onSubmit={handleSubmit} className={`expense-form-custom form--type-${type}`}>
         {/* Turi tanlash: Xarajat | Daromad | O'tkazma */}
         <div className="type-toggle-group">
           <button
@@ -164,61 +209,82 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
           </button>
         </div>
 
-        {/* Hamyon / Manba tanlash */}
+        {/* To'lov usuli / Hamyon tanlash yoki O'tkazma oqimi */}
         {type === "transfer" ? (
-          <div className="transfer-selectors">
-            <div className="expense-form__field">
-              <label className="expense-form__label">Qayerdan (Chiqish)</label>
-              <div className="wallet-select-group">
+          <div className="transfer-flow-card">
+            <div className="transfer-step">
+              <span className="transfer-step__label">Qayerdan chiqadi:</span>
+              <div className="transfer-step__selector">
                 <button
                   type="button"
-                  className={`wallet-choice-btn ${fromWallet === "karta" ? "is-selected" : ""}`}
+                  className={`transfer-wallet-btn ${fromWallet === "karta" ? "is-active is-karta" : ""}`}
                   onClick={() => {
                     setFromWallet("karta");
                     setToWallet("naqd");
                   }}
                 >
-                  <CreditCard size={16} />
-                  <span>Karta ({formatSum(currentBalances.karta)})</span>
+                  <CreditCard size={18} />
+                  <div className="transfer-wallet-btn__info">
+                    <span className="transfer-wallet-btn__name">Plastik karta</span>
+                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.karta)}</span>
+                  </div>
                 </button>
                 <button
                   type="button"
-                  className={`wallet-choice-btn ${fromWallet === "naqd" ? "is-selected" : ""}`}
+                  className={`transfer-wallet-btn ${fromWallet === "naqd" ? "is-active is-naqd" : ""}`}
                   onClick={() => {
                     setFromWallet("naqd");
                     setToWallet("karta");
                   }}
                 >
-                  <Banknote size={16} />
-                  <span>Naqd ({formatSum(currentBalances.naqd)})</span>
+                  <Banknote size={18} />
+                  <div className="transfer-wallet-btn__info">
+                    <span className="transfer-wallet-btn__name">Naqd hamyon</span>
+                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.naqd)}</span>
+                  </div>
                 </button>
               </div>
             </div>
 
-            <div className="expense-form__field">
-              <label className="expense-form__label">Qayerga (Qabul qiluvchi)</label>
-              <div className="wallet-select-group">
+            <button
+              type="button"
+              className="transfer-swap-circle"
+              onClick={handleSwapTransfer}
+              title="Yo'nalishni almashtirish"
+            >
+              <ArrowRightLeft size={18} />
+            </button>
+
+            <div className="transfer-step">
+              <span className="transfer-step__label">Qayerga tushadi:</span>
+              <div className="transfer-step__selector">
                 <button
                   type="button"
-                  className={`wallet-choice-btn ${toWallet === "naqd" ? "is-selected" : ""}`}
+                  className={`transfer-wallet-btn ${toWallet === "naqd" ? "is-active is-naqd" : ""}`}
                   onClick={() => {
                     setToWallet("naqd");
                     setFromWallet("karta");
                   }}
                 >
-                  <Banknote size={16} />
-                  <span>Naqd pulga</span>
+                  <Banknote size={18} />
+                  <div className="transfer-wallet-btn__info">
+                    <span className="transfer-wallet-btn__name">Naqd hamyon</span>
+                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.naqd)}</span>
+                  </div>
                 </button>
                 <button
                   type="button"
-                  className={`wallet-choice-btn ${toWallet === "karta" ? "is-selected" : ""}`}
+                  className={`transfer-wallet-btn ${toWallet === "karta" ? "is-active is-karta" : ""}`}
                   onClick={() => {
                     setToWallet("karta");
                     setFromWallet("naqd");
                   }}
                 >
-                  <CreditCard size={16} />
-                  <span>Plastik kartaga</span>
+                  <CreditCard size={18} />
+                  <div className="transfer-wallet-btn__info">
+                    <span className="transfer-wallet-btn__name">Plastik karta</span>
+                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.karta)}</span>
+                  </div>
                 </button>
               </div>
             </div>
@@ -226,29 +292,29 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
         ) : (
           <div className="wallet-picker-row">
             <label className="expense-form__label">
-              {type === "expense" ? "Qaysi hisobdan to'landi?" : "Qaysi hisobga tushdi?"}
+              {type === "income" ? "Qaysi hisobga tushdi?" : "Qaysi hisobdan to'landi?"}
             </label>
             <div className="wallet-select-group">
               <button
                 type="button"
-                className={`wallet-choice-btn ${wallet === "karta" ? "is-selected is-karta" : ""}`}
-                onClick={() => setWallet("karta")}
-              >
-                <CreditCard size={16} />
-                <span>Plastik karta</span>
-                <span className="wallet-choice-btn__bal mono">
-                  ({formatSum(currentBalances.karta)})
-                </span>
-              </button>
-              <button
-                type="button"
-                className={`wallet-choice-btn ${wallet === "naqd" ? "is-selected is-naqd" : ""}`}
-                onClick={() => setWallet("naqd")}
+                className={`wallet-choice-btn ${paymentMethod === "naqd" ? "is-selected is-naqd" : ""}`}
+                onClick={() => setPaymentMethod("naqd")}
               >
                 <Banknote size={16} />
                 <span>Naqd pul</span>
                 <span className="wallet-choice-btn__bal mono">
                   ({formatSum(currentBalances.naqd)})
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`wallet-choice-btn ${paymentMethod === "karta" ? "is-selected is-karta" : ""}`}
+                onClick={() => setPaymentMethod("karta")}
+              >
+                <CreditCard size={16} />
+                <span>Plastik karta</span>
+                <span className="wallet-choice-btn__bal mono">
+                  ({formatSum(currentBalances.karta)})
                 </span>
               </button>
             </div>
@@ -258,46 +324,148 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
         {/* Kategoriyalar (O'tkazma bo'lmasa) */}
         {type !== "transfer" && (
           <div className="category-picker">
-            <label className="expense-form__label">Kategoriya</label>
-            <div className="category-pills">
-              {categories.map((cat) => {
-                const isSelected = category === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`category-pill ${isSelected ? "is-active" : ""}`}
-                    onClick={() => setCategory(cat.id)}
-                    style={
-                      isSelected
-                        ? { borderColor: cat.color, backgroundColor: `${cat.color}22` }
-                        : {}
-                    }
-                  >
-                    <CategoryIcon iconName={cat.icon} color={isSelected ? cat.color : "#a39c8e"} size={15} />
-                    <span>{cat.label}</span>
-                  </button>
-                );
-              })}
+            <div className="category-picker__header">
+              <label className="expense-form__label">
+                {type === "income" ? "Daromad toifasi (kategoriya)" : "Xarajat toifasi (kategoriya)"}
+              </label>
+              <button
+                type="button"
+                className="btn btn--subtle btn-toggle-custom"
+                onClick={() => setIsCustomCategory(!isCustomCategory)}
+              >
+                <Tag size={12} />
+                <span>{isCustomCategory ? "Ro'yxatdan tanlash" : "+ O'z toifam"}</span>
+              </button>
             </div>
+
+            {isCustomCategory ? (
+              <div className="custom-category-box">
+                <input
+                  type="text"
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder={type === "income" ? "Daromad toifasi nomini kiriting..." : "Toifa nomini kiriting (masalan: Oziq-ovqat, Ta'lim...)"}
+                  className="expense-form__input"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div className="category-pills">
+                {categories.map((cat) => {
+                  const isSelected = category === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className={`category-pill ${isSelected ? "is-active" : ""}`}
+                      onClick={() => handleCategorySelect(cat.id)}
+                      data-cat={cat.id}
+                    >
+                      {cat.emoji ? (
+                        <span className="category-pill__emoji">{cat.emoji}</span>
+                      ) : (
+                        <CategoryIcon iconName={cat.icon} color={isSelected ? "var(--text)" : "var(--text-muted)"} size={15} />
+                      )}
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Kichik kategoriya (subcategory) - Faqat xarajat uchun */}
+            {type === "expense" && currentCategoryObj?.subcategories?.length > 0 && (
+              <div className="subcategory-section">
+                <div className="subcategory-section__header">
+                  <label className="expense-form__label subcategory-label">
+                    <Tag size={12} />
+                    <span>Kichik toifa (aniq nima):</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn--subtle btn-toggle-custom"
+                    onClick={() => setIsCustomSubcategory(!isCustomSubcategory)}
+                  >
+                    <span>{isCustomSubcategory ? "Ro'yxatdan tanlash" : "+ Boshqa"}</span>
+                  </button>
+                </div>
+
+                {isCustomSubcategory ? (
+                  <input
+                    type="text"
+                    value={customSubcategory}
+                    onChange={(e) => setCustomSubcategory(e.target.value)}
+                    placeholder="Aniq nima olinganini yozing..."
+                    className="expense-form__input"
+                  />
+                ) : (
+                  <div className="subcategory-chips">
+                    {currentCategoryObj.subcategories.map((sub) => {
+                      const isSubSelected = subcategory === sub;
+                      return (
+                        <button
+                          key={sub}
+                          type="button"
+                          className={`subcategory-chip ${isSubSelected ? "is-active" : ""}`}
+                          onClick={() => setSubcategory(sub)}
+                        >
+                          <span>{sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Summa va Izoh */}
+        {/* Tezkor summa qo'shish qatori */}
+        <div className="quick-amount-row">
+          <span className="quick-amount-label">Tezkor summa:</span>
+          <div className="quick-amount-chips">
+            {(type === "income"
+              ? [50000, 100000, 500000, 1000000, 2000000]
+              : type === "transfer"
+              ? [10000, 50000, 100000, 200000, 500000]
+              : [5000, 10000, 20000, 50000, 100000]
+            ).map((val) => (
+              <button
+                key={val}
+                type="button"
+                className="quick-amount-chip mono"
+                onClick={() => addQuickAmount(val)}
+              >
+                +{formatSum(val).replace(" so'm", "")}
+              </button>
+            ))}
+            {type === "transfer" && currentBalances[fromWallet] > 0 && (
+              <button
+                type="button"
+                className="quick-amount-chip quick-amount-chip--all mono"
+                onClick={() => setAmount(String(currentBalances[fromWallet]))}
+              >
+                Barchasi ({formatSum(currentBalances[fromWallet]).replace(" so'm", "")})
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Summa, Soni va Izoh */}
         <div className="form-fields-grid">
           <div className="expense-form__field">
             <label htmlFor={amountId} className="expense-form__label">
-              Miqdor (so'm) <span className="field-required">*</span>
+              Miqdor (amount) <span className="field-required">*</span>
             </label>
             <div className="input-with-preview">
               <input
                 id={amountId}
                 type="number"
                 min="1"
-                step="500"
+                step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Masalan: 35000"
+                placeholder="Masalan: 10000"
                 className="expense-form__input mono expense-form__input--amount"
                 required
               />
@@ -308,9 +476,26 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
           </div>
 
           <div className="expense-form__field">
+            <label htmlFor={quantityId} className="expense-form__label">
+              <Layers size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+              Soni (quantity)
+            </label>
+            <input
+              id={quantityId}
+              type="number"
+              min="1"
+              step="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="1"
+              className="expense-form__input mono"
+            />
+          </div>
+
+          <div className="expense-form__field">
             <label htmlFor={reasonId} className="expense-form__label">
               <FileText size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              {type === "transfer" ? "O'tkazma maqsadi" : type === "income" ? "Daromad manbai" : "Nima xarid qilindi / Sabab"}
+              {type === "transfer" ? "O'tkazma maqsadi" : type === "income" ? "Daromad manbai" : "Nima olindi / Sabab (reason)"}
             </label>
             <input
               id={reasonId}
@@ -322,7 +507,7 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
                   ? "Bankomatdan naqd olish"
                   : type === "income"
                   ? "Oylik avans, keshbek yoki sovg'a"
-                  : "Tushlik, kantselyariya, benzin..."
+                  : "Flesh, Kola, Tushlik..."
               }
               className="expense-form__input"
             />
@@ -331,14 +516,14 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
           <div className="expense-form__field">
             <label htmlFor={locationId} className="expense-form__label">
               <MapPin size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Joy / Muassasa (ixtiyoriy)
+              Joy / Muassasa (location)
             </label>
             <input
               id={locationId}
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Korzinka, Rayhon, Payme..."
+              placeholder="Gulbahordagi Havas, Korzinka..."
               className="expense-form__input"
             />
           </div>
@@ -346,7 +531,7 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
           <div className="expense-form__field">
             <label htmlFor={spentAtId} className="expense-form__label">
               <Calendar size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Sana va vaqt
+              Sarflangan vaqt (spentAt - qo'lda kiritiladi)
             </label>
             <input
               id={spentAtId}
@@ -366,6 +551,7 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
               className="btn btn--ghost"
               onClick={() => {
                 setAmount("");
+                setQuantity(1);
                 setReason("");
                 setLocation("");
               }}
@@ -400,3 +586,4 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
     </div>
   );
 }
+

@@ -16,11 +16,17 @@ import {
   Coins,
   ArrowRightLeft,
   HelpCircle,
+  Dumbbell,
+  Shirt,
+  Smartphone,
+  Users,
+  Bus,
 } from "lucide-react";
 
 const ICON_MAP = {
   Utensils,
   Car,
+  Bus,
   Coffee,
   ShoppingBag,
   Home,
@@ -31,10 +37,14 @@ const ICON_MAP = {
   Briefcase,
   Sparkles,
   Laptop,
+  Smartphone,
   Gift,
   TrendingUp,
   Coins,
   ArrowRightLeft,
+  Dumbbell,
+  Shirt,
+  Users,
 };
 
 export default function CategoryIcon({ iconName, color = "#a39c8e", size = 16, className = "" }) {

@@ -50,7 +50,7 @@ export default function InitialBalanceModal({ onClose }) {
               id="initial-naqd"
               type="number"
               min="0"
-              step="1000"
+              step="any"
               value={naqd}
               onChange={(e) => setNaqd(e.target.value)}
               className="expense-form__input mono"
@@ -67,7 +67,7 @@ export default function InitialBalanceModal({ onClose }) {
               id="initial-karta"
               type="number"
               min="0"
-              step="1000"
+              step="any"
               value={karta}
               onChange={(e) => setKarta(e.target.value)}
               className="expense-form__input mono"

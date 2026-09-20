@@ -28,14 +28,17 @@ export default function ExpenseList({ expenses }) {
         return false;
       }
 
-      // Wallet filtri
+      // Wallet / paymentMethod filtri
       if (walletFilter !== "all") {
         if (item.type === "transfer") {
           if (item.fromWallet !== walletFilter && item.toWallet !== walletFilter) {
             return false;
           }
-        } else if (item.wallet !== walletFilter) {
-          return false;
+        } else {
+          const method = item.paymentMethod || item.wallet || "naqd";
+          if (method !== walletFilter) {
+            return false;
+          }
         }
       }
 
@@ -47,13 +50,14 @@ export default function ExpenseList({ expenses }) {
         if (dateFilter === "month" && itemDate < startOfMonth) return false;
       }
 
-      // Qidiruv (Sabab yoki Joy)
+      // Qidiruv (Sabab, Joy, Kategoriya yoki Kichik kategoriya)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchesReason = (item.reason || "").toLowerCase().includes(query);
         const matchesLocation = (item.location || "").toLowerCase().includes(query);
         const matchesCategory = (item.category || "").toLowerCase().includes(query);
-        if (!matchesReason && !matchesLocation && !matchesCategory) {
+        const matchesSubcategory = (item.subcategory || "").toLowerCase().includes(query);
+        if (!matchesReason && !matchesLocation && !matchesCategory && !matchesSubcategory) {
           return false;
         }
       }
@@ -95,7 +99,7 @@ export default function ExpenseList({ expenses }) {
           <Search size={15} className="search-box__icon" />
           <input
             type="text"
-            placeholder="Sabab, joy yoki kategoriya qidirish..."
+            placeholder="Sabab, joy, kategoriya yoki kichik kategoriya qidirish..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-box__input"

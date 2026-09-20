@@ -6,39 +6,212 @@
 */
 
 :root {
-  /* Ranglar */
-  --bg: #1c1b1a;
-  --surface: #242321;
-  --surface-2: #2c2b28;
-  --border: #3a3833;
-  --text: #f2efe8;
-  --text-muted: #a39c8e;
-  --accent: #5c9080;
-  --accent-soft: rgba(92, 144, 128, 0.14);
-  --expense: #c17a6e;
-  --expense-soft: rgba(193, 122, 110, 0.14);
+  /* =========================================================
+     RANGLAR VA DIZAYN TOKENLARI (Hamma ranglar root orqali)
+     Kelajakda Dark / Light rejimga to'liq moslashuvchan
+     ========================================================= */
+
+  /* Asosiy fon va panellar (Dark rejim standart) */
+  --bg: #161514;
+  --bg-secondary: #1c1b19;
+  --bg-translucent: rgba(22, 21, 20, 0.88);
+  
+  --surface: #22211e;
+  --surface-2: #2a2925;
+  --surface-3: #32302b;
+  --surface-hover: #37352f;
+  --surface-active: #3f3c36;
+  
+  --border: #383630;
+  --border-subtle: #2b2a25;
+  --border-focus: #4eb896;
+  
+  /* Matn ranglari */
+  --text: #f5f3ec;
+  --text-muted: #a7a195;
+  --text-dim: #797368;
+  --text-inverse: #0b1713;
+
+  /* Asosiy aksent (Yashil/Ledger) */
+  --accent: #4eb896;
+  --accent-hover: #5ecba7;
+  --accent-soft: rgba(78, 184, 150, 0.14);
+  --accent-border: rgba(78, 184, 150, 0.35);
+
+  /* Xarajat (Chiqim) - Qizil/Marjon */
+  --expense: #f07167;
+  --expense-hover: #fa8279;
+  --expense-soft: rgba(240, 113, 103, 0.14);
+  --expense-border: rgba(240, 113, 103, 0.35);
+
+  /* Daromad (Kirim) - Yorqin zumrad yashil */
+  --income: #34d399;
+  --income-hover: #4ade80;
+  --income-soft: rgba(52, 211, 153, 0.14);
+  --income-border: rgba(52, 211, 153, 0.35);
+
+  /* O'tkazma - Binafsha / Indigo */
+  --transfer: #a78bfa;
+  --transfer-hover: #bfa8ff;
+  --transfer-soft: rgba(167, 139, 250, 0.14);
+  --transfer-border: rgba(167, 139, 250, 0.35);
+
+  /* Hamyonlar: Karta (Moviy) va Naqd (Tilla/Sariq) */
+  --karta: #38bdf8;
+  --karta-hover: #60a5fa;
+  --karta-soft: rgba(56, 189, 248, 0.14);
+  --karta-border: rgba(56, 189, 248, 0.35);
+
+  --naqd: #fbbf24;
+  --naqd-hover: #f59e0b;
+  --naqd-soft: rgba(251, 191, 36, 0.14);
+  --naqd-border: rgba(251, 191, 36, 0.35);
+
+  /* Xavf / O'chirish */
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-soft: rgba(239, 68, 68, 0.14);
+  --danger-border: rgba(239, 68, 68, 0.35);
+
+  /* Ogohlantirish / Tarix */
+  --warning: #f59e0b;
+  --warning-hover: #d97706;
+  --warning-soft: rgba(245, 158, 11, 0.14);
+  --warning-border: rgba(245, 158, 11, 0.35);
+
+  /* Soyalar */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 20px 45px rgba(0, 0, 0, 0.6);
+
+  /* Inputlar uchun o'zgaruvchilar va animatsiyalar */
+  --input-bg: var(--surface-2);
+  --input-bg-focus: var(--surface);
+  --input-border: var(--border);
+  --input-border-hover: #4a4841;
+  --input-border-focus: var(--accent);
+  --input-ring: rgba(78, 184, 150, 0.24);
+  --input-ring-offset: 0 0 0 3.5px var(--input-ring);
+  --input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  --transition-input: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Tipografiya */
-  --font-ui: "Manrope", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-ui: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --fs-xs: 0.78rem;
-  --fs-sm: 0.88rem;
+  --fs-2xs: 0.72rem;
+  --fs-xs: 0.8rem;
+  --fs-sm: 0.9rem;
   --fs-base: 1rem;
-  --fs-lg: 1.25rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.3rem;
   --fs-xl: 1.75rem;
+  --fs-2xl: 2.1rem;
 
   /* Bo'shliqlar */
+  --sp-05: 2px;
   --sp-1: 4px;
+  --sp-15: 6px;
   --sp-2: 8px;
+  --sp-25: 10px;
   --sp-3: 12px;
   --sp-4: 16px;
   --sp-5: 24px;
   --sp-6: 32px;
   --sp-7: 48px;
 
-  --radius: 6px;
-  --sidebar-w: 232px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+  
+  --sidebar-w: 240px;
+  --header-h: 60px;
+  --bottom-nav-h: 64px;
+  
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Kelajakda Dark / Light rejim tanlash uchun tayyor tokenlar */
+[data-theme="light"] {
+  --bg: #f8f6f0;
+  --bg-secondary: #eeeae0;
+  --bg-translucent: rgba(248, 246, 240, 0.92);
+
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --surface-3: #e8e3d8;
+  --surface-hover: #dfd9cb;
+  --surface-active: #d6cfbf;
+
+  --border: #dfd9cb;
+  --border-subtle: #eae4d7;
+  --border-focus: #288062;
+
+  --text: #1d1c1a;
+  --text-muted: #5e5950;
+  --text-dim: #8c8477;
+  --text-inverse: #ffffff;
+
+  --accent: #258164;
+  --accent-hover: #1e6951;
+  --accent-soft: rgba(37, 129, 100, 0.12);
+  --accent-border: rgba(37, 129, 100, 0.35);
+
+  --expense: #d6473c;
+  --expense-hover: #b8362c;
+  --expense-soft: rgba(214, 71, 60, 0.12);
+  --expense-border: rgba(214, 71, 60, 0.35);
+
+  --income: #15803d;
+  --income-hover: #166534;
+  --income-soft: rgba(21, 128, 61, 0.12);
+  --income-border: rgba(21, 128, 61, 0.35);
+
+  --transfer: #7c3aed;
+  --transfer-hover: #6d28d9;
+  --transfer-soft: rgba(124, 58, 237, 0.12);
+  --transfer-border: rgba(124, 58, 237, 0.35);
+
+  --karta: #0284c7;
+  --karta-hover: #0369a1;
+  --karta-soft: rgba(2, 132, 199, 0.12);
+  --karta-border: rgba(2, 132, 199, 0.35);
+
+  --naqd: #d97706;
+  --naqd-hover: #b45309;
+  --naqd-soft: rgba(217, 119, 6, 0.12);
+  --naqd-border: rgba(217, 119, 6, 0.35);
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+  --danger-border: rgba(220, 38, 38, 0.35);
+
+  --warning: #d97706;
+  --warning-hover: #b45309;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --warning-border: rgba(217, 119, 6, 0.35);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 16px 36px rgba(0, 0, 0, 0.18);
+
+  /* Inputlar uchun o'zgaruvchilar va animatsiyalar (Light) */
+  --input-bg: var(--surface-2);
+  --input-bg-focus: #ffffff;
+  --input-border: var(--border);
+  --input-border-hover: #c4bdad;
+  --input-border-focus: var(--accent);
+  --input-ring: rgba(5, 150, 105, 0.18);
+  --input-ring-offset: 0 0 0 3.5px var(--input-ring);
+  --input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  --transition-input: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {

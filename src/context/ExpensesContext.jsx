@@ -47,24 +47,25 @@ export function ExpensesProvider({ children }) {
     for (const item of expenses) {
       const amt = Number(item.amount || 0);
       const type = item.type || "expense";
+      const method = item.paymentMethod || item.wallet || "naqd";
 
       if (type === "expense") {
         totalExpense += amt;
-        if (item.wallet === "naqd") {
+        if (method === "naqd") {
           naqd -= amt;
         } else {
           karta -= amt;
         }
       } else if (type === "income") {
         totalIncome += amt;
-        if (item.wallet === "naqd") {
+        if (method === "naqd") {
           naqd += amt;
         } else {
           karta += amt;
         }
       } else if (type === "transfer") {
-        const from = item.fromWallet || "karta";
-        const to = item.toWallet || "naqd";
+        const from = item.fromWallet || (method === "naqd" ? "naqd" : "karta");
+        const to = item.toWallet || (from === "karta" ? "naqd" : "karta");
         if (from === "naqd") naqd -= amt;
         if (from === "karta") karta -= amt;
         if (to === "naqd") naqd += amt;
@@ -131,13 +132,18 @@ export function ExpensesProvider({ children }) {
     if (!expenses.length) return;
 
     const headers = [
-      "Sana",
+      "ID",
+      "Sana (spentAt)",
       "Turi",
-      "Hamyon",
+      "To'lov usuli (paymentMethod)",
       "Kategoriya",
-      "Summa (so'm)",
-      "Sabab/Izoh",
-      "Joy",
+      "Kichik kategoriya (subcategory)",
+      "Miqdor (so'm)",
+      "Soni (quantity)",
+      "Sabab/Nima olindi (reason)",
+      "Joy (location)",
+      "Yaratilgan vaqti (createdAt)",
+      "O'zgarishlar soni",
     ];
 
     const categoryMap = {};
@@ -153,24 +159,31 @@ export function ExpensesProvider({ children }) {
           ? "O'tkazma"
           : "Xarajat";
 
+      const method = item.paymentMethod || item.wallet || "naqd";
       const walletLabel =
         item.type === "transfer"
           ? `${WALLET_CONFIG[item.fromWallet]?.label || "Karta"} -> ${WALLET_CONFIG[item.toWallet]?.label || "Naqd"}`
-          : WALLET_CONFIG[item.wallet]?.label || item.wallet;
+          : WALLET_CONFIG[method]?.label || method;
 
       const catLabel = categoryMap[item.category] || item.category || "—";
-      const dateStr = item.spentAt ? new Date(item.spentAt).toLocaleString("uz-UZ") : "—";
+      const subcatLabel = item.subcategory || "—";
       const reason = (item.reason || "").replace(/"/g, '""');
       const loc = (item.location || "").replace(/"/g, '""');
+      const editsCount = Array.isArray(item.edits) ? item.edits.length : 0;
 
       return [
-        `"${dateStr}"`,
+        `"${item.id}"`,
+        `"${item.spentAt || ""}"`,
         `"${typeLabel}"`,
         `"${walletLabel}"`,
         `"${catLabel}"`,
+        `"${subcatLabel}"`,
         item.amount,
+        item.quantity || 1,
         `"${reason}"`,
         `"${loc}"`,
+        `"${item.createdAt || ""}"`,
+        editsCount,
       ].join(",");
     });
 

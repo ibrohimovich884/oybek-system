@@ -17,6 +17,13 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
     setToWallet(fromWallet);
   };
 
+  const addQuickAmount = (val) => {
+    setAmount((prev) => {
+      const current = Number(prev) || 0;
+      return String(current + val);
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const numAmount = Number(amount);
@@ -34,7 +41,8 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
         amount: numAmount,
         fromWallet,
         toWallet,
-        category: "transfer",
+        category: "O'tkazma",
+        subcategory: "O'tkazma",
         reason: reason.trim() || defaultReason,
         location: "Bankomat / Bank",
         spentAt: new Date().toISOString(),
@@ -60,12 +68,12 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-form">
+        <form onSubmit={handleSubmit} className="modal-form form--type-transfer">
           <div className="transfer-flow">
-            <div className="transfer-box">
+            <div className={`transfer-box ${fromWallet === "karta" ? "transfer-box--karta" : "transfer-box--naqd"}`}>
               <span className="transfer-box__tag">Qayerdan:</span>
               <div className="transfer-box__card">
-                {fromWallet === "karta" ? <CreditCard size={18} /> : <Banknote size={18} />}
+                {fromWallet === "karta" ? <CreditCard size={20} /> : <Banknote size={20} />}
                 <strong>{WALLET_CONFIG[fromWallet].label}</strong>
               </div>
               <span className="transfer-box__bal mono">
@@ -82,10 +90,10 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
               <ArrowRightLeft size={18} />
             </button>
 
-            <div className="transfer-box">
+            <div className={`transfer-box ${toWallet === "karta" ? "transfer-box--karta" : "transfer-box--naqd"}`}>
               <span className="transfer-box__tag">Qayerga:</span>
               <div className="transfer-box__card">
-                {toWallet === "karta" ? <CreditCard size={18} /> : <Banknote size={18} />}
+                {toWallet === "karta" ? <CreditCard size={20} /> : <Banknote size={20} />}
                 <strong>{WALLET_CONFIG[toWallet].label}</strong>
               </div>
               <span className="transfer-box__bal mono">
@@ -101,7 +109,7 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
             <input
               type="number"
               min="1"
-              step="1000"
+              step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Masalan: 50000"
@@ -109,6 +117,29 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
               required
             />
             {amount && <span className="amount-preview mono">{formatSum(Number(amount))}</span>}
+
+            {/* Tezkor summa tugmalari */}
+            <div className="quick-amount-chips" style={{ marginTop: 8 }}>
+              {[10000, 50000, 100000, 200000, 500000].map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  className="quick-amount-chip mono"
+                  onClick={() => addQuickAmount(val)}
+                >
+                  +{formatSum(val).replace(" so'm", "")}
+                </button>
+              ))}
+              {currentBalances[fromWallet] > 0 && (
+                <button
+                  type="button"
+                  className="quick-amount-chip quick-amount-chip--all mono"
+                  onClick={() => setAmount(String(currentBalances[fromWallet]))}
+                >
+                  Barchasi ({formatSum(currentBalances[fromWallet]).replace(" so'm", "")})
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="expense-form__field">
