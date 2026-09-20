@@ -1,56 +1,72 @@
 /**
  * Backend API Konfiguratsiyasi (OYBEK SysteM)
  * 
- * Ushbu faylda faqat backend portini o'zgartirish kifoya.
- * Frontend hech qachon xatolik bilan qulab tushmaydi:
- * - Agar backend ishlab turgan bo'lsa: Real API orqali ma'lumot almashadi.
- * - Agar backend hali ishga tushmagan bo'lsa: Avtomatik ravishda xatosiz lokal (offline)
- *   rejimda ishlaydi va backend yoqilishi bilan unga ulanadi.
+ * Asosiy backend server: https://oybek-system-backend-1.onrender.com
+ * Agar o'zgartirish kerak bo'lsa, .env (VITE_BACKEND_URL / VITE_BACKEND_PORT)
+ * yoki localStorage orqali o'zgartirish mumkin.
  */
 
-// Birlamchi backend porti (shu yerdan yoki .env orqali o'zgartirishingiz mumkin)
+export const DEFAULT_BACKEND_URL = "https://oybek-system-backend-1.onrender.com";
 export const DEFAULT_BACKEND_PORT = 5000;
 
+const STORAGE_URL_KEY = "oybek_system:backend_url";
 const STORAGE_PORT_KEY = "oybek_system:backend_port";
-
-/**
- * Hozirgi sozlangan backend portini olish
- */
-export function getBackendPort() {
-  // 1. Agar foydalanuvchi UI orqali kiritgan bo'lsa
-  const savedPort = typeof window !== "undefined" ? localStorage.getItem(STORAGE_PORT_KEY) : null;
-  if (savedPort && !isNaN(Number(savedPort))) {
-    return Number(savedPort);
-  }
-
-  // 2. Agar .env orqali VITE_BACKEND_PORT berilgan bo'lsa
-  const envPort = import.meta.env?.VITE_BACKEND_PORT;
-  if (envPort && !isNaN(Number(envPort))) {
-    return Number(envPort);
-  }
-
-  // 3. Birlamchi port
-  return DEFAULT_BACKEND_PORT;
-}
-
-/**
- * Backend portini yangilash (UI yoki kod orqali)
- */
-export function setBackendPort(port) {
-  if (!port || isNaN(Number(port))) return;
-  localStorage.setItem(STORAGE_PORT_KEY, String(port));
-}
 
 /**
  * Backendning to'liq asosiy manzilini olish
  */
 export function getBackendBaseUrl() {
-  const customUrl = import.meta.env?.VITE_BACKEND_URL;
-  if (customUrl && typeof customUrl === "string" && customUrl.trim()) {
-    return customUrl.trim().replace(/\/+$/, "");
+  // 1. Agar foydalanuvchi maxsus URL saqlagan bo'lsa
+  const savedUrl = typeof window !== "undefined" ? localStorage.getItem(STORAGE_URL_KEY) : null;
+  if (savedUrl && typeof savedUrl === "string" && savedUrl.trim()) {
+    return savedUrl.trim().replace(/\/+$/, "");
   }
-  const port = getBackendPort();
-  return `http://localhost:${port}`;
+
+  // 2. Agar .env orqali VITE_BACKEND_URL berilgan bo'lsa
+  const envUrl = import.meta.env?.VITE_BACKEND_URL;
+  if (envUrl && typeof envUrl === "string" && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+
+  // 3. Agar .env orqali port berilgan bo'lsa
+  const envPort = import.meta.env?.VITE_BACKEND_PORT;
+  if (envPort && !isNaN(Number(envPort))) {
+    return `http://localhost:${envPort}`;
+  }
+
+  // 4. Standart production backend
+  return DEFAULT_BACKEND_URL;
+}
+
+/**
+ * Backend manzilini yangilash
+ */
+export function setBackendBaseUrl(url) {
+  if (!url || typeof url !== "string") return;
+  localStorage.setItem(STORAGE_URL_KEY, url.trim().replace(/\/+$/, ""));
+}
+
+/**
+ * Backend portini olish (localhost uchun)
+ */
+export function getBackendPort() {
+  const savedPort = typeof window !== "undefined" ? localStorage.getItem(STORAGE_PORT_KEY) : null;
+  if (savedPort && !isNaN(Number(savedPort))) {
+    return Number(savedPort);
+  }
+  const envPort = import.meta.env?.VITE_BACKEND_PORT;
+  if (envPort && !isNaN(Number(envPort))) {
+    return Number(envPort);
+  }
+  return DEFAULT_BACKEND_PORT;
+}
+
+/**
+ * Backend portini yangilash
+ */
+export function setBackendPort(port) {
+  if (!port || isNaN(Number(port))) return;
+  localStorage.setItem(STORAGE_PORT_KEY, String(port));
 }
 
 /**
@@ -62,6 +78,9 @@ export const API_ENDPOINTS = {
   EXPENSE_DETAIL: (id) => `/api/expenses/${encodeURIComponent(id)}`,
   WALLETS: "/api/wallets",
   BACKUP: "/api/backup",
+  EXERCISES: "/api/exercises",
+  EXERCISE_LOGS: "/api/exercises/logs",
 };
 
-export const API_TIMEOUT_MS = 3000;
+export const API_TIMEOUT_MS = 6000;
+

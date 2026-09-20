@@ -15,6 +15,7 @@ import {
   API_ENDPOINTS,
   getBackendPort,
   setBackendPort as saveBackendPort,
+  setBackendBaseUrl as saveBackendBaseUrl,
 } from "../config/apiConfig.js";
 
 const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
@@ -109,32 +110,7 @@ function readLocalExpenses() {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(STORAGE_EXPENSES_KEY);
   if (!raw) {
-    const initialSeed = [
-      {
-        id: "b3f1a2c4-1234-4a1b-9d3e-8f7a6c5d4e3f",
-        amount: 10000,
-        category: "Qorin uchun",
-        subcategory: "Ichimlik",
-        reason: "Flesh",
-        location: "Gulbahordagi Havas",
-        paymentMethod: "naqd",
-        quantity: 1,
-        spentAt: "2026-09-20T13:40:00+05:00",
-        createdAt: "2026-09-20T13:52:11+05:00",
-        edits: [
-          {
-            field: "reason",
-            from: "Flesh",
-            to: "Kola",
-            editedAt: "2026-09-20T18:10:00+05:00",
-          },
-        ],
-        type: "expense",
-        wallet: "naqd",
-      },
-    ];
-    writeLocalExpenses(initialSeed);
-    return initialSeed.map(normalizeExpense);
+    return [];
   }
   try {
     const list = JSON.parse(raw);
@@ -370,5 +346,10 @@ export async function checkBackendConnection() {
 
 export function updateBackendPort(port) {
   saveBackendPort(port);
+  return apiClient.checkHealth();
+}
+
+export function updateBackendUrl(url) {
+  saveBackendBaseUrl(url);
   return apiClient.checkHealth();
 }

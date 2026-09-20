@@ -91,7 +91,7 @@ export default defineConfig({
     allowedHosts: "all",
     proxy: {
       "/api": {
-        target: process.env.VITE_BACKEND_URL || `http://127.0.0.1:${process.env.VITE_BACKEND_PORT || 5000}`,
+        target: process.env.VITE_BACKEND_URL || (process.env.VITE_BACKEND_PORT ? `http://127.0.0.1:${process.env.VITE_BACKEND_PORT}` : "https://oybek-system-backend-1.onrender.com"),
         changeOrigin: true,
         secure: false,
       },

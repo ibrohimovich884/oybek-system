@@ -1,14 +1,6 @@
-// services/exerciseService.js
-import * as mockService from './mock/mockExerciseService';
-// import * as apiService from './api/apiExerciseService';  // tayyor bo'lganda ochiladi
+/**
+ * Exercise Service (OYBEK SysteM)
+ * To'g'ridan-to'g'ri backend API bilan ishlaydi.
+ */
 
-const service = mockService; // <-- backendga o'tishda faqat shu qatorni almashtirasan: apiService
-
-export const getExercises = service.getExercises;
-export const getLogs = service.getLogs;
-export const logExercise = service.logExercise;
-export const addExercise = service.addExercise;
-
-// Qo'shimcha yordamchi funksiyalar (ixtiyoriy)
-export const deleteExercise = service.deleteExercise;
-export const resetToInitialData = service.resetToInitialData;
+export * from './api/apiExerciseService.js';
