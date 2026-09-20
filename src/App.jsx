@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout.jsx";
 import Home from "./pages/Home.jsx";
@@ -14,13 +13,3 @@ export default function App() {
     </Layout>
   );
 }
-=======
-import ExercisesPage from './pages/ExercisesPage';
-
-function App() {
-  return <ExercisesPage />;
-}
-
-export default App;
-
->>>>>>> 27a690c7f42848b88163d7519b4fbcd3a5c95b8a
