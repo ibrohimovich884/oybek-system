@@ -15,6 +15,26 @@ export function ExpensesProvider({ children }) {
   const [expenses, setExpenses] = useState([]);
   const [initialWallets, setInitialWallets] = useState(DEFAULT_WALLETS);
   const [isLoading, setIsLoading] = useState(true);
+  const [backendStatus, setBackendStatus] = useState(expensesApi.getBackendStatus());
+
+  // Backend holatiga obuna bo'lish
+  useEffect(() => {
+    const unsubscribe = expensesApi.subscribeBackendStatus((status) => {
+      setBackendStatus(status);
+    });
+    // Boshlanishida bir marta salomatlikni tekshirib ko'rish
+    expensesApi.checkBackendConnection();
+    return unsubscribe;
+  }, []);
+
+  const changeBackendPort = useCallback(async (newPort) => {
+    await expensesApi.updateBackendPort(newPort);
+    await refresh();
+  }, []);
+
+  const checkBackendHealth = useCallback(async () => {
+    return await expensesApi.checkBackendConnection();
+  }, []);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -217,6 +237,9 @@ export function ExpensesProvider({ children }) {
     initialWallets,
     currentBalances,
     isLoading,
+    backendStatus,
+    changeBackendPort,
+    checkBackendHealth,
     addExpense,
     updateExpense,
     deleteExpense,

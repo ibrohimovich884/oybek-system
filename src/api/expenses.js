@@ -1,19 +1,30 @@
-/*
-  Expenses and Wallets Data Layer.
-  Saqlash joyi: localStorage (oybek-system).
-  Boshlang'ich balanslar foydalanuvchi talabiga ko'ra:
-  Naqd: 30 000 so'm
-  Karta: 100 000 so'm
-*/
+/**
+ * Expenses and Wallets Data Layer (OYBEK SysteM)
+ * 
+ * Strukturaviy xavfsizlik:
+ * - Foydalanuvchi faqat backend portini kiritishi kifoya.
+ * - Backend o'chiq bo'lsa ham frontendda xatolik chiqmaydi (fallback to localStorage).
+ * - Backend yoqilishi bilan avtomatik unga ulanadi va sinxronizatsiya qiladi.
+ */
 
 import { generateId } from "../utils/id.js";
 import { DEFAULT_WALLETS } from "../constants/money.js";
 import { formatISOWithOffset } from "../utils/format.js";
+import { apiClient } from "./client.js";
+import {
+  API_ENDPOINTS,
+  getBackendPort,
+  setBackendPort as saveBackendPort,
+} from "../config/apiConfig.js";
 
 const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
 const STORAGE_WALLETS_KEY = "oybek-system:wallets";
 
-function readWallets() {
+/**
+ * Mahalliy xotiradan (localStorage) hamyonlarni o'qish
+ */
+function readLocalWallets() {
+  if (typeof window === "undefined") return { ...DEFAULT_WALLETS };
   const raw = localStorage.getItem(STORAGE_WALLETS_KEY);
   if (!raw) {
     localStorage.setItem(STORAGE_WALLETS_KEY, JSON.stringify(DEFAULT_WALLETS));
@@ -30,11 +41,15 @@ function readWallets() {
   }
 }
 
-function writeWallets(wallets) {
+function writeLocalWallets(wallets) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_WALLETS_KEY, JSON.stringify(wallets));
 }
 
-function normalizeExpense(item) {
+/**
+ * Tranzaksiya ma'lumotlarini to'liq va xatosiz standartga keltirish
+ */
+export function normalizeExpense(item) {
   const paymentMethod = item.paymentMethod || item.wallet || "naqd";
   const wallet = item.wallet || paymentMethod;
   const quantity = Number(item.quantity ?? 1);
@@ -45,7 +60,7 @@ function normalizeExpense(item) {
   let category = item.category || "Qorin uchun";
   let subcategory = item.subcategory || "";
 
-  // Eski "Ichimlik" yoki "Oziq-ovqat" kategoriyasi bo'lsa yangilash
+  // Eski "Ichimlik" yoki "Oziq-ovqat" bo'lsa "Qorin uchun" ga tekislash
   if (category === "Ichimlik") {
     category = "Qorin uchun";
     subcategory = "Ichimlik";
@@ -80,7 +95,6 @@ function normalizeExpense(item) {
     spentAt,
     createdAt,
     edits,
-    // Qo'shimcha balans va o'tkazma tizimi xususiyatlari:
     type: item.type || "expense",
     wallet,
     fromWallet: item.fromWallet || null,
@@ -88,10 +102,13 @@ function normalizeExpense(item) {
   };
 }
 
-function readAll() {
+/**
+ * Mahalliy ro'yxatni o'qish (localStorage)
+ */
+function readLocalExpenses() {
+  if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(STORAGE_EXPENSES_KEY);
   if (!raw) {
-    // Boshlang'ich namuna (foydalanuvchi ko'rsatgan aniq formatda)
     const initialSeed = [
       {
         id: "b3f1a2c4-1234-4a1b-9d3e-8f7a6c5d4e3f",
@@ -116,43 +133,66 @@ function readAll() {
         wallet: "naqd",
       },
     ];
-    localStorage.setItem(STORAGE_EXPENSES_KEY, JSON.stringify(initialSeed));
-    return initialSeed;
+    writeLocalExpenses(initialSeed);
+    return initialSeed.map(normalizeExpense);
   }
   try {
-    const items = JSON.parse(raw);
-    if (!Array.isArray(items)) return [];
-    return items.map(normalizeExpense);
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeExpense);
   } catch {
     return [];
   }
 }
 
-function writeAll(expenses) {
-  localStorage.setItem(STORAGE_EXPENSES_KEY, JSON.stringify(expenses));
+function writeLocalExpenses(items) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_EXPENSES_KEY, JSON.stringify(items));
 }
 
-export async function getWallets() {
-  return readWallets();
-}
+// ==========================================
+// OMMAVIY API FUNKSIYALARI (ASYNC)
+// ==========================================
 
-export async function updateWallets(updates) {
-  const current = readWallets();
-  const next = {
-    naqd: updates.naqd !== undefined ? Number(updates.naqd) : current.naqd,
-    karta: updates.karta !== undefined ? Number(updates.karta) : current.karta,
-  };
-  writeWallets(next);
-  return next;
-}
-
+/**
+ * Barcha xarajatlar ro'yxatini olish
+ * Backend ishlasa - backenddan oladi va keshlaydi;
+ * Backend ishlamasa - xatosiz mahalliy bazadan oladi.
+ */
 export async function getExpenses() {
-  const items = readAll();
-  return items.sort((a, b) => new Date(b.spentAt || b.createdAt) - new Date(a.spentAt || a.createdAt));
+  // 1. Backendga so'rov yuborish
+  const res = await apiClient.get(API_ENDPOINTS.EXPENSES);
+  if (res.ok && Array.isArray(res.data)) {
+    const normalized = res.data.map(normalizeExpense);
+    writeLocalExpenses(normalized); // Mahalliy keshni yangilaymiz
+    return normalized;
+  }
+
+  // 2. Agar backend o'chiq bo'lsa, xatosiz mahalliy ma'lumotni qaytaramiz
+  return readLocalExpenses();
 }
 
+/**
+ * Hamyonlar balansini olish
+ */
+export async function getWallets() {
+  const res = await apiClient.get(API_ENDPOINTS.WALLETS);
+  if (res.ok && res.data && typeof res.data === "object") {
+    const parsed = {
+      naqd: Number(res.data.naqd ?? DEFAULT_WALLETS.naqd),
+      karta: Number(res.data.karta ?? DEFAULT_WALLETS.karta),
+    };
+    writeLocalWallets(parsed);
+    return parsed;
+  }
+
+  return readLocalWallets();
+}
+
+/**
+ * Yangi xarajat / daromad / o'tkazma qo'shish
+ */
 export async function addExpense(payload) {
-  const items = readAll();
   const type = payload.type || "expense";
   const paymentMethod = payload.paymentMethod || payload.wallet || (type === "transfer" ? "karta" : "naqd");
 
@@ -171,28 +211,37 @@ export async function addExpense(payload) {
     spentAt: formatISOWithOffset(payload.spentAt || new Date()),
     createdAt: formatISOWithOffset(new Date()),
     edits: [],
-    // Tizim uchun yordamchi maydonlar
     type,
     wallet: paymentMethod,
     fromWallet: payload.fromWallet || (type === "transfer" ? "karta" : null),
     toWallet: payload.toWallet || (type === "transfer" ? "naqd" : null),
   };
 
-  items.unshift(newRecord);
-  writeAll(items);
+  // 1. Darhol mahalliy xotiraga saqlaymiz (UI tez ishlashi uchun)
+  const localItems = readLocalExpenses();
+  localItems.unshift(newRecord);
+  writeLocalExpenses(localItems);
+
+  // 2. Backendga fon rejimida yoki to'g'ridan-to'g'ri jo'natamiz
+  apiClient.post(API_ENDPOINTS.EXPENSES, newRecord).catch(() => {
+    // Backend o'chiq bo'lsa ham foydalanuvchiga xatolik chiqmaydi
+  });
+
   return newRecord;
 }
 
+/**
+ * Tranzaksiyani tahrirlash
+ */
 export async function updateExpense(id, updates) {
-  const items = readAll();
-  const index = items.findIndex((item) => item.id === id);
+  const localItems = readLocalExpenses();
+  const index = localItems.findIndex((item) => item.id === id);
   if (index === -1) throw new Error("Tranzaksiya topilmadi");
 
-  const current = items[index];
+  const current = localItems[index];
   const nextEdits = Array.isArray(current.edits) ? [...current.edits] : [];
   const nowOffset = formatISOWithOffset(new Date());
 
-  // Tahrir qilingan maydonlarni edits ro'yxatiga qayd etish
   const trackedFields = [
     "reason",
     "amount",
@@ -207,73 +256,119 @@ export async function updateExpense(id, updates) {
   trackedFields.forEach((field) => {
     if (updates[field] !== undefined) {
       const oldVal = current[field];
-      const newVal =
-        field === "amount" || field === "quantity"
-          ? Number(updates[field])
-          : updates[field];
-
+      const newVal = updates[field];
       if (String(oldVal ?? "") !== String(newVal ?? "")) {
         nextEdits.push({
           field,
-          from: oldVal ?? "",
-          to: newVal,
+          from: String(oldVal ?? ""),
+          to: String(newVal ?? ""),
           editedAt: nowOffset,
         });
       }
     }
   });
 
-  const nextPaymentMethod =
-    updates.paymentMethod ||
-    updates.wallet ||
-    current.paymentMethod ||
-    current.wallet ||
-    "naqd";
-
   const updatedRecord = {
     ...current,
     ...updates,
     amount: updates.amount !== undefined ? Number(updates.amount) : current.amount,
-    quantity: updates.quantity !== undefined ? Number(updates.quantity) : (current.quantity || 1),
-    paymentMethod: nextPaymentMethod,
-    wallet: nextPaymentMethod,
-    spentAt: updates.spentAt ? formatISOWithOffset(updates.spentAt) : current.spentAt,
+    quantity: updates.quantity !== undefined ? Number(updates.quantity) : current.quantity,
     edits: nextEdits,
-    editedAt: nowOffset,
   };
 
-  items[index] = updatedRecord;
-  writeAll(items);
+  // Mahalliy saqlaymiz
+  localItems[index] = updatedRecord;
+  writeLocalExpenses(localItems);
+
+  // Backendga yuborish
+  apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(id), updatedRecord).catch(() => {});
+
   return updatedRecord;
 }
 
+/**
+ * Tranzaksiyani o'chirish
+ */
 export async function deleteExpense(id) {
-  const items = readAll().filter((item) => item.id !== id);
-  writeAll(items);
+  const localItems = readLocalExpenses();
+  const filtered = localItems.filter((item) => item.id !== id);
+  writeLocalExpenses(filtered);
+
+  // Backenddan o'chirish
+  apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(id)).catch(() => {});
+
+  return { success: true };
 }
 
+/**
+ * Hamyonlar boshlang'ich balansini yangilash
+ */
+export async function updateWallets(updates) {
+  const current = readLocalWallets();
+  const saved = {
+    naqd: Number(updates.naqd !== undefined ? updates.naqd : current.naqd),
+    karta: Number(updates.karta !== undefined ? updates.karta : current.karta),
+  };
+
+  writeLocalWallets(saved);
+  apiClient.put(API_ENDPOINTS.WALLETS, saved).catch(() => {});
+
+  return saved;
+}
+
+/**
+ * Zaxira nusxa (Backup) eksporti
+ */
 export async function exportBackup() {
+  const expenses = await getExpenses();
+  const wallets = await getWallets();
+
   return {
-    exportedAt: formatISOWithOffset(new Date()),
-    wallets: readWallets(),
-    expenses: readAll(),
+    version: "2.0.0",
+    exportedAt: new Date().toISOString(),
+    backendPort: getBackendPort(),
+    wallets,
+    expenses,
   };
 }
 
-export async function importBackup(data) {
-  if (!data || typeof data !== "object") {
-    throw new Error("Noto'g'ri fayl formati");
+/**
+ * Zaxira nusxani tiklash (Import)
+ */
+export async function importBackup(backupData) {
+  if (!backupData || !Array.isArray(backupData.expenses)) {
+    throw new Error("Noto'g'ri zaxira fayli formati");
   }
 
-  if (data.wallets && typeof data.wallets === "object") {
-    writeWallets({
-      naqd: Number(data.wallets.naqd ?? DEFAULT_WALLETS.naqd),
-      karta: Number(data.wallets.karta ?? DEFAULT_WALLETS.karta),
-    });
+  if (backupData.wallets) {
+    writeLocalWallets(backupData.wallets);
   }
 
-  if (Array.isArray(data.expenses)) {
-    writeAll(data.expenses.map(normalizeExpense));
-  }
+  const normalized = backupData.expenses.map(normalizeExpense);
+  writeLocalExpenses(normalized);
+
+  // Agar backend mavjud bo'lsa, zaxirani unga ham yuborish
+  apiClient.post(API_ENDPOINTS.BACKUP, backupData).catch(() => {});
+
+  return true;
 }
 
+/**
+ * Backend holatini boshqarish va obuna bo'lish
+ */
+export function getBackendStatus() {
+  return apiClient.getStatus();
+}
+
+export function subscribeBackendStatus(callback) {
+  return apiClient.subscribe(callback);
+}
+
+export async function checkBackendConnection() {
+  return apiClient.checkHealth();
+}
+
+export function updateBackendPort(port) {
+  saveBackendPort(port);
+  return apiClient.checkHealth();
+}
