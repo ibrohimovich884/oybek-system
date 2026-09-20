@@ -1,0 +1,9 @@
+{
+  "name": "Mashqlar Nazorati",
+  "description": "Kundalik mashqlar checklisti, oylik va haftalik progress diagrammalari hamda yangi mashq qo'shish tizimi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
+

@@ -1,40 +1,16 @@
-# Oybek-system — frontend
+# React + Vite
 
-## Ishga tushirish
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-```bash
-npm install
-npm run dev
-```
+Currently, two official plugins are available:
 
-## Tuzilma
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-```
-src/
-  api/expenses.js          — ma'lumotlar qatlami (hozir localStorage, keyin fetch()ga almashtiriladi)
-  context/ExpensesContext.jsx — global state (add/update/delete/backup)
-  components/
-    layout/                — Sidebar, Layout
-    notifications/         — Home sahifasidagi bildirishnoma banneri
-    money-manager/         — ExpenseForm, ExpenseList, ExpenseRow
-  pages/
-    Home.jsx
-    MoneyManager.jsx
-  styles/tokens.css         — rang, shrift, bo'shliq tokenlari
-  index.css                 — komponent stillari
-```
+## React Compiler
 
-## Hozirgi holat
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-- Ma'lumotlar brauzer localStorage'ida saqlanadi (Neon hali ulanmagan).
-- `src/api/expenses.js` ichidagi funksiyalar (`getExpenses`, `addExpense`,
-  `updateExpense`, `deleteExpense`, `exportBackup`) shu nomlar va imzolar bilan
-  qoladi — backend ulanganda faqat shu fayl ichini `fetch()` chaqiruvlariga
-  almashtirish kifoya, boshqa komponentlarga tegilmaydi.
-- "Belgilangan vaqti" maydoni ixtiyoriy qilib qo'yildi — uning aniq vazifasi
-  (masalan, rejalashtirilgan xarajat vaqtimi) keyin aniqlashtirilib, kerak
-  bo'lsa mantiq qo'shiladi.
+## Expanding the ESLint configuration
 
-## Keyingi qadam
-
-Node.js + Neon backend qurish va `src/api/expenses.js` ni real API'ga ulash.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

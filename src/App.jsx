@@ -1,15 +1,8 @@
-import { Routes, Route } from "react-router-dom";
-import Layout from "./components/layout/Layout.jsx";
-import Home from "./pages/Home.jsx";
-import MoneyManager from "./pages/MoneyManager.jsx";
+import ExercisesPage from './pages/ExercisesPage';
 
-export default function App() {
-  return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/money" element={<MoneyManager />} />
-      </Routes>
-    </Layout>
-  );
+function App() {
+  return <ExercisesPage />;
 }
+
+export default App;
+
