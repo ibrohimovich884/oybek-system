@@ -56,7 +56,12 @@
   --transfer-soft: rgba(167, 139, 250, 0.14);
   --transfer-border: rgba(167, 139, 250, 0.35);
 
-  /* Hamyonlar: Karta (Moviy) va Naqd (Tilla/Sariq) */
+  /* Hamyonlar: Hamyon (Zumrad), Karta (Moviy), Naqd (Tilla/Sariq), Dollar (Yashil) */
+  --hamyon: #10b981;
+  --hamyon-hover: #059669;
+  --hamyon-soft: rgba(16, 185, 129, 0.14);
+  --hamyon-border: rgba(16, 185, 129, 0.35);
+
   --karta: #38bdf8;
   --karta-hover: #60a5fa;
   --karta-soft: rgba(56, 189, 248, 0.14);
@@ -66,6 +71,11 @@
   --naqd-hover: #f59e0b;
   --naqd-soft: rgba(251, 191, 36, 0.14);
   --naqd-border: rgba(251, 191, 36, 0.35);
+
+  --dollar: #22c55e;
+  --dollar-hover: #16a34a;
+  --dollar-soft: rgba(34, 197, 94, 0.14);
+  --dollar-border: rgba(34, 197, 94, 0.35);
 
   /* Xavf / O'chirish */
   --danger: #ef4444;
@@ -177,6 +187,11 @@
   --transfer-soft: rgba(124, 58, 237, 0.12);
   --transfer-border: rgba(124, 58, 237, 0.35);
 
+  --hamyon: #059669;
+  --hamyon-hover: #047857;
+  --hamyon-soft: rgba(5, 150, 105, 0.12);
+  --hamyon-border: rgba(5, 150, 105, 0.35);
+
   --karta: #0284c7;
   --karta-hover: #0369a1;
   --karta-soft: rgba(2, 132, 199, 0.12);
@@ -186,6 +201,11 @@
   --naqd-hover: #b45309;
   --naqd-soft: rgba(217, 119, 6, 0.12);
   --naqd-border: rgba(217, 119, 6, 0.35);
+
+  --dollar: #16a34a;
+  --dollar-hover: #15803d;
+  --dollar-soft: rgba(22, 163, 74, 0.12);
+  --dollar-border: rgba(22, 163, 74, 0.35);
 
   --danger: #dc2626;
   --danger-hover: #b91c1c;

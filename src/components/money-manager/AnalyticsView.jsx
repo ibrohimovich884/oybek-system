@@ -1,16 +1,26 @@
 import { useMemo } from "react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
-import { formatSum } from "../../utils/format.js";
+import { formatSum, formatDollar } from "../../utils/format.js";
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   WALLET_CONFIG,
 } from "../../constants/money.js";
 import CategoryIcon from "./CategoryIcon.jsx";
-import { TrendingDown, TrendingUp, PieChart, Wallet, CreditCard, Award } from "lucide-react";
+import {
+  TrendingDown,
+  TrendingUp,
+  PieChart,
+  Wallet,
+  CreditCard,
+  Banknote,
+  BadgeDollarSign,
+  Award,
+} from "lucide-react";
 
 export default function AnalyticsView() {
-  const { expenses, currentBalances } = useExpenses();
+  const { expenses, currentBalances, rateInfo } = useExpenses();
+  const currentRate = rateInfo?.rate || 12850;
 
   // Statistika hisoblash
   const stats = useMemo(() => {
@@ -18,39 +28,43 @@ export default function AnalyticsView() {
     let incomeSum = 0;
     const categoryTotals = {};
     const subcategoryTotals = {};
-    const walletSpending = { naqd: 0, karta: 0 };
+    const walletSpending = { hamyon: 0, naqd: 0, karta: 0, dollar: 0 };
     let maxExpense = null;
 
     expenses.forEach((item) => {
       const amt = Number(item.amount || 0);
+      const isUsd = item.currency === "USD" || item.paymentMethod === "dollar" || item.wallet === "dollar";
+      const effectiveRate = item.exchangeRateAtTime || currentRate;
+      const amtInUzs = isUsd ? Math.round(amt * effectiveRate) : amt;
+
       if (item.type === "expense") {
-        expenseSum += amt;
+        expenseSum += amtInUzs;
         const cat = item.category || "Boshqa";
         if (!categoryTotals[cat]) {
           categoryTotals[cat] = { amount: 0, count: 0 };
         }
-        categoryTotals[cat].amount += amt;
+        categoryTotals[cat].amount += amtInUzs;
         categoryTotals[cat].count += 1;
 
         const sub = item.subcategory || "Boshqa";
         if (!subcategoryTotals[sub]) {
           subcategoryTotals[sub] = { amount: 0, count: 0, category: cat };
         }
-        subcategoryTotals[sub].amount += amt;
+        subcategoryTotals[sub].amount += amtInUzs;
         subcategoryTotals[sub].count += 1;
 
-        const method = item.paymentMethod || item.wallet || "naqd";
-        if (method === "naqd") {
-          walletSpending.naqd += amt;
+        const method = item.paymentMethod || item.wallet || "hamyon";
+        if (walletSpending[method] !== undefined) {
+          walletSpending[method] += amtInUzs;
         } else {
-          walletSpending.karta += amt;
+          walletSpending.hamyon += amtInUzs;
         }
 
-        if (!maxExpense || amt > maxExpense.amount) {
-          maxExpense = item;
+        if (!maxExpense || amtInUzs > maxExpense.effectiveAmount) {
+          maxExpense = { ...item, effectiveAmount: amtInUzs };
         }
       } else if (item.type === "income") {
-        incomeSum += amt;
+        incomeSum += amtInUzs;
       }
     });
 
@@ -100,7 +114,7 @@ export default function AnalyticsView() {
           ? Math.round(expenseSum / categoryList.reduce((acc, c) => acc + c.count, 0))
           : 0,
     };
-  }, [expenses]);
+  }, [expenses, currentRate]);
 
   if (!expenses.length) {
     return (
@@ -166,49 +180,38 @@ export default function AnalyticsView() {
           Hamyonlar bo'yicha xarajatlar nisbati
         </h3>
         <div className="wallet-spending-split">
-          <div className="wallet-spend-item">
-            <div className="wallet-spend-item__head">
-              <div className="wallet-spend-item__name">
-                <CreditCard size={15} color="var(--karta)" />
-                <span>Plastik karta</span>
+          {[
+            { id: "hamyon", name: "Hamyon (Kundalik)", icon: Wallet, color: "var(--hamyon)", sum: stats.walletSpending.hamyon },
+            { id: "naqd", name: "Naqd pul", icon: Banknote, color: "var(--naqd)", sum: stats.walletSpending.naqd },
+            { id: "karta", name: "Plastik karta", icon: CreditCard, color: "var(--karta)", sum: stats.walletSpending.karta },
+            { id: "dollar", name: "AQSH Dollari ($)", icon: BadgeDollarSign, color: "var(--dollar)", sum: stats.walletSpending.dollar },
+          ].map((w) => {
+            const Icon = w.icon;
+            const pct = stats.expenseSum > 0 ? ((w.sum / stats.expenseSum) * 100).toFixed(1) : 0;
+            return (
+              <div key={w.id} className="wallet-spend-item">
+                <div className="wallet-spend-item__head">
+                  <div className="wallet-spend-item__name">
+                    <Icon size={15} color={w.color} />
+                    <span>{w.name}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="mono">{formatSum(w.sum)}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({pct}%)</span>
+                  </div>
+                </div>
+                <div className="progress-bar-bg">
+                  <div
+                    className={`progress-bar-fill progress-bar-fill--${w.id}`}
+                    style={{
+                      width: `${pct}%`,
+                      background: w.color,
+                    }}
+                  />
+                </div>
               </div>
-              <span className="mono">{formatSum(stats.walletSpending.karta)}</span>
-            </div>
-            <div className="progress-bar-bg">
-              <div
-                className="progress-bar-fill progress-bar-fill--karta"
-                style={{
-                  width: `${
-                    stats.expenseSum > 0
-                      ? ((stats.walletSpending.karta / stats.expenseSum) * 100).toFixed(1)
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="wallet-spend-item">
-            <div className="wallet-spend-item__head">
-              <div className="wallet-spend-item__name">
-                <Wallet size={15} color="var(--naqd)" />
-                <span>Naqd pul</span>
-              </div>
-              <span className="mono">{formatSum(stats.walletSpending.naqd)}</span>
-            </div>
-            <div className="progress-bar-bg">
-              <div
-                className="progress-bar-fill progress-bar-fill--naqd"
-                style={{
-                  width: `${
-                    stats.expenseSum > 0
-                      ? ((stats.walletSpending.naqd / stats.expenseSum) * 100).toFixed(1)
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 

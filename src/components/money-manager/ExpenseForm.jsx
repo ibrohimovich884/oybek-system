@@ -8,6 +8,8 @@ import {
   FileText,
   CreditCard,
   Banknote,
+  Wallet,
+  BadgeDollarSign,
   Sparkles,
   Layers,
   Tag,
@@ -19,14 +21,14 @@ import {
   QUICK_TEMPLATES,
   WALLET_CONFIG,
 } from "../../constants/money.js";
-import { formatSum, toLocalDatetimeInput } from "../../utils/format.js";
+import { formatSum, formatDollar, toLocalDatetimeInput } from "../../utils/format.js";
 import CategoryIcon from "./CategoryIcon.jsx";
 
-export default function ExpenseForm({ initialType = "expense", initialFrom = "karta", initialTo = "naqd" }) {
-  const { addExpense, currentBalances } = useExpenses();
+export default function ExpenseForm({ initialType = "expense", initialFrom = "hamyon", initialTo = "naqd" }) {
+  const { addExpense, currentBalances, rateInfo } = useExpenses();
 
   const [type, setType] = useState(initialType); // "expense" | "income" | "transfer"
-  const [paymentMethod, setPaymentMethod] = useState("naqd"); // "naqd" | "karta"
+  const [paymentMethod, setPaymentMethod] = useState("hamyon"); // "hamyon" | "naqd" | "karta" | "dollar"
   const [fromWallet, setFromWallet] = useState(initialFrom);
   const [toWallet, setToWallet] = useState(initialTo);
   const [category, setCategory] = useState("Qorin uchun");
@@ -214,35 +216,37 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
           <div className="transfer-flow-card">
             <div className="transfer-step">
               <span className="transfer-step__label">Qayerdan chiqadi:</span>
-              <div className="transfer-step__selector">
-                <button
-                  type="button"
-                  className={`transfer-wallet-btn ${fromWallet === "karta" ? "is-active is-karta" : ""}`}
-                  onClick={() => {
-                    setFromWallet("karta");
-                    setToWallet("naqd");
-                  }}
-                >
-                  <CreditCard size={18} />
-                  <div className="transfer-wallet-btn__info">
-                    <span className="transfer-wallet-btn__name">Plastik karta</span>
-                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.karta)}</span>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className={`transfer-wallet-btn ${fromWallet === "naqd" ? "is-active is-naqd" : ""}`}
-                  onClick={() => {
-                    setFromWallet("naqd");
-                    setToWallet("karta");
-                  }}
-                >
-                  <Banknote size={18} />
-                  <div className="transfer-wallet-btn__info">
-                    <span className="transfer-wallet-btn__name">Naqd hamyon</span>
-                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.naqd)}</span>
-                  </div>
-                </button>
+              <div className="transfer-step__selector" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {[
+                  { id: "hamyon", name: "Hamyon", icon: Wallet, bal: currentBalances.hamyon, isDollar: false },
+                  { id: "naqd", name: "Naqd pul", icon: Banknote, bal: currentBalances.naqd, isDollar: false },
+                  { id: "karta", name: "Plastik karta", icon: CreditCard, bal: currentBalances.karta, isDollar: false },
+                  { id: "dollar", name: "Dollar ($)", icon: BadgeDollarSign, bal: currentBalances.dollar, isDollar: true },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isActive = fromWallet === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`transfer-wallet-btn ${isActive ? `is-active is-${item.id}` : ""}`}
+                      onClick={() => {
+                        setFromWallet(item.id);
+                        if (toWallet === item.id) {
+                          setToWallet(item.id === "hamyon" ? "naqd" : "hamyon");
+                        }
+                      }}
+                    >
+                      <Icon size={16} />
+                      <div className="transfer-wallet-btn__info">
+                        <span className="transfer-wallet-btn__name">{item.name}</span>
+                        <span className="transfer-wallet-btn__bal mono">
+                          {item.isDollar ? formatDollar(item.bal) : formatSum(item.bal)}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -257,35 +261,37 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
 
             <div className="transfer-step">
               <span className="transfer-step__label">Qayerga tushadi:</span>
-              <div className="transfer-step__selector">
-                <button
-                  type="button"
-                  className={`transfer-wallet-btn ${toWallet === "naqd" ? "is-active is-naqd" : ""}`}
-                  onClick={() => {
-                    setToWallet("naqd");
-                    setFromWallet("karta");
-                  }}
-                >
-                  <Banknote size={18} />
-                  <div className="transfer-wallet-btn__info">
-                    <span className="transfer-wallet-btn__name">Naqd hamyon</span>
-                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.naqd)}</span>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className={`transfer-wallet-btn ${toWallet === "karta" ? "is-active is-karta" : ""}`}
-                  onClick={() => {
-                    setToWallet("karta");
-                    setFromWallet("naqd");
-                  }}
-                >
-                  <CreditCard size={18} />
-                  <div className="transfer-wallet-btn__info">
-                    <span className="transfer-wallet-btn__name">Plastik karta</span>
-                    <span className="transfer-wallet-btn__bal mono">{formatSum(currentBalances.karta)}</span>
-                  </div>
-                </button>
+              <div className="transfer-step__selector" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {[
+                  { id: "hamyon", name: "Hamyon", icon: Wallet, bal: currentBalances.hamyon, isDollar: false },
+                  { id: "naqd", name: "Naqd pul", icon: Banknote, bal: currentBalances.naqd, isDollar: false },
+                  { id: "karta", name: "Plastik karta", icon: CreditCard, bal: currentBalances.karta, isDollar: false },
+                  { id: "dollar", name: "Dollar ($)", icon: BadgeDollarSign, bal: currentBalances.dollar, isDollar: true },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isActive = toWallet === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`transfer-wallet-btn ${isActive ? `is-active is-${item.id}` : ""}`}
+                      onClick={() => {
+                        setToWallet(item.id);
+                        if (fromWallet === item.id) {
+                          setFromWallet(item.id === "hamyon" ? "naqd" : "hamyon");
+                        }
+                      }}
+                    >
+                      <Icon size={16} />
+                      <div className="transfer-wallet-btn__info">
+                        <span className="transfer-wallet-btn__name">{item.name}</span>
+                        <span className="transfer-wallet-btn__bal mono">
+                          {item.isDollar ? formatDollar(item.bal) : formatSum(item.bal)}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -294,29 +300,30 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ka
             <label className="expense-form__label">
               {type === "income" ? "Qaysi hisobga tushdi?" : "Qaysi hisobdan to'landi?"}
             </label>
-            <div className="wallet-select-group">
-              <button
-                type="button"
-                className={`wallet-choice-btn ${paymentMethod === "naqd" ? "is-selected is-naqd" : ""}`}
-                onClick={() => setPaymentMethod("naqd")}
-              >
-                <Banknote size={16} />
-                <span>Naqd pul</span>
-                <span className="wallet-choice-btn__bal mono">
-                  ({formatSum(currentBalances.naqd)})
-                </span>
-              </button>
-              <button
-                type="button"
-                className={`wallet-choice-btn ${paymentMethod === "karta" ? "is-selected is-karta" : ""}`}
-                onClick={() => setPaymentMethod("karta")}
-              >
-                <CreditCard size={16} />
-                <span>Plastik karta</span>
-                <span className="wallet-choice-btn__bal mono">
-                  ({formatSum(currentBalances.karta)})
-                </span>
-              </button>
+            <div className="wallet-select-group" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8 }}>
+              {[
+                { id: "hamyon", label: "Hamyon", icon: Wallet, bal: currentBalances.hamyon, isDollar: false },
+                { id: "naqd", label: "Naqd pul", icon: Banknote, bal: currentBalances.naqd, isDollar: false },
+                { id: "karta", label: "Plastik karta", icon: CreditCard, bal: currentBalances.karta, isDollar: false },
+                { id: "dollar", label: "Dollar ($)", icon: BadgeDollarSign, bal: currentBalances.dollar, isDollar: true },
+              ].map((w) => {
+                const Icon = w.icon;
+                const isSelected = paymentMethod === w.id;
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={`wallet-choice-btn ${isSelected ? `is-selected is-${w.id}` : ""}`}
+                    onClick={() => setPaymentMethod(w.id)}
+                  >
+                    <Icon size={16} />
+                    <span>{w.label}</span>
+                    <span className="wallet-choice-btn__bal mono">
+                      ({w.isDollar ? formatDollar(w.bal) : formatSum(w.bal)})
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

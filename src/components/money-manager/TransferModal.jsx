@@ -1,21 +1,62 @@
-import { useState } from "react";
-import { X, ArrowRightLeft, Check, CreditCard, Banknote } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  X,
+  ArrowRightLeft,
+  Check,
+  CreditCard,
+  Banknote,
+  Wallet,
+  BadgeDollarSign,
+} from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
-import { formatSum } from "../../utils/format.js";
+import { formatSum, formatDollar, formatRate } from "../../utils/format.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
 
-export default function TransferModal({ initialFrom = "karta", initialTo = "naqd", onClose }) {
-  const { addExpense, currentBalances } = useExpenses();
+const WALLET_ICONS = {
+  hamyon: Wallet,
+  naqd: Banknote,
+  karta: CreditCard,
+  dollar: BadgeDollarSign,
+};
+
+export default function TransferModal({ initialFrom = "hamyon", initialTo = "naqd", onClose }) {
+  const { executeTransfer, currentBalances, rateInfo } = useExpenses();
   const [fromWallet, setFromWallet] = useState(initialFrom);
-  const [toWallet, setToWallet] = useState(initialTo);
+  const [toWallet, setToWallet] = useState(initialTo === initialFrom ? "naqd" : initialTo);
   const [amount, setAmount] = useState("");
+  const [customRate, setCustomRate] = useState(rateInfo?.rate || 12850);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const availableWallets = ["hamyon", "naqd", "karta", "dollar"];
+
   const handleSwap = () => {
-    setFromWallet(toWallet);
-    setToWallet(fromWallet);
+    const prevFrom = fromWallet;
+    const prevTo = toWallet;
+    setFromWallet(prevTo);
+    setToWallet(prevFrom);
   };
+
+  const isFromDollar = fromWallet === "dollar";
+  const isToDollar = toWallet === "dollar";
+  const hasCurrencyConversion = isFromDollar !== isToDollar;
+
+  const numAmount = Number(amount) || 0;
+
+  // Hisoblangan maqsadli summa
+  const calculatedTargetAmount = useMemo(() => {
+    if (!numAmount || numAmount <= 0) return 0;
+    const rate = Number(customRate) || rateInfo?.rate || 12850;
+    if (isFromDollar && !isToDollar) {
+      // Dollardan so'mga
+      return Math.round(numAmount * rate);
+    }
+    if (!isFromDollar && isToDollar) {
+      // So'mdan dollarga
+      return Number((numAmount / rate).toFixed(2));
+    }
+    return numAmount;
+  }, [numAmount, isFromDollar, isToDollar, customRate, rateInfo]);
 
   const addQuickAmount = (val) => {
     setAmount((prev) => {
@@ -26,41 +67,49 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) return;
 
     setIsSubmitting(true);
     try {
-      const defaultReason =
-        fromWallet === "karta" && toWallet === "naqd"
-          ? "Bankomatdan naqd yechish"
-          : "Kartaga naqd pul to'ldirish";
+      const fromCfg = WALLET_CONFIG[fromWallet] || { label: fromWallet };
+      const toCfg = WALLET_CONFIG[toWallet] || { label: toWallet };
 
-      await addExpense({
-        type: "transfer",
+      const defaultReason = `${fromCfg.label}dan ${toCfg.label}ga o'tkazma`;
+
+      await executeTransfer({
+        from: fromWallet,
+        to: toWallet,
         amount: numAmount,
-        fromWallet,
-        toWallet,
-        category: "O'tkazma",
-        subcategory: "O'tkazma",
-        reason: reason.trim() || defaultReason,
-        location: "Bankomat / Bank",
-        spentAt: new Date().toISOString(),
+        targetAmount: calculatedTargetAmount,
+        exchangeRate: hasCurrencyConversion ? Number(customRate) : null,
+        note: reason.trim() || defaultReason,
       });
       onClose();
+    } catch (err) {
+      alert(`O'tkazishda xatolik: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const FromIcon = WALLET_ICONS[fromWallet] || Wallet;
+  const ToIcon = WALLET_ICONS[toWallet] || Wallet;
+
+  const fromBalance = currentBalances[fromWallet] || 0;
+  const toBalance = currentBalances[toWallet] || 0;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
         <div className="modal-header">
           <div>
-            <h3 className="modal-title">Hisoblararo pul o'tkazish</h3>
+            <h3 className="modal-title">
+              {fromWallet === "hamyon" ? "Hamyondan pul o'tkazish" : "Hisoblararo pul o'tkazish"}
+            </h3>
             <p className="modal-subtitle">
-              Plastik karta va naqd hamyon o'rtasida pul ko'chirish
+              {fromWallet === "hamyon"
+                ? "Hamyondagi mablag'ni Naqd yoki Plastik kartaga o'tkazish"
+                : "Kundalik pul manbalari o'rtasida mablag' ko'chirish"}
             </p>
           </div>
           <button type="button" className="btn-icon" onClick={onClose}>
@@ -69,15 +118,36 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form form--type-transfer">
+          {/* Manba va Qabul qiluvchi tanlash */}
           <div className="transfer-flow">
-            <div className={`transfer-box ${fromWallet === "karta" ? "transfer-box--karta" : "transfer-box--naqd"}`}>
+            <div className={`transfer-box transfer-box--${fromWallet}`}>
               <span className="transfer-box__tag">Qayerdan:</span>
+              <select
+                className="transfer-select"
+                value={fromWallet}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFromWallet(val);
+                  if (val === toWallet) {
+                    setToWallet(val === "hamyon" ? "naqd" : "hamyon");
+                  }
+                }}
+              >
+                {availableWallets.map((w) => (
+                  <option key={w} value={w}>
+                    {WALLET_CONFIG[w].label}
+                  </option>
+                ))}
+              </select>
               <div className="transfer-box__card">
-                {fromWallet === "karta" ? <CreditCard size={20} /> : <Banknote size={20} />}
-                <strong>{WALLET_CONFIG[fromWallet].label}</strong>
+                <FromIcon size={18} />
+                <strong>{WALLET_CONFIG[fromWallet]?.label}</strong>
               </div>
               <span className="transfer-box__bal mono">
-                Balans: {formatSum(currentBalances[fromWallet])}
+                Balans:{" "}
+                {fromWallet === "dollar"
+                  ? formatDollar(fromBalance)
+                  : formatSum(fromBalance)}
               </span>
             </div>
 
@@ -90,53 +160,103 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
               <ArrowRightLeft size={18} />
             </button>
 
-            <div className={`transfer-box ${toWallet === "karta" ? "transfer-box--karta" : "transfer-box--naqd"}`}>
+            <div className={`transfer-box transfer-box--${toWallet}`}>
               <span className="transfer-box__tag">Qayerga:</span>
+              <select
+                className="transfer-select"
+                value={toWallet}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setToWallet(val);
+                  if (val === fromWallet) {
+                    setFromWallet(val === "hamyon" ? "naqd" : "hamyon");
+                  }
+                }}
+              >
+                {availableWallets
+                  .filter((w) => w !== fromWallet)
+                  .map((w) => (
+                    <option key={w} value={w}>
+                      {WALLET_CONFIG[w].label}
+                    </option>
+                  ))}
+              </select>
               <div className="transfer-box__card">
-                {toWallet === "karta" ? <CreditCard size={20} /> : <Banknote size={20} />}
-                <strong>{WALLET_CONFIG[toWallet].label}</strong>
+                <ToIcon size={18} />
+                <strong>{WALLET_CONFIG[toWallet]?.label}</strong>
               </div>
               <span className="transfer-box__bal mono">
-                Balans: {formatSum(currentBalances[toWallet])}
+                Balans:{" "}
+                {toWallet === "dollar"
+                  ? formatDollar(toBalance)
+                  : formatSum(toBalance)}
               </span>
             </div>
           </div>
 
+          {/* Valyuta konvertatsiyasi bo'lsa kurs sozlamasi */}
+          {hasCurrencyConversion && (
+            <div className="conversion-rate-banner">
+              <div className="conversion-rate-banner__info">
+                <span>Konvertatsiya kursi (1 USD):</span>
+                <input
+                  type="number"
+                  step="any"
+                  value={customRate}
+                  onChange={(e) => setCustomRate(e.target.value)}
+                  className="expense-form__input mono"
+                  style={{ width: 140, display: "inline-block", padding: "4px 8px" }}
+                />
+                <span className="field-hint">CBU: {formatRate(rateInfo?.rate || 12850)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* O'tkazma summasi */}
           <div className="expense-form__field">
             <label className="expense-form__label">
-              O'tkazma summasi (so'm) <span className="field-required">*</span>
+              O'tkazma summasi ({isFromDollar ? "$" : "so'm"}) <span className="field-required">*</span>
             </label>
             <input
               type="number"
-              min="1"
+              min={isFromDollar ? "0.01" : "1"}
               step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Masalan: 50000"
+              placeholder={isFromDollar ? "Masalan: 50" : "Masalan: 50000"}
               className="expense-form__input mono expense-form__input--amount"
               required
             />
-            {amount && <span className="amount-preview mono">{formatSum(Number(amount))}</span>}
+            {amount && (
+              <div className="amount-preview mono">
+                <span>Chiqim: {isFromDollar ? formatDollar(numAmount) : formatSum(numAmount)}</span>
+                {hasCurrencyConversion && (
+                  <span style={{ marginLeft: 12, color: "var(--accent)" }}>
+                    ➝ Tushum: {isToDollar ? formatDollar(calculatedTargetAmount) : formatSum(calculatedTargetAmount)}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Tezkor summa tugmalari */}
             <div className="quick-amount-chips" style={{ marginTop: 8 }}>
-              {[10000, 50000, 100000, 200000, 500000].map((val) => (
+              {(isFromDollar ? [10, 20, 50, 100] : [10000, 50000, 100000, 200000]).map((val) => (
                 <button
                   key={val}
                   type="button"
                   className="quick-amount-chip mono"
                   onClick={() => addQuickAmount(val)}
                 >
-                  +{formatSum(val).replace(" so'm", "")}
+                  +{isFromDollar ? `$${val}` : formatSum(val).replace(" so'm", "")}
                 </button>
               ))}
-              {currentBalances[fromWallet] > 0 && (
+              {fromBalance > 0 && (
                 <button
                   type="button"
                   className="quick-amount-chip quick-amount-chip--all mono"
-                  onClick={() => setAmount(String(currentBalances[fromWallet]))}
+                  onClick={() => setAmount(String(fromBalance))}
                 >
-                  Barchasi ({formatSum(currentBalances[fromWallet]).replace(" so'm", "")})
+                  Barchasi ({isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance).replace(" so'm", "")})
                 </button>
               )}
             </div>
@@ -148,7 +268,7 @@ export default function TransferModal({ initialFrom = "karta", initialTo = "naqd
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Masalan: Agrobank bankomati"
+              placeholder="Masalan: Hamyondan naqdga o'tkazma"
               className="expense-form__input"
             />
           </div>

@@ -1,22 +1,150 @@
 export const DEFAULT_WALLETS = {
+  hamyon: 50000,
   naqd: 30000,
   karta: 100000,
+  dollar: 0,
 };
 
 export const WALLET_CONFIG = {
+  hamyon: {
+    id: "hamyon",
+    label: "Hamyon",
+    shortLabel: "Hamyon",
+    icon: "Wallet",
+    color: "#10b981",
+    currency: "UZS",
+    badge: "Kundalik",
+    description: "Kundalik mayda xarajatlar va o'tkazmalar uchun mustaqil hamyon",
+  },
   naqd: {
     id: "naqd",
     label: "Naqd pul",
-    shortLabel: "Naqd",
-    icon: "Wallet",
+    shortLabel: "Naqd (oddiy)",
+    icon: "Banknote",
     color: "#eab308",
+    currency: "UZS",
+    badge: "Oddiy",
+    description: "Kundalik naqd hisob",
   },
   karta: {
     id: "karta",
     label: "Plastik karta",
-    shortLabel: "Karta",
+    shortLabel: "Karta (oddiy)",
     icon: "CreditCard",
     color: "#38bdf8",
+    currency: "UZS",
+    badge: "Uzcard / Humo",
+    description: "Kundalik bank kartasi hisobi",
+  },
+  dollar: {
+    id: "dollar",
+    label: "AQSH Dollari",
+    shortLabel: "Dollar (oddiy)",
+    icon: "BadgeDollarSign",
+    color: "#22c55e",
+    currency: "USD",
+    badge: "USD",
+    description: "Kundalik dollar mablag'i (USD)",
+  },
+};
+
+export const DEFAULT_RESERVES = {
+  "naqd-asosiy": {
+    id: "naqd-asosiy",
+    wallet: "naqd",
+    name: "Naqd Asosiy",
+    amount: 0,
+    notes: [
+      {
+        text: "Dastlabki naqd asosiy zaxira balansi shakllantirildi",
+        amount_at_that_time: 0,
+        editedAt: "2026-09-20T00:00:00+05:00",
+      },
+    ],
+  },
+  "karta-asosiy": {
+    id: "karta-asosiy",
+    wallet: "karta",
+    name: "Karta Asosiy",
+    amount: 0,
+    notes: [
+      {
+        text: "Dastlabki karta asosiy zaxira balansi shakllantirildi",
+        amount_at_that_time: 0,
+        editedAt: "2026-09-20T00:00:00+05:00",
+      },
+    ],
+  },
+  "dollar-asosiy": {
+    id: "dollar-asosiy",
+    wallet: "dollar",
+    name: "Dollar Asosiy",
+    amount: 0,
+    notes: [
+      {
+        text: "Dastlabki dollar asosiy zaxira balansi shakllantirildi",
+        amount_at_that_time: 0,
+        editedAt: "2026-09-20T00:00:00+05:00",
+      },
+    ],
+  },
+};
+
+export const RESERVE_CONFIG = {
+  "naqd-asosiy": {
+    id: "naqd-asosiy",
+    wallet: "naqd",
+    label: "Naqd (Asosiy zaxira)",
+    shortLabel: "Naqd Asosiy",
+    icon: "Vault",
+    color: "#ca8a04",
+    currency: "UZS",
+  },
+  "karta-asosiy": {
+    id: "karta-asosiy",
+    wallet: "karta",
+    label: "Karta (Asosiy zaxira)",
+    shortLabel: "Karta Asosiy",
+    icon: "Landmark",
+    color: "#0284c7",
+    currency: "UZS",
+  },
+  "dollar-asosiy": {
+    id: "dollar-asosiy",
+    wallet: "dollar",
+    label: "Dollar (Asosiy zaxira)",
+    shortLabel: "Dollar Asosiy",
+    icon: "ShieldAlert",
+    color: "#16a34a",
+    currency: "USD",
+  },
+};
+
+export const ALL_BALANCES_LIST = [
+  { id: "hamyon", label: "Hamyon (Kundalik)", category: "oddiy", currency: "UZS", color: "#10b981" },
+  { id: "naqd", label: "Naqd (Oddiy)", category: "oddiy", currency: "UZS", color: "#eab308" },
+  { id: "karta", label: "Karta (Oddiy)", category: "oddiy", currency: "UZS", color: "#38bdf8" },
+  { id: "dollar", label: "Dollar (Oddiy)", category: "oddiy", currency: "USD", color: "#22c55e" },
+  { id: "naqd-asosiy", label: "Naqd (Asosiy zaxira)", category: "asosiy", currency: "UZS", color: "#ca8a04" },
+  { id: "karta-asosiy", label: "Karta (Asosiy zaxira)", category: "asosiy", currency: "UZS", color: "#0284c7" },
+  { id: "dollar-asosiy", label: "Dollar (Asosiy zaxira)", category: "asosiy", currency: "USD", color: "#16a34a" },
+];
+
+/**
+ * 5. Kutilayotgan pullar (qarz daftarchasi) - kelajak uchun struktura andozasi
+ * direction: "berilgan" (siz qarz bergansiz) | "olingan" (siz kimgadir qarzsiz)
+ */
+export const FUTURE_DEBT_SCHEMA = {
+  template: {
+    id: "debt-sample",
+    person: "Ali Valiyev",
+    amount: 100000,
+    currency: "UZS", // yoki "USD"
+    direction: "berilgan", // "berilgan" | "olingan"
+    dueDate: "2026-10-01",
+    status: "kutilmoqda", // "kutilmoqda" | "qaytarildi" | "kechiktirilgan"
+    notes: "Oy oxirida qaytaradi",
+    createdAt: "2026-09-21T00:00:00+05:00",
   },
 };
 

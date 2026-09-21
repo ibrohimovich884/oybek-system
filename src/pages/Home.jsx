@@ -1,23 +1,26 @@
 import { Link } from "react-router-dom";
 import NotificationBanner from "../components/notifications/NotificationBanner.jsx";
 import { useExpenses } from "../context/ExpensesContext.jsx";
-import { formatSum } from "../utils/format.js";
+import { formatSum, formatDollar } from "../utils/format.js";
 import ExpenseRow from "../components/money-manager/ExpenseRow.jsx";
 import {
   Wallet,
   CreditCard,
   Banknote,
+  BadgeDollarSign,
   ArrowRight,
   TrendingDown,
   TrendingUp,
   PlusCircle,
   PieChart,
   History,
+  SlidersHorizontal,
+  HandCoins,
 } from "lucide-react";
 
 const DEMO_NOTIFICATION = {
-  title: "Money Manager yangilandi",
-  body: "Naqd pul va Plastik karta hisoblari kiritildi. Endi barcha daromadlar, xarajatlar va tahlillarni telefoningizdan qulay kuzatib borishingiz mumkin.",
+  title: "Tizim yangilandi: Qarz daftarchasi qo'shildi",
+  body: "Berilgan va olingan qarzlar hisobi, qisman qaytarishlar, CBU kursi va shaxsiy eslatmalar to'liq faollashtirildi.",
 };
 
 export default function Home() {
@@ -52,6 +55,26 @@ export default function Home() {
           </div>
         </Link>
 
+        <Link to="/control" className="quick-action-card">
+          <div className="quick-action-card__icon" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+            <SlidersHorizontal size={20} />
+          </div>
+          <div className="quick-action-card__text">
+            <span className="quick-action-card__title">Control panel</span>
+            <span className="quick-action-card__sub">Rezervlar & Dollar kursi</span>
+          </div>
+        </Link>
+
+        <Link to="/debts" className="quick-action-card">
+          <div className="quick-action-card__icon" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+            <HandCoins size={20} />
+          </div>
+          <div className="quick-action-card__text">
+            <span className="quick-action-card__title">Qarz daftari</span>
+            <span className="quick-action-card__sub">Kutilayotgan pullar</span>
+          </div>
+        </Link>
+
         <Link to="/money" className="quick-action-card">
           <div className="quick-action-card__icon quick-action-card__icon--info">
             <PieChart size={20} />
@@ -66,36 +89,53 @@ export default function Home() {
       {/* Moliyaviy umumiy ko'rinish */}
       <section className="home-section">
         <div className="section-header-row">
-          <h2 className="section-title">Moliya holati</h2>
-          <Link to="/money" className="btn btn--subtle">
-            <span>Money manager</span>
-            <ArrowRight size={14} />
-          </Link>
+          <h2 className="section-title">Moliya holati (Kundalik erkin)</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link to="/control" className="btn btn--ghost btn--sm">
+              <SlidersHorizontal size={14} />
+              <span>Control panel</span>
+            </Link>
+            <Link to="/money" className="btn btn--subtle btn--sm">
+              <span>Money manager</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
         </div>
 
         <div className="wallet-grid">
-          <div className="wallet-card wallet-card--total">
+          {/* Hamyon */}
+          <div className="wallet-card wallet-card--hamyon">
             <div className="wallet-card__header">
-              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--accent">
+              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--hamyon">
                 <Wallet size={18} />
               </div>
-              <span className="wallet-card__tag">Umumiy balans</span>
+              <span className="wallet-card__label">Hamyon</span>
             </div>
             <div className="wallet-card__amount mono">
-              {formatSum(currentBalances.total)}
+              {formatSum(currentBalances.hamyon)}
             </div>
             <div className="wallet-card__footer">
-              <span className="wallet-card__stat wallet-card__stat--income">
-                <TrendingUp size={14} />
-                <span>+{formatSum(currentBalances.totalIncome)}</span>
-              </span>
-              <span className="wallet-card__stat wallet-card__stat--expense">
-                <TrendingDown size={14} />
-                <span>-{formatSum(currentBalances.totalExpense)}</span>
-              </span>
+              <span className="field-hint">Kundalik erkin</span>
             </div>
           </div>
 
+          {/* Naqd pul */}
+          <div className="wallet-card wallet-card--naqd">
+            <div className="wallet-card__header">
+              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--naqd">
+                <Banknote size={18} />
+              </div>
+              <span className="wallet-card__label">Naqd pul</span>
+            </div>
+            <div className="wallet-card__amount mono">
+              {formatSum(currentBalances.naqd)}
+            </div>
+            <div className="wallet-card__footer">
+              <span className="field-hint">Kundalik naqd</span>
+            </div>
+          </div>
+
+          {/* Plastik karta */}
           <div className="wallet-card wallet-card--karta">
             <div className="wallet-card__header">
               <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--karta">
@@ -111,18 +151,19 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="wallet-card wallet-card--naqd">
+          {/* Dollar */}
+          <div className="wallet-card wallet-card--dollar">
             <div className="wallet-card__header">
-              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--naqd">
-                <Banknote size={18} />
+              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--dollar">
+                <BadgeDollarSign size={18} />
               </div>
-              <span className="wallet-card__label">Naqd pul</span>
+              <span className="wallet-card__label">AQSH Dollari</span>
             </div>
             <div className="wallet-card__amount mono">
-              {formatSum(currentBalances.naqd)}
+              {formatDollar(currentBalances.dollar)}
             </div>
             <div className="wallet-card__footer">
-              <span className="field-hint">Hamyon mablag'i</span>
+              <span className="field-hint">Valyuta hisobi</span>
             </div>
           </div>
         </div>

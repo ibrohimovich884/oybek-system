@@ -135,8 +135,10 @@ export default function ExpenseList({ expenses }) {
             className="filter-select"
           >
             <option value="all">Barcha hisoblar</option>
-            <option value="karta">Plastik karta</option>
+            <option value="hamyon">Hamyon (Kundalik)</option>
             <option value="naqd">Naqd pul</option>
+            <option value="karta">Plastik karta</option>
+            <option value="dollar">AQSH Dollari ($)</option>
           </select>
 
           {/* Vaqt bo'yicha */}

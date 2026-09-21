@@ -10,6 +10,7 @@ export default function Layout({ children }) {
 
   const isHome = location.pathname === "/";
   const isMoney = location.pathname === "/money";
+  const isExercises = location.pathname === "/exercises";
 
   return (
     <div className="layout">
@@ -20,7 +21,7 @@ export default function Layout({ children }) {
           <div className="mobile-header__titles">
             <span className="mobile-header__name">OYBEK SysteM</span>
             <span className="mobile-header__tag">
-              {isHome ? "Bosh sahifa" : isMoney ? "Money manager" : "Shaxsiy panel"}
+              {isHome ? "Bosh sahifa" : isMoney ? "Money manager" : isExercises ? "Mashqlar (Tez kunda)" : "Shaxsiy panel"}
             </span>
           </div>
         </div>

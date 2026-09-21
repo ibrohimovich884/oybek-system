@@ -192,8 +192,10 @@ export default function EditTransactionModal({ item, onClose }) {
                   onChange={(e) => setFromWallet(e.target.value)}
                   className="expense-form__input"
                 >
-                  <option value="karta">Plastik karta</option>
+                  <option value="hamyon">Hamyon</option>
                   <option value="naqd">Naqd pul</option>
+                  <option value="karta">Plastik karta</option>
+                  <option value="dollar">AQSH Dollari ($)</option>
                 </select>
               </div>
               <div className="expense-form__field">
@@ -203,29 +205,32 @@ export default function EditTransactionModal({ item, onClose }) {
                   onChange={(e) => setToWallet(e.target.value)}
                   className="expense-form__input"
                 >
+                  <option value="hamyon">Hamyon</option>
                   <option value="naqd">Naqd pul</option>
                   <option value="karta">Plastik karta</option>
+                  <option value="dollar">AQSH Dollari ($)</option>
                 </select>
               </div>
             </div>
           ) : (
             <div className="expense-form__field">
-              <label className="expense-form__label">To'lov usuli (paymentMethod)</label>
-              <div className="wallet-select-group">
-                <button
-                  type="button"
-                  className={`wallet-choice-btn ${paymentMethod === "naqd" ? "is-selected is-naqd" : ""}`}
-                  onClick={() => setPaymentMethod("naqd")}
-                >
-                  Naqd pul (naqd)
-                </button>
-                <button
-                  type="button"
-                  className={`wallet-choice-btn ${paymentMethod === "karta" ? "is-selected is-karta" : ""}`}
-                  onClick={() => setPaymentMethod("karta")}
-                >
-                  Plastik karta (karta)
-                </button>
+              <label className="expense-form__label">To'lov usuli / Hisob (paymentMethod)</label>
+              <div className="wallet-select-group" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8 }}>
+                {[
+                  { id: "hamyon", label: "Hamyon" },
+                  { id: "naqd", label: "Naqd pul" },
+                  { id: "karta", label: "Plastik karta" },
+                  { id: "dollar", label: "Dollar ($)" },
+                ].map((w) => (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={`wallet-choice-btn ${paymentMethod === w.id ? `is-selected is-${w.id}` : ""}`}
+                    onClick={() => setPaymentMethod(w.id)}
+                  >
+                    {w.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   getExercises,
   getLogs,
@@ -23,9 +24,13 @@ import {
   ChevronRight,
   Sparkles,
   Loader2,
+  Clock,
+  CheckCircle2,
+  Home,
 } from 'lucide-react';
 
 export default function ExercisesPage() {
+  const [showDemoPreview, setShowDemoPreview] = useState(false);
   const [exercises, setExercises] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -208,198 +213,355 @@ export default function ExercisesPage() {
   }, [logs, todayStr]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
+    <div className="exercises-page">
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
+        <div
+          className="feedback-alert feedback-alert--success"
+          style={{
+            position: "fixed",
+            top: "20px",
+            right: "20px",
+            zIndex: 999,
+            boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          <Sparkles size={16} />
           <span>{notification}</span>
         </div>
       )}
 
-      {/* Yuqori Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-xs">
-              <Dumbbell className="w-5 h-5" />
+      {/* Yuqori sarlavha */}
+      <div className="page-header-row">
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <h1 className="page-title">Mashqlar nazorati</h1>
+            <span className="sidebar__badge">Tez kunda</span>
+          </div>
+          <p className="page-subtitle">
+            Kunlik badantarbiya, mashqlar checklisti va natijalar monitoringi tizimi.
+          </p>
+        </div>
+      </div>
+
+      {!showDemoPreview ? (
+        /* Standart ko'rinish: Tez kunda xabari */
+        <div className="exercises-coming-soon">
+          <div className="coming-soon-hero">
+            <div className="coming-soon-badge-row">
+              <Clock size={13} />
+              <span>Ishlab chiqilmoqda</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-tight">
-                  Mashqlar Nazorati
-                </h1>
-                <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Faol
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">
-                Kunlik odatlar, checklist va faollik diagrammalari
-              </p>
+
+            <div className="coming-soon-icon-box">
+              <Dumbbell size={36} />
+            </div>
+
+            <h2 className="coming-soon-title">Mashqlar bo'limi — Tez kunda!</h2>
+            <p className="coming-soon-subtitle">
+              Ushbu bo'lim hozirda tayyorlanmoqda va keyingi yangilanishda to'liq foydalanishga topshiriladi.
+              Bu yerda kunlik mashqlarni rejalashtirish, cheklistlarni to'ldirish hamda ketma-ketlik (streak) natijalarini kuzatish imkoniyati yaratilmoqda.
+            </p>
+
+            <div className="coming-soon-actions">
+              <Link
+                to="/"
+                className="btn btn--primary"
+                style={{
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 20px",
+                }}
+              >
+                <Home size={16} />
+                <span>Bosh sahifaga qaytish</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setShowDemoPreview(true)}
+                className="btn btn--subtle"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 18px",
+                  cursor: "pointer",
+                  background: "var(--surface-3)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
+              >
+                <Sparkles size={16} style={{ color: "var(--accent)" }} />
+                <span>Dastlabki namunani ko'rish</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            {/* Reset mock data */}
+          <div className="coming-soon-features-grid">
+            <div className="coming-soon-feature-card">
+              <div className="coming-soon-feature-header">
+                <div className="coming-soon-feature-icon" style={{ color: "var(--accent)" }}>
+                  <CheckCircle2 size={20} />
+                </div>
+                <span className="coming-soon-feature-title">Kunlik checklist</span>
+              </div>
+              <p className="coming-soon-feature-desc">
+                Har kunlik badantarbiya va mashqlarni birma-bir bajarilgan deb belgilash va vaqtini qayd etish.
+              </p>
+            </div>
+
+            <div className="coming-soon-feature-card">
+              <div className="coming-soon-feature-header">
+                <div className="coming-soon-feature-icon" style={{ color: "#f59e0b" }}>
+                  <Flame size={20} />
+                </div>
+                <span className="coming-soon-feature-title">Seriyalar (Streak)</span>
+              </div>
+              <p className="coming-soon-feature-desc">
+                Kunlik mashg'ulotlarni uzmasdan bajarish orqali intizomli ketma-ketlik rekordi o'rnatish.
+              </p>
+            </div>
+
+            <div className="coming-soon-feature-card">
+              <div className="coming-soon-feature-header">
+                <div className="coming-soon-feature-icon" style={{ color: "var(--karta)" }}>
+                  <Calendar size={20} />
+                </div>
+                <span className="coming-soon-feature-title">Oylik tahlil & Taqvim</span>
+              </div>
+              <p className="coming-soon-feature-desc">
+                Har oyning qaysi kunlarida faol bo'lganingizni qulay vizual taqvim orqali kuzatish.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Dastlabki namunaviy interfeys */
+        <div className="exercises-demo-preview" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+          <div className="preview-mode-banner">
+            <div className="preview-mode-banner__text">
+              <Sparkles size={18} />
+              <span>Dastlabki sinov rejimi: To'liq versiya tez kunda ishga tushiriladi.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDemoPreview(false)}
+              className="btn btn--subtle"
+              style={{
+                background: "var(--surface)",
+                border: "1px solid rgba(245, 158, 11, 0.4)",
+                color: "var(--text)",
+                padding: "6px 14px",
+                fontSize: "var(--fs-xs)",
+                cursor: "pointer",
+              }}
+            >
+              Yopish (Tez kunda ko'rinishiga qaytish)
+            </button>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginBottom: "8px" }}>
             <button
               id="reset-mock-data-btn"
               type="button"
               onClick={handleResetData}
               title="Boshlang'ich mock ma'lumotlarga qaytarish"
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+              className="btn btn--subtle"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw size={14} />
+              <span>Qayta yuklash</span>
             </button>
 
-            {/* Yangi mashq qo'shish tugmasi */}
             <button
               id="header-add-exercise-btn"
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+              className="btn btn--primary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
             >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Yangi mashq qo'shish</span>
-              <span className="sm:hidden">Qo'shish</span>
+              <Plus size={16} />
+              <span>Yangi mashq</span>
             </button>
           </div>
-        </div>
-      </header>
 
-      {/* Asosiy Kontent */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-200 shadow-xs">
-            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
-            <p className="text-sm font-medium text-slate-600">Mashqlar yuklanmoqda...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center">
-            <p className="text-sm font-medium text-rose-800">{error}</p>
-            <button
-              type="button"
-              onClick={fetchData}
-              className="mt-3 px-4 py-2 text-xs font-semibold bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition"
-            >
-              Qayta urinish
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Sana Boshqaruvi va Tezkor Holat */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Sana navigatori */}
-          <div className="flex items-center gap-2">
-            <button
-              id="prev-date-btn"
-              type="button"
-              onClick={() => shiftDate(-1)}
-              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer"
-              title="Bir kun oldinga"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-              <Calendar className="w-4 h-4 text-emerald-600" />
-              <input
-                id="selected-date-picker"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                className="text-xs sm:text-sm font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
-              />
+          {loading ? (
+            <div className="panel" style={{ textAlign: "center", padding: "40px" }}>
+              <Loader2 className="animate-spin" size={28} style={{ color: "var(--accent)", margin: "0 auto 12px" }} />
+              <p style={{ color: "var(--text-muted)" }}>Mashqlar yuklanmoqda...</p>
             </div>
-
-            <button
-              id="next-date-btn"
-              type="button"
-              onClick={() => shiftDate(1)}
-              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer"
-              title="Bir kun keyinga"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {!isSelectedToday && (
+          ) : error ? (
+            <div className="feedback-alert feedback-alert--error" style={{ justifyContent: "center" }}>
+              <span>{error}</span>
               <button
-                id="today-shortcut-btn"
                 type="button"
-                onClick={() => setSelectedDate(todayStr)}
-                className="text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer"
+                onClick={fetchData}
+                className="btn btn--subtle"
+                style={{ marginLeft: "12px", cursor: "pointer" }}
               >
-                Bugunga o'tish
+                Qayta urinish
               </button>
-            )}
-          </div>
-
-          {/* Qisqa ma'lumotlar bloki */}
-          <div className="flex items-center gap-4 sm:gap-6 divide-x divide-slate-100">
-            <div>
-              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                {isSelectedToday ? 'Bugungi reja' : `${selectedDate} reja`}
-              </div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                <span>{todayCompletedCount} / {totalExercisesCount} mashq</span>
-                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                  {todayPercent}%
-                </span>
-              </div>
             </div>
+          ) : (
+            <>
+              {/* Sana Boshqaruvi va Tezkor Holat */}
+              <div
+                className="panel"
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  padding: "16px",
+                }}
+              >
+                {/* Sana navigatori */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    id="prev-date-btn"
+                    type="button"
+                    onClick={() => shiftDate(-1)}
+                    className="btn btn--subtle"
+                    title="Bir kun oldinga"
+                    style={{ padding: "8px", cursor: "pointer" }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
 
-            <div className="pl-4 sm:pl-6">
-              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Ketma-ketlik
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      background: "var(--surface-2)",
+                      padding: "6px 12px",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <Calendar size={16} style={{ color: "var(--accent)" }} />
+                    <input
+                      id="selected-date-picker"
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--text)",
+                        fontSize: "var(--fs-sm)",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    id="next-date-btn"
+                    type="button"
+                    onClick={() => shiftDate(1)}
+                    className="btn btn--subtle"
+                    title="Bir kun keyinga"
+                    style={{ padding: "8px", cursor: "pointer" }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+
+                  {!isSelectedToday && (
+                    <button
+                      id="today-shortcut-btn"
+                      type="button"
+                      onClick={() => setSelectedDate(todayStr)}
+                      className="btn btn--subtle"
+                      style={{
+                        color: "var(--accent)",
+                        borderColor: "var(--accent-border)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Bugunga o'tish
+                    </button>
+                  )}
+                </div>
+
+                {/* Qisqa ma'lumotlar bloki */}
+                <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+                  <div>
+                    <div style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", textTransform: "uppercase" }}>
+                      {isSelectedToday ? "Bugungi reja" : `${selectedDate} reja`}
+                    </div>
+                    <div style={{ fontSize: "var(--fs-md)", fontWeight: "700", color: "var(--text)" }}>
+                      {todayCompletedCount} / {totalExercisesCount} mashq ({todayPercent}%)
+                    </div>
+                  </div>
+
+                  <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "16px" }}>
+                    <div style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", textTransform: "uppercase" }}>
+                      Ketma-ketlik
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "var(--fs-md)",
+                        fontWeight: "700",
+                        color: "#f59e0b",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <Flame size={18} fill="#f59e0b" />
+                      <span>{streakStats.currentStreak} kunlik</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="text-base sm:text-lg font-bold text-amber-600 flex items-center gap-1">
-                <Flame className="w-4 h-4 fill-amber-500" />
-                <span>{streakStats.currentStreak} kunlik seriya</span>
-              </div>
-            </div>
-          </div>
+
+              {/* 1-DIAGRAMMA */}
+              <section id="streak-chart-section">
+                <ExerciseStreakChart
+                  exercises={exercises}
+                  logs={logs}
+                  selectedDate={selectedDate}
+                  onSelectDate={(date) => setSelectedDate(date)}
+                />
+              </section>
+
+              {/* 2-DIAGRAMMA */}
+              <section id="calendar-chart-section">
+                <ExerciseCalendarChart
+                  exercises={exercises}
+                  logs={logs}
+                  selectedDate={selectedDate}
+                  onSelectDate={(date) => setSelectedDate(date)}
+                />
+              </section>
+
+              {/* ASOSIY CHECKLIST */}
+              <section id="exercise-checklist-section">
+                <ExerciseCheckList
+                  exercises={exercises}
+                  logs={logs}
+                  selectedDate={selectedDate}
+                  onToggleExercise={handleToggleExercise}
+                  onDeleteExercise={handleDeleteExercise}
+                  onOpenAddModal={() => setIsAddModalOpen(true)}
+                />
+              </section>
+            </>
+          )}
+
+          {/* Yangi Mashq Qo'shish Formasi (Modal) */}
+          <AddExerciseForm
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onAddExercise={handleAddExercise}
+          />
         </div>
-
-        {/* 1-DIAGRAMMA: Checkbox bo'yicha kunlik progress & Streak */}
-        <section id="streak-chart-section">
-          <ExerciseStreakChart
-            exercises={exercises}
-            logs={logs}
-            selectedDate={selectedDate}
-            onSelectDate={(date) => setSelectedDate(date)}
-          />
-        </section>
-
-        {/* 2-DIAGRAMMA: Qaysi kunlar bajarilgan (Oylik taqvim xaritasi) */}
-        <section id="calendar-chart-section">
-          <ExerciseCalendarChart
-            exercises={exercises}
-            logs={logs}
-            selectedDate={selectedDate}
-            onSelectDate={(date) => setSelectedDate(date)}
-          />
-        </section>
-
-        {/* ASOSIY CHECKLIST: Bugungi mashqlar va checkboxlar */}
-        <section id="exercise-checklist-section">
-          <ExerciseCheckList
-            exercises={exercises}
-            logs={logs}
-            selectedDate={selectedDate}
-            onToggleExercise={handleToggleExercise}
-            onDeleteExercise={handleDeleteExercise}
-            onOpenAddModal={() => setIsAddModalOpen(true)}
-          />
-        </section>
-        </>
-        )}
-      </main>
-
-      {/* Yangi Mashq Qo'shish Formasi (Modal) */}
-      <AddExerciseForm
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddExercise={handleAddExercise}
-      />
+      )}
     </div>
   );
 }

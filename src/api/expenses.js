@@ -8,7 +8,7 @@
  */
 
 import { generateId } from "../utils/id.js";
-import { DEFAULT_WALLETS } from "../constants/money.js";
+import { DEFAULT_WALLETS, DEFAULT_RESERVES } from "../constants/money.js";
 import { formatISOWithOffset } from "../utils/format.js";
 import { apiClient } from "./client.js";
 import {
@@ -20,6 +20,9 @@ import {
 
 const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
 const STORAGE_WALLETS_KEY = "oybek-system:wallets";
+const STORAGE_RESERVES_KEY = "oybek-system:reserves";
+const STORAGE_DOLLAR_RATES_KEY = "oybek-system:dollar_rate_history";
+const STORAGE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
 
 /**
  * Mahalliy xotiradan (localStorage) hamyonlarni o'qish
@@ -34,8 +37,10 @@ function readLocalWallets() {
   try {
     const parsed = JSON.parse(raw);
     return {
+      hamyon: Number(parsed.hamyon ?? DEFAULT_WALLETS.hamyon),
       naqd: Number(parsed.naqd ?? DEFAULT_WALLETS.naqd),
       karta: Number(parsed.karta ?? DEFAULT_WALLETS.karta),
+      dollar: Number(parsed.dollar ?? DEFAULT_WALLETS.dollar),
     };
   } catch {
     return { ...DEFAULT_WALLETS };
@@ -48,15 +53,92 @@ function writeLocalWallets(wallets) {
 }
 
 /**
+ * Asosiy (reserve) balanslarni o'qish va saqlash
+ */
+function readLocalReserves() {
+  if (typeof window === "undefined") return { ...DEFAULT_RESERVES };
+  const raw = localStorage.getItem(STORAGE_RESERVES_KEY);
+  if (!raw) {
+    localStorage.setItem(STORAGE_RESERVES_KEY, JSON.stringify(DEFAULT_RESERVES));
+    return { ...DEFAULT_RESERVES };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    // Har bir asosiy balans mavjudligini va append-only notes massivini tekshiramiz
+    const res = { ...DEFAULT_RESERVES };
+    for (const key of ["naqd-asosiy", "karta-asosiy", "dollar-asosiy"]) {
+      if (parsed && parsed[key]) {
+        res[key] = {
+          ...DEFAULT_RESERVES[key],
+          ...parsed[key],
+          amount: Number(parsed[key].amount || 0),
+          notes: Array.isArray(parsed[key].notes) ? parsed[key].notes : [...DEFAULT_RESERVES[key].notes],
+        };
+      }
+    }
+    return res;
+  } catch {
+    return { ...DEFAULT_RESERVES };
+  }
+}
+
+function writeLocalReserves(reserves) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_RESERVES_KEY, JSON.stringify(reserves));
+}
+
+/**
+ * Dollar kursi tarixi
+ */
+function readLocalDollarRateHistory() {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(STORAGE_DOLLAR_RATES_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalDollarRateHistory(history) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_DOLLAR_RATES_KEY, JSON.stringify(history));
+}
+
+/**
+ * Kelajakdagi qarz daftarchasi uchun
+ */
+function readLocalPendingDebts() {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(STORAGE_PENDING_DEBTS_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalPendingDebts(debts) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_PENDING_DEBTS_KEY, JSON.stringify(debts));
+}
+
+/**
  * Tranzaksiya ma'lumotlarini to'liq va xatosiz standartga keltirish
  */
 export function normalizeExpense(item) {
-  const paymentMethod = item.paymentMethod || item.wallet || "naqd";
+  const paymentMethod = item.paymentMethod || item.wallet || "hamyon";
   const wallet = item.wallet || paymentMethod;
   const quantity = Number(item.quantity ?? 1);
   const spentAt = formatISOWithOffset(item.spentAt || item.createdAt || new Date());
   const createdAt = formatISOWithOffset(item.createdAt || item.spentAt || new Date());
   const edits = Array.isArray(item.edits) ? item.edits : [];
+  const currency = item.currency || (wallet === "dollar" ? "USD" : "UZS");
+  const exchangeRateAtTime = item.exchangeRateAtTime || item.exchangeRate || null;
 
   let category = item.category || "Qorin uchun";
   let subcategory = item.subcategory || "";
@@ -98,6 +180,8 @@ export function normalizeExpense(item) {
     edits,
     type: item.type || "expense",
     wallet,
+    currency,
+    exchangeRateAtTime,
     fromWallet: item.fromWallet || null,
     toWallet: item.toWallet || null,
   };
@@ -282,8 +366,10 @@ export async function deleteExpense(id) {
 export async function updateWallets(updates) {
   const current = readLocalWallets();
   const saved = {
+    hamyon: Number(updates.hamyon !== undefined ? updates.hamyon : current.hamyon),
     naqd: Number(updates.naqd !== undefined ? updates.naqd : current.naqd),
     karta: Number(updates.karta !== undefined ? updates.karta : current.karta),
+    dollar: Number(updates.dollar !== undefined ? updates.dollar : current.dollar),
   };
 
   writeLocalWallets(saved);
@@ -293,17 +379,110 @@ export async function updateWallets(updates) {
 }
 
 /**
+ * Asosiy (reserve) balanslarni olish
+ */
+export async function getReserves() {
+  return readLocalReserves();
+}
+
+/**
+ * Asosiy balansni yangilash (APPEND-ONLY notes bilan)
+ */
+export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }) {
+  const reserves = readLocalReserves();
+  const target = reserves[id];
+  if (!target) {
+    throw new Error(`Asosiy zaxira topilmadi: ${id}`);
+  }
+
+  const oldAmount = Number(target.amount || 0);
+  const newAmount = Number(amount);
+  const now = formatISOWithOffset(new Date());
+
+  const existingNotes = Array.isArray(target.notes) ? [...target.notes] : [];
+  const cleanNote = (noteText || "").trim() || `Balans yangilandi: ${newAmount}`;
+
+  // APPEND-ONLY: Eski izoh o'chirilmaydi, yangi izoh qo'shiladi
+  existingNotes.unshift({
+    text: cleanNote,
+    amount_at_that_time: newAmount,
+    editedAt: now,
+  });
+
+  target.amount = newAmount;
+  target.notes = existingNotes;
+
+  writeLocalReserves(reserves);
+
+  // Agar Dollar Asosiy bo'lsa, kurs tarixini ham saqlaymiz
+  if (id === "dollar-asosiy" && newAmount !== oldAmount) {
+    const diff = newAmount - oldAmount;
+    addDollarRateRecord({
+      amount: Math.abs(diff),
+      direction: diff > 0 ? "kirim" : "chiqim",
+      target: "asosiy",
+      exchangeRateAtTime: exchangeRateAtTime || 12850,
+      occurredAt: now,
+      note: cleanNote,
+    });
+  }
+
+  return reserves;
+}
+
+/**
+ * Dollar kursi tarixi
+ */
+export async function getDollarRateHistory() {
+  return readLocalDollarRateHistory();
+}
+
+export function addDollarRateRecord(record) {
+  const history = readLocalDollarRateHistory();
+  const newRecord = {
+    id: generateId(),
+    amount: Number(record.amount || 0),
+    direction: record.direction || "kirim",
+    target: record.target || "oddiy", // "oddiy" | "asosiy"
+    exchangeRateAtTime: Number(record.exchangeRateAtTime || 12850),
+    occurredAt: formatISOWithOffset(record.occurredAt || new Date()),
+    note: record.note || "",
+  };
+  history.unshift(newRecord);
+  writeLocalDollarRateHistory(history);
+  return newRecord;
+}
+
+/**
+ * Kelajakdagi qarz daftarchasi uchun
+ */
+export async function getPendingDebts() {
+  return readLocalPendingDebts();
+}
+
+export async function savePendingDebts(debts) {
+  writeLocalPendingDebts(debts);
+  return debts;
+}
+
+/**
  * Zaxira nusxa (Backup) eksporti
  */
 export async function exportBackup() {
   const expenses = await getExpenses();
   const wallets = await getWallets();
+  const reserves = await getReserves();
+  const dollarRateHistory = await getDollarRateHistory();
+  const pendingDebts = await getPendingDebts();
 
   return {
-    version: "2.0.0",
+    version: "3.0.0",
     exportedAt: new Date().toISOString(),
     backendPort: getBackendPort(),
     wallets,
+    reserves,
+    dollarRateHistory,
+    pendingDebts,
     expenses,
   };
 }
@@ -318,6 +497,18 @@ export async function importBackup(backupData) {
 
   if (backupData.wallets) {
     writeLocalWallets(backupData.wallets);
+  }
+
+  if (backupData.reserves) {
+    writeLocalReserves(backupData.reserves);
+  }
+
+  if (Array.isArray(backupData.dollarRateHistory)) {
+    writeLocalDollarRateHistory(backupData.dollarRateHistory);
+  }
+
+  if (Array.isArray(backupData.pendingDebts)) {
+    writeLocalPendingDebts(backupData.pendingDebts);
   }
 
   const normalized = backupData.expenses.map(normalizeExpense);

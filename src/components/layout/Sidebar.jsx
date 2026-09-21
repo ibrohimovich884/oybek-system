@@ -1,9 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { Home, Wallet, X, ShieldCheck } from "lucide-react";
+import { Home, Wallet, SlidersHorizontal, HandCoins, Dumbbell, X, ShieldCheck } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", label: "Bosh sahifa", icon: Home },
   { to: "/money", label: "Money manager", icon: Wallet },
+  { to: "/control", label: "Control panel", icon: SlidersHorizontal },
+  { to: "/debts", label: "Qarz daftari", icon: HandCoins },
+  { to: "/exercises", label: "Mashqlar", icon: Dumbbell, badge: "Tez kunda" },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -54,6 +57,7 @@ export default function Sidebar({ isOpen, onClose }) {
               >
                 <Icon size={18} className="sidebar__link-icon" />
                 <span>{item.label}</span>
+                {item.badge && <span className="sidebar__badge">{item.badge}</span>}
               </NavLink>
             );
           })}

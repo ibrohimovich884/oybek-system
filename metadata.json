@@ -1,6 +1,6 @@
 {
   "name": "OYBEK SysteM",
-  "description": "Shaxsiy boshqaruv paneli va kundalik xarajatlar nazorati (Money manager).",
+  "description": "Shaxsiy boshqaruv paneli, ko'p hisobli moliya boshqaruvi (Hamyon, Naqd, Karta, Dollar), zaxira rezervlar va qarz daftarchasi nazorati.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -1,5 +1,5 @@
 import { Edit2, Trash2, ArrowRightLeft, History, Layers } from "lucide-react";
-import { formatDateTime, formatSum } from "../../utils/format.js";
+import { formatDateTime, formatSum, formatDollar } from "../../utils/format.js";
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -139,8 +139,17 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
             : "ledger-row__amount--expense"
         }`}
       >
-        {isIncome ? "+" : isTransfer ? "⇄ " : "-"}
-        {formatSum(expense.amount)}
+        <div>
+          {isIncome ? "+" : isTransfer ? "⇄ " : "-"}
+          {expense.currency === "USD" || paymentMethod === "dollar"
+            ? formatDollar(expense.amount)
+            : formatSum(expense.amount)}
+        </div>
+        {(expense.currency === "USD" || paymentMethod === "dollar") && expense.exchangeRateAtTime && (
+          <span style={{ fontSize: "0.7rem", opacity: 0.75, display: "block" }}>
+            ~ {formatSum(expense.amount * expense.exchangeRateAtTime)}
+          </span>
+        )}
       </div>
 
       {/* Harakatlar */}

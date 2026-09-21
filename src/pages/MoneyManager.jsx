@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useExpenses } from "../context/ExpensesContext.jsx";
 import WalletCards from "../components/money-manager/WalletCards.jsx";
 import ExpenseForm from "../components/money-manager/ExpenseForm.jsx";
@@ -14,6 +15,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export default function MoneyManager() {
@@ -72,12 +74,20 @@ export default function MoneyManager() {
         <div>
           <h1 className="page-title">Money manager</h1>
           <p className="page-subtitle">
-            Naqd pul va plastik karta hisoblarini boshqaring, xarajat hamda daromadlarni hisoblab boring.
+            Hamyon, Naqd, Plastik karta va Dollar oddiy balanslarini boshqaring, kundalik xarajat va daromadlarni hisoblab boring.
           </p>
         </div>
 
-        {/* Eksport & Import asboblar paneli */}
+        {/* Eksport & Import & Control panel asboblar paneli */}
         <div className="backup-toolbar">
+          <Link
+            to="/control"
+            className="btn btn--primary backup-btn"
+            title="Asosiy (rezerv) balanslar va nazorat paneli"
+          >
+            <SlidersHorizontal size={15} />
+            <span className="backup-btn__label">Control panel</span>
+          </Link>
           <button
             type="button"
             className="btn btn--subtle backup-btn"

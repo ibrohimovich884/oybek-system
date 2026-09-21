@@ -2,6 +2,30 @@ export function formatSum(amount) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " so'm";
 }
 
+export function formatDollar(amount) {
+  const num = Number(amount || 0);
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+  return `$${formatted}`;
+}
+
+export function formatRate(rate) {
+  const num = Number(rate || 0);
+  return new Intl.NumberFormat("uz-UZ", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num) + " so'm";
+}
+
+export function formatCurrency(amount, currency = "UZS") {
+  if (currency === "USD") {
+    return formatDollar(amount);
+  }
+  return formatSum(amount);
+}
+
 export function formatDateTime(isoString) {
   if (!isoString) return "—";
   const date = new Date(isoString);
