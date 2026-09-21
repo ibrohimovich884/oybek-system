@@ -182,39 +182,43 @@ export default function ExpenseList({ expenses }) {
       )}
 
       {/* Jadval */}
-      <div className="ledger">
-        <div className="ledger__head">
-          <span>Vaqt</span>
-          <span>Hisob</span>
-          <span>Kategoriya</span>
-          <span>Izoh / Joy</span>
-          <span style={{ textAlign: "right" }}>Miqdor</span>
-          <span style={{ textAlign: "right" }}>Amallar</span>
-        </div>
+      <div className="ledger-card">
+        <div className="ledger-scroll">
+          <div className="ledger">
+            <div className="ledger__head">
+              <span className="ledger-th ledger-th--date">Vaqt</span>
+              <span className="ledger-th ledger-th--wallet">Hisob</span>
+              <span className="ledger-th ledger-th--category">Kategoriya</span>
+              <span className="ledger-th ledger-th--desc">Izoh / Joy</span>
+              <span className="ledger-th ledger-th--amount">Miqdor</span>
+              <span className="ledger-th ledger-th--actions">Amallar</span>
+            </div>
 
-        {filteredExpenses.length === 0 ? (
-          <div className="ledger-empty">
-            <p>Hech qanday tranzaksiya topilmadi.</p>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={clearFilters}
-              >
-                Filtrlarni bekor qilish
-              </button>
+            {filteredExpenses.length === 0 ? (
+              <div className="ledger-empty">
+                <p>Hech qanday tranzaksiya topilmadi.</p>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={clearFilters}
+                  >
+                    Filtrlarni bekor qilish
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredExpenses.map((expense) => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  onEdit={(item) => setEditingItem(item)}
+                  onDelete={deleteExpense}
+                />
+              ))
             )}
           </div>
-        ) : (
-          filteredExpenses.map((expense) => (
-            <ExpenseRow
-              key={expense.id}
-              expense={expense}
-              onEdit={(item) => setEditingItem(item)}
-              onDelete={deleteExpense}
-            />
-          ))
-        )}
+        </div>
       </div>
 
       {/* Tahrirlash modali */}

@@ -112,7 +112,7 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
           </div>
 
           {/* Qaysi hisobga / Qaysi hisobdan */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="form-row form-row--2col">
             <div className="form-group">
               <label className="field-label">
                 {isGiven ? "Qaysi hisobga tushdi" : "Qaysi hisobdan to'landi"}
@@ -136,25 +136,12 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
 
             <div className="form-group">
               <label className="field-label">Balansga ta'siri</label>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  height: 42,
-                  padding: "0 10px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--surface-sunken)",
-                  border: "1px solid var(--border)",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                }}
-              >
+              <label className="debt-checkbox-card">
                 <input
                   type="checkbox"
                   checked={affectBalance}
                   onChange={(e) => setAffectBalance(e.target.checked)}
-                  style={{ accentColor: "var(--accent)" }}
+                  style={{ accentColor: "var(--accent)", cursor: "pointer" }}
                 />
                 <span>{isGiven ? "Kirim qilib yozilsin" : "Chiqim qilib yozilsin"}</span>
               </label>

@@ -117,155 +117,211 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-form form--type-transfer">
-          <div className="transfer-flow">
+        <form onSubmit={handleSubmit} className="modal-form form--type-transfer universal-transfer-form">
+          {/* O'tkazma oqimi: Qayerdan va Qayerga */}
+          <div className="universal-transfer-flow">
             {/* Manba hisob */}
-            <div className={`transfer-box transfer-box--${fromInfo.type}`}>
-              <span className="transfer-box__tag">Qayerdan chiqadi:</span>
-              <select
-                className="transfer-select"
-                value={fromAccount}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFromAccount(val);
-                  if (val === toAccount) {
-                    setToAccount(val === "naqd" ? "naqd-asosiy" : "naqd");
-                  }
-                }}
-              >
-                <optgroup label="Oddiy (Kundalik) hisoblar">
-                  {ALL_ACCOUNTS.filter((a) => a.type === "oddiy").map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Asosiy (Rezerv) hisoblar">
-                  {ALL_ACCOUNTS.filter((a) => a.type === "asosiy").map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-              <div className="transfer-box__card">
-                <fromInfo.icon size={18} />
-                <strong>{fromInfo.name}</strong>
+            <div className={`transfer-card transfer-card--${fromInfo.type}`}>
+              <div className="transfer-card__header">
+                <span className="transfer-card__direction">
+                  <span className="transfer-dot transfer-dot--out"></span>
+                  Qayerdan chiqadi
+                </span>
+                <span className={`transfer-type-tag transfer-type-tag--${fromInfo.type}`}>
+                  {fromInfo.type === "asosiy" ? "Rezerv" : "Kundalik"}
+                </span>
               </div>
-              <span className="transfer-box__bal mono">
-                Balans: {isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance)}
-              </span>
+
+              <div className="transfer-card__select-wrap">
+                <select
+                  className="transfer-select"
+                  value={fromAccount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFromAccount(val);
+                    if (val === toAccount) {
+                      setToAccount(val === "naqd" ? "naqd-asosiy" : "naqd");
+                    }
+                  }}
+                >
+                  <optgroup label="Oddiy (Kundalik) hisoblar">
+                    {ALL_ACCOUNTS.filter((a) => a.type === "oddiy").map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Asosiy (Rezerv) hisoblar">
+                    {ALL_ACCOUNTS.filter((a) => a.type === "asosiy").map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div className="transfer-card__footer">
+                <div className="transfer-card__account-title">
+                  <fromInfo.icon size={16} className="transfer-acc-icon" />
+                  <span>{fromInfo.name}</span>
+                </div>
+                <div className="transfer-card__bal mono">
+                  <span className="transfer-bal-label">Mavjud:</span>{" "}
+                  <strong>{isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance)}</strong>
+                </div>
+              </div>
             </div>
 
-            <button
-              type="button"
-              className="transfer-swap-btn"
-              onClick={handleSwap}
-              title="Yo'nalishni almashtirish"
-            >
-              <ArrowRightLeft size={18} />
-            </button>
+            {/* Swap tugmasi */}
+            <div className="transfer-swap-container">
+              <button
+                type="button"
+                className="transfer-swap-btn"
+                onClick={handleSwap}
+                title="Yo'nalishni almashtirish"
+              >
+                <ArrowRightLeft size={16} />
+              </button>
+            </div>
 
             {/* Qabul qiluvchi hisob */}
-            <div className={`transfer-box transfer-box--${toInfo.type}`}>
-              <span className="transfer-box__tag">Qayerga tushadi:</span>
-              <select
-                className="transfer-select"
-                value={toAccount}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setToAccount(val);
-                  if (val === fromAccount) {
-                    setFromAccount(val === "naqd-asosiy" ? "naqd" : "naqd-asosiy");
-                  }
-                }}
-              >
-                <optgroup label="Oddiy (Kundalik) hisoblar">
-                  {ALL_ACCOUNTS.filter((a) => a.type === "oddiy" && a.id !== fromAccount).map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Asosiy (Rezerv) hisoblar">
-                  {ALL_ACCOUNTS.filter((a) => a.type === "asosiy" && a.id !== fromAccount).map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-              <div className="transfer-box__card">
-                <toInfo.icon size={18} />
-                <strong>{toInfo.name}</strong>
+            <div className={`transfer-card transfer-card--${toInfo.type}`}>
+              <div className="transfer-card__header">
+                <span className="transfer-card__direction">
+                  <span className="transfer-dot transfer-dot--in"></span>
+                  Qayerga tushadi
+                </span>
+                <span className={`transfer-type-tag transfer-type-tag--${toInfo.type}`}>
+                  {toInfo.type === "asosiy" ? "Rezerv" : "Kundalik"}
+                </span>
               </div>
-              <span className="transfer-box__bal mono">
-                Balans: {isToDollar ? formatDollar(toBalance) : formatSum(toBalance)}
-              </span>
+
+              <div className="transfer-card__select-wrap">
+                <select
+                  className="transfer-select"
+                  value={toAccount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setToAccount(val);
+                    if (val === fromAccount) {
+                      setFromAccount(val === "naqd-asosiy" ? "naqd" : "naqd-asosiy");
+                    }
+                  }}
+                >
+                  <optgroup label="Oddiy (Kundalik) hisoblar">
+                    {ALL_ACCOUNTS.filter((a) => a.type === "oddiy" && a.id !== fromAccount).map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Asosiy (Rezerv) hisoblar">
+                    {ALL_ACCOUNTS.filter((a) => a.type === "asosiy" && a.id !== fromAccount).map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div className="transfer-card__footer">
+                <div className="transfer-card__account-title">
+                  <toInfo.icon size={16} className="transfer-acc-icon" />
+                  <span>{toInfo.name}</span>
+                </div>
+                <div className="transfer-card__bal mono">
+                  <span className="transfer-bal-label">Mavjud:</span>{" "}
+                  <strong>{isToDollar ? formatDollar(toBalance) : formatSum(toBalance)}</strong>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Valyuta konvertatsiyasi bo'lsa kurs sozlamasi */}
           {hasCurrencyConversion && (
-            <div className="conversion-rate-banner" style={{ marginTop: 12, padding: "10px 14px", background: "var(--surface-hover)", borderRadius: 8, border: "1px solid var(--border)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Konvertatsiya kursi (1 USD):</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div className="transfer-conversion-card">
+              <div className="conversion-card__header">
+                <span className="conversion-card__title">
+                  Valyuta ayirboshlash kursi (1 USD):
+                </span>
+                <div className="conversion-rate-input-group">
                   <input
                     type="number"
                     step="any"
                     value={customRate}
                     onChange={(e) => setCustomRate(e.target.value)}
-                    className="expense-form__input mono"
-                    style={{ width: 140, padding: "4px 8px" }}
+                    className="field-input mono conversion-rate-input"
                   />
-                  <span className="field-hint">so'm</span>
+                  <span className="conversion-rate-unit">so'm</span>
                 </div>
+              </div>
+              <div className="conversion-rate-hint mono">
+                {isFromDollar
+                  ? `1 $ = ${formatSum(Number(customRate) || 0)} so'm kursi bo'yicha hisoblanadi`
+                  : `${formatSum(Number(customRate) || 0)} so'm = 1 $ kursi bo'yicha hisoblanadi`}
               </div>
             </div>
           )}
 
           {/* Summa */}
-          <div className="expense-form__field">
-            <label className="expense-form__label">
-              O'tkazma summasi ({isFromDollar ? "$" : "so'm"}) <span className="field-required">*</span>
+          <div className="form-group transfer-amount-group">
+            <label className="field-label">
+              O'tkazma summasi ({isFromDollar ? "$" : "so'm"}) <span style={{ color: "var(--expense)" }}>*</span>
             </label>
-            <input
-              type="number"
-              min={isFromDollar ? "0.01" : "1"}
-              step="any"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={isFromDollar ? "Masalan: 100" : "Masalan: 100000"}
-              className="expense-form__input mono expense-form__input--amount"
-              required
-            />
-            {amount && (
-              <div className="amount-preview mono" style={{ marginTop: 6, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <span>Chiqim: {isFromDollar ? formatDollar(numAmount) : formatSum(numAmount)}</span>
-                {hasCurrencyConversion && (
-                  <span style={{ color: "var(--accent)" }}>
-                    ➝ Tushum: {isToDollar ? formatDollar(calculatedTargetAmount) : formatSum(calculatedTargetAmount)}
+            <div className="input-with-currency">
+              <input
+                type="number"
+                min={isFromDollar ? "0.01" : "1"}
+                step="any"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={isFromDollar ? "Masalan: 100" : "Masalan: 100 000"}
+                className="field-input mono transfer-amount-input"
+                required
+              />
+              <span className="currency-suffix mono">{isFromDollar ? "$" : "so'm"}</span>
+            </div>
+
+            {amount && numAmount > 0 && (
+              <div className="transfer-calculation-preview mono">
+                <div className="calc-item calc-item--out">
+                  <span className="calc-label">Chiqim:</span>
+                  <span className="calc-value">
+                    {isFromDollar ? formatDollar(numAmount) : formatSum(numAmount)}
                   </span>
+                </div>
+                {hasCurrencyConversion && (
+                  <>
+                    <span className="calc-arrow">➝</span>
+                    <div className="calc-item calc-item--in">
+                      <span className="calc-label">Tushum:</span>
+                      <span className="calc-value">
+                        {isToDollar ? formatDollar(calculatedTargetAmount) : formatSum(calculatedTargetAmount)}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             )}
           </div>
 
-          <div className="expense-form__field">
-            <label className="expense-form__label">O'tkazma izohi (tarix uchun)</label>
+          {/* Izoh */}
+          <div className="form-group">
+            <label className="field-label">O'tkazma izohi (tarix uchun)</label>
             <input
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Masalan: Rezerv fondiga ajratildi, yoki zaxiradan yechildi..."
-              className="expense-form__input"
+              className="field-input"
             />
           </div>
 
-          <div className="modal-actions">
-            <div className="modal-actions-right" style={{ width: "100%", justifyContent: "flex-end" }}>
-              <button type="button" className="btn" onClick={onClose}>
+          <div className="modal-actions" style={{ marginTop: 20 }}>
+            <div className="modal-actions-right" style={{ width: "100%", justifyContent: "flex-end", display: "flex", gap: 8 }}>
+              <button type="button" className="btn btn--ghost" onClick={onClose}>
                 Bekor qilish
               </button>
               <button

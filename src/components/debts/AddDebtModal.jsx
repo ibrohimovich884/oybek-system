@@ -121,29 +121,13 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           {/* Qarz yo'nalishi (Switcher) */}
           <div className="form-group">
             <label className="field-label">Qarz turi</label>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 8,
-                background: "var(--surface-sunken)",
-                padding: 4,
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-              }}
-            >
+            <div className="debt-switcher">
               <button
                 type="button"
-                className={`btn btn--sm ${type === DEBT_TYPES.GIVEN ? "btn--primary" : "btn--ghost"}`}
+                className={`debt-switcher__btn ${type === DEBT_TYPES.GIVEN ? "is-given" : ""}`}
                 onClick={() => {
                   setType(DEBT_TYPES.GIVEN);
                   if (currency === "USD") setWallet("dollar");
-                }}
-                style={{
-                  justifyContent: "center",
-                  background: type === DEBT_TYPES.GIVEN ? "#38bdf8" : "transparent",
-                  color: type === DEBT_TYPES.GIVEN ? "#0c1322" : "var(--text-muted)",
-                  fontWeight: 600,
                 }}
               >
                 <ArrowUpRight size={16} />
@@ -152,16 +136,10 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
 
               <button
                 type="button"
-                className={`btn btn--sm ${type === DEBT_TYPES.TAKEN ? "btn--primary" : "btn--ghost"}`}
+                className={`debt-switcher__btn ${type === DEBT_TYPES.TAKEN ? "is-taken" : ""}`}
                 onClick={() => {
                   setType(DEBT_TYPES.TAKEN);
                   if (currency === "USD") setWallet("dollar");
-                }}
-                style={{
-                  justifyContent: "center",
-                  background: type === DEBT_TYPES.TAKEN ? "#f59e0b" : "transparent",
-                  color: type === DEBT_TYPES.TAKEN ? "#1f1300" : "var(--text-muted)",
-                  fontWeight: 600,
                 }}
               >
                 <ArrowDownLeft size={16} />
@@ -171,7 +149,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           </div>
 
           {/* Shaxs ismi va Aloqa */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 10 }}>
+          <div className="form-row form-row--wide-left">
             <div className="form-group">
               <label className="field-label">
                 {labels.personLabel} <span style={{ color: "var(--expense)" }}>*</span>
@@ -205,7 +183,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           </div>
 
           {/* Summa & Valyuta */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr", gap: 10 }}>
+          <div className="form-row form-row--wide-left">
             <div className="form-group">
               <label className="field-label">
                 {type === DEBT_TYPES.GIVEN ? "Berilgan summa" : "Olingan summa"} <span style={{ color: "var(--expense)" }}>*</span>
@@ -243,7 +221,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           </div>
 
           {/* Qaysi hisobdan / Qaysi hisobga & Balansga ta'sir */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="form-row form-row--2col">
             <div className="form-group">
               <label className="field-label">{labels.walletLabel}</label>
               <select
@@ -265,21 +243,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
 
             <div className="form-group">
               <label className="field-label">Balansga ta'siri</label>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  height: 42,
-                  padding: "0 10px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--surface-sunken)",
-                  border: "1px solid var(--border)",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  color: "var(--text)",
-                }}
-              >
+              <label className="debt-checkbox-card">
                 <input
                   type="checkbox"
                   checked={affectBalance}
@@ -292,7 +256,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           </div>
 
           {/* Vaqt & Joy */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 10 }}>
+          <div className="form-row form-row--2col">
             <div className="form-group">
               <label className="field-label">Olingan / berilgan vaqti</label>
               <div className="input-with-icon">
@@ -379,11 +343,11 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
             ) : (
               <div
                 style={{
-                  padding: "8px 12px",
+                  padding: "10px 14px",
                   borderRadius: "var(--radius-sm)",
                   background: "var(--surface-sunken)",
                   border: "1px dashed var(--border)",
-                  fontSize: "0.85rem",
+                  fontSize: "0.82rem",
                   color: "var(--text-muted)",
                   fontStyle: "italic",
                 }}
@@ -398,8 +362,8 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
             <label className="field-label">
               Izoh (O'zim uchun eslatma)
             </label>
-            <div className="input-with-icon" style={{ alignItems: "flex-start" }}>
-              <FileText size={16} className="input-icon" style={{ marginTop: 10 }} />
+            <div className="input-with-icon input-with-icon--textarea">
+              <FileText size={16} className="input-icon" />
               <textarea
                 className="field-input"
                 rows={2}
