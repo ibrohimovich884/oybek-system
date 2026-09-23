@@ -9,7 +9,11 @@ export function readLocalDebts() {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((d) => ({
+      ...d,
+      synced: d.synced !== undefined ? Boolean(d.synced) : true,
+    }));
   } catch {
     return [];
   }
@@ -43,6 +47,7 @@ export async function addDebtRecord(debtData) {
     personalNote: debtData.personalNote?.trim() || "", // O'zim uchun eslatma
     status: "pending", // "pending" | "partial" | "settled"
     payments: [],
+    synced: false, // Yangi qarz avval xotiraga yoziladi
     createdAt: formatISOWithOffset(new Date()),
     updatedAt: formatISOWithOffset(new Date()),
   };
@@ -61,6 +66,7 @@ export async function updateDebtRecord(id, updates) {
   const updated = {
     ...existing,
     ...updates,
+    synced: false,
     updatedAt: formatISOWithOffset(new Date()),
   };
 

@@ -1,4 +1,4 @@
-import { Edit2, Trash2, ArrowRightLeft, History, Layers, MapPin } from "lucide-react";
+import { Edit2, Trash2, ArrowRightLeft, History, Layers, MapPin, Database, Clock } from "lucide-react";
 import { formatDateTime, formatSum, formatDollar } from "../../utils/format.js";
 import {
   EXPENSE_CATEGORIES,
@@ -41,7 +41,7 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
         </div>
 
         <div className="ledger-cell--wallet">
-          <div className="ledger-row__wallet-badge">
+          <div className="ledger-row__wallet-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
             {isTransfer ? (
               <span className="badge badge--transfer" title="Hisoblararo o'tkazma">
                 <ArrowRightLeft size={11} />
@@ -56,6 +56,25 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
                 title={`To'lov usuli: ${walletInfo.label}`}
               >
                 {walletInfo.shortLabel}
+              </span>
+            )}
+
+            {/* DB saqlanganlik holati nishoni (Icon) */}
+            {expense.synced ? (
+              <span
+                className="badge badge--db-synced"
+                title="Server maʼlumotlar bazasida (DB) saqlangan"
+              >
+                <Database size={10} className="badge--db-icon" />
+                <span>DB</span>
+              </span>
+            ) : (
+              <span
+                className="badge badge--db-pending"
+                title="Hozircha faqat xotirada, internet ulanganda DBga avtomatik saqlanadi"
+              >
+                <Clock size={10} className="badge--db-icon" />
+                <span>Xotirada</span>
               </span>
             )}
           </div>

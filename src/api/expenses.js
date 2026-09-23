@@ -17,6 +17,7 @@ import {
   setBackendPort as saveBackendPort,
   setBackendBaseUrl as saveBackendBaseUrl,
 } from "../config/apiConfig.js";
+import { syncService } from "../services/syncService.js";
 
 const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
 const STORAGE_WALLETS_KEY = "oybek-system:wallets";
@@ -184,6 +185,7 @@ export function normalizeExpense(item) {
     exchangeRateAtTime,
     fromWallet: item.fromWallet || null,
     toWallet: item.toWallet || null,
+    synced: item.synced !== undefined ? Boolean(item.synced) : true,
   };
 }
 
@@ -216,20 +218,36 @@ function writeLocalExpenses(items) {
 
 /**
  * Barcha xarajatlar ro'yxatini olish
- * Backend ishlasa - backenddan oladi va keshlaydi;
+ * Backend ishlasa - backenddan oladi, mahalliy o'zgarishlar bilan aqlli birlashtiradi;
  * Backend ishlamasa - xatosiz mahalliy bazadan oladi.
  */
 export async function getExpenses() {
+  const localItems = readLocalExpenses();
+  const unsyncedLocals = localItems.filter((i) => i.synced === false);
+
   // 1. Backendga so'rov yuborish
   const res = await apiClient.get(API_ENDPOINTS.EXPENSES);
   if (res.ok && Array.isArray(res.data)) {
-    const normalized = res.data.map(normalizeExpense);
-    writeLocalExpenses(normalized); // Mahalliy keshni yangilaymiz
-    return normalized;
+    const serverItems = res.data.map((item) => ({
+      ...normalizeExpense(item),
+      synced: true,
+    }));
+
+    // Birlashtirish: serverdagi ma'lumotlar + hali DBga yuborilmagan lokal unsynced ma'lumotlar
+    const mergedMap = new Map();
+    serverItems.forEach((item) => mergedMap.set(item.id, item));
+    unsyncedLocals.forEach((item) => mergedMap.set(item.id, item));
+
+    const merged = Array.from(mergedMap.values());
+    merged.sort((a, b) => new Date(b.spentAt || b.createdAt) - new Date(a.spentAt || a.createdAt));
+
+    writeLocalExpenses(merged);
+    syncService.setLastSyncedAt(new Date().toISOString());
+    return merged;
   }
 
   // 2. Agar backend o'chiq bo'lsa, xatosiz mahalliy ma'lumotni qaytaramiz
-  return readLocalExpenses();
+  return localItems;
 }
 
 /**
@@ -275,6 +293,7 @@ export async function addExpense(payload) {
     wallet: paymentMethod,
     fromWallet: payload.fromWallet || (type === "transfer" ? "karta" : null),
     toWallet: payload.toWallet || (type === "transfer" ? "naqd" : null),
+    synced: false, // Boshlanishida xotirada, DB tasdig'i kutiladi
   };
 
   // 1. Darhol mahalliy xotiraga saqlaymiz (UI tez ishlashi uchun)
@@ -282,10 +301,32 @@ export async function addExpense(payload) {
   localItems.unshift(newRecord);
   writeLocalExpenses(localItems);
 
-  // 2. Backendga fon rejimida yoki to'g'ridan-to'g'ri jo'natamiz
-  apiClient.post(API_ENDPOINTS.EXPENSES, newRecord).catch(() => {
-    // Backend o'chiq bo'lsa ham foydalanuvchiga xatolik chiqmaydi
+  // 2. Oflayn / sinxronizatsiya navbatiga qo'shamiz
+  const queueEntry = syncService.addToQueue({
+    entity: "expenses",
+    type: "create",
+    targetId: newRecord.id,
+    payload: newRecord,
   });
+
+  // 3. Backendga yuborishga urinib ko'ramiz
+  apiClient.post(API_ENDPOINTS.EXPENSES, newRecord)
+    .then((res) => {
+      if (res.ok) {
+        newRecord.synced = true;
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.markLocalExpenseSynced(newRecord.id, true);
+        syncService.addLog("success", `Tranzaksiya DBga saqlandi: ${newRecord.amount} (${newRecord.category})`);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id: newRecord.id } }));
+        }
+      } else {
+        syncService.addLog("warning", `Server DBga saqlash kechikdi: ${res.error || 'Navbatda qoldi'}`);
+      }
+    })
+    .catch(() => {
+      // Backend o'chiq bo'lsa navbatda qoladi
+    });
 
   return newRecord;
 }
@@ -334,14 +375,35 @@ export async function updateExpense(id, updates) {
     amount: updates.amount !== undefined ? Number(updates.amount) : current.amount,
     quantity: updates.quantity !== undefined ? Number(updates.quantity) : current.quantity,
     edits: nextEdits,
+    synced: false, // Tahrir qilingani uchun qayta DBga borishi kerak
   };
 
   // Mahalliy saqlaymiz
   localItems[index] = updatedRecord;
   writeLocalExpenses(localItems);
 
+  // Navbatga qo'shish
+  const queueEntry = syncService.addToQueue({
+    entity: "expenses",
+    type: "update",
+    targetId: id,
+    payload: updatedRecord,
+  });
+
   // Backendga yuborish
-  apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(id), updatedRecord).catch(() => {});
+  apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(id), updatedRecord)
+    .then((res) => {
+      if (res.ok) {
+        updatedRecord.synced = true;
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.markLocalExpenseSynced(id, true);
+        syncService.addLog("success", `Tranzaksiya yangilanishi DBga yozildi (${id})`);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
+        }
+      }
+    })
+    .catch(() => {});
 
   return updatedRecord;
 }
@@ -354,8 +416,21 @@ export async function deleteExpense(id) {
   const filtered = localItems.filter((item) => item.id !== id);
   writeLocalExpenses(filtered);
 
+  const queueEntry = syncService.addToQueue({
+    entity: "expenses",
+    type: "delete",
+    targetId: id,
+  });
+
   // Backenddan o'chirish
-  apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(id)).catch(() => {});
+  apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(id))
+    .then((res) => {
+      if (res.ok) {
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.addLog("success", `Tranzaksiya DBdan ham o'chirildi (${id})`);
+      }
+    })
+    .catch(() => {});
 
   return { success: true };
 }

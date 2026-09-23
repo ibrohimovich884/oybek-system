@@ -7,6 +7,7 @@ import {
   HelpCircle,
   FileText,
   Clock,
+  Database,
   ArrowUpRight,
   ArrowDownLeft,
   CheckCircle2,
@@ -140,6 +141,26 @@ export default function DebtCard({
               >
                 {statusInfo.label}
               </span>
+
+              {debt.synced ? (
+                <span
+                  className="badge badge--db-synced"
+                  style={{ fontSize: "0.68rem", padding: "1px 5px", display: "inline-flex", alignItems: "center", gap: 3 }}
+                  title="Server bazasida (DB) saqlangan"
+                >
+                  <Database size={10} />
+                  <span>DB</span>
+                </span>
+              ) : (
+                <span
+                  className="badge badge--db-pending"
+                  style={{ fontSize: "0.68rem", padding: "1px 5px", display: "inline-flex", alignItems: "center", gap: 3 }}
+                  title="Faqat xotirada saqlangan, internet ulanganda serverga yuboriladi"
+                >
+                  <Clock size={10} />
+                  <span>Xotirada</span>
+                </span>
+              )}
             </div>
           </div>
         </div>

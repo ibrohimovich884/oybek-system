@@ -8,6 +8,7 @@ import {
 } from "react";
 import * as expensesApi from "../api/expenses.js";
 import * as debtsApi from "../api/debts.js";
+import { syncService } from "../services/syncService.js";
 import {
   DEFAULT_WALLETS,
   DEFAULT_RESERVES,
@@ -34,15 +35,7 @@ export function ExpensesProvider({ children }) {
   const [rateInfo, setRateInfo] = useState(() => getStoredRateData());
   const [isLoading, setIsLoading] = useState(true);
   const [backendStatus, setBackendStatus] = useState(expensesApi.getBackendStatus());
-
-  // Backend holatiga obuna bo'lish
-  useEffect(() => {
-    const unsubscribe = expensesApi.subscribeBackendStatus((status) => {
-      setBackendStatus(status);
-    });
-    expensesApi.checkBackendConnection();
-    return unsubscribe;
-  }, []);
+  const [syncStatus, setSyncStatus] = useState(() => syncService.getSyncStatus());
 
   // CBU dollar kursini yuklash
   const loadCbuRate = useCallback(async () => {
@@ -52,19 +45,6 @@ export function ExpensesProvider({ children }) {
     } catch (err) {
       console.warn("Valyuta kursini yuklashda xatolik:", err);
     }
-  }, []);
-
-  useEffect(() => {
-    loadCbuRate();
-  }, [loadCbuRate]);
-
-  const changeBackendPort = useCallback(async (newPort) => {
-    await expensesApi.updateBackendPort(newPort);
-    await refresh();
-  }, []);
-
-  const checkBackendHealth = useCallback(async () => {
-    return await expensesApi.checkBackendConnection();
   }, []);
 
   const refresh = useCallback(async () => {
@@ -89,9 +69,53 @@ export function ExpensesProvider({ children }) {
     }
   }, []);
 
+  // Backend holatiga va SyncService holatiga obuna bo'lish
+  useEffect(() => {
+    const unsubscribeBackend = expensesApi.subscribeBackendStatus((status) => {
+      setBackendStatus(status);
+    });
+    const unsubscribeSync = syncService.subscribe((status) => {
+      setSyncStatus(status);
+    });
+    expensesApi.checkBackendConnection();
+    return () => {
+      unsubscribeBackend();
+      unsubscribeSync();
+    };
+  }, []);
+
+  // Sync yakunlanganda yoki item sinxronlanganda ma'lumotlarni yangilash
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      refresh();
+    };
+    const handleItemSynced = () => {
+      refresh();
+    };
+    window.addEventListener("oybek:sync-complete", handleSyncComplete);
+    window.addEventListener("oybek:item-synced", handleItemSynced);
+    return () => {
+      window.removeEventListener("oybek:sync-complete", handleSyncComplete);
+      window.removeEventListener("oybek:item-synced", handleItemSynced);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    loadCbuRate();
+  }, [loadCbuRate]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  const changeBackendPort = useCallback(async (newPort) => {
+    await expensesApi.updateBackendPort(newPort);
+    await refresh();
+  }, [refresh]);
+
+  const checkBackendHealth = useCallback(async () => {
+    return await expensesApi.checkBackendConnection();
+  }, []);
 
   // Hozirgi real vaqt balansi (Boshlang'ich balans + Daromadlar - Xarajatlar + O'tkazmalar)
   const currentBalances = useMemo(() => {
@@ -541,6 +565,45 @@ export function ExpensesProvider({ children }) {
     [refresh]
   );
 
+  /**
+   * Foydalanuvchi tugma orqali qo'lda sinxronizatsiya qilishi
+   */
+  const triggerManualSync = useCallback(async () => {
+    const result = await syncService.syncNow({ forcePull: true });
+    await refresh();
+    return result;
+  }, [refresh]);
+
+  const forcePullFromDB = useCallback(async () => {
+    const result = await syncService.syncNow({ forcePull: true });
+    await refresh();
+    return result;
+  }, [refresh]);
+
+  const forcePushAllToDB = useCallback(async () => {
+    const result = await syncService.forcePushAllToDB();
+    await refresh();
+    return result;
+  }, [refresh]);
+
+  const setAutoSync = useCallback((enabled) => {
+    syncService.setAutoSyncEnabled(enabled);
+  }, []);
+
+  const changeBackendUrl = useCallback(async (newUrl) => {
+    expensesApi.updateBackendUrl(newUrl);
+    await expensesApi.checkBackendConnection();
+    await refresh();
+  }, [refresh]);
+
+  const clearSyncLogs = useCallback(() => {
+    syncService.clearLogs();
+  }, []);
+
+  const clearSyncQueue = useCallback(() => {
+    syncService.clearQueue();
+  }, []);
+
   const value = {
     expenses,
     initialWallets,
@@ -551,8 +614,16 @@ export function ExpensesProvider({ children }) {
     currentBalances,
     isLoading,
     backendStatus,
+    syncStatus,
     changeBackendPort,
+    changeBackendUrl,
     checkBackendHealth,
+    triggerManualSync,
+    forcePullFromDB,
+    forcePushAllToDB,
+    setAutoSync,
+    clearSyncLogs,
+    clearSyncQueue,
     addExpense,
     updateExpense,
     deleteExpense,

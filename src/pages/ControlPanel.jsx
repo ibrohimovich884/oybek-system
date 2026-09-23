@@ -12,9 +12,12 @@ import {
   ArrowUpRight,
   TrendingUp,
   Sparkles,
+  Database,
+  RefreshCw,
+  Settings,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
-import { formatSum, formatDollar, formatRate } from "../utils/format.js";
+import { formatSum, formatDollar, formatRate, formatDateTime } from "../utils/format.js";
 import DollarRateCard from "../components/control-panel/DollarRateCard.jsx";
 import ReserveCard from "../components/control-panel/ReserveCard.jsx";
 import EditReserveModal from "../components/control-panel/EditReserveModal.jsx";
@@ -22,7 +25,7 @@ import UniversalTransferModal from "../components/control-panel/UniversalTransfe
 import PendingDebtsCard from "../components/control-panel/PendingDebtsCard.jsx";
 
 export default function ControlPanel() {
-  const { currentBalances, reserves, rateInfo } = useExpenses();
+  const { currentBalances, reserves, rateInfo, syncStatus, triggerManualSync } = useExpenses();
 
   const [editingReserveId, setEditingReserveId] = useState(null);
   const [transferModal, setTransferModal] = useState(null); // { from, to } | null
@@ -54,6 +57,10 @@ export default function ControlPanel() {
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <Link to="/settings" className="btn btn--subtle" title="Sinxronizatsiya va sozlamalar">
+            <Settings size={16} />
+            <span>Sozlamalar & DB</span>
+          </Link>
           <Link to="/money" className="btn btn--subtle">
             <Wallet size={16} />
             <span>Money Managerga o'tish</span>
@@ -66,6 +73,68 @@ export default function ControlPanel() {
             <ArrowRightLeft size={16} />
             <span>Universal o'tkazma</span>
           </button>
+        </div>
+      </div>
+
+      {/* DB Sinxronizatsiya Holati Tezkor Paneli */}
+      <div
+        className="card"
+        style={{
+          padding: "12px 18px",
+          marginBottom: 20,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 10,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Database
+            size={20}
+            style={{
+              color: syncStatus?.isConnected ? "var(--income)" : "var(--warning)",
+            }}
+          />
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong style={{ fontSize: "0.88rem" }}>
+                DB Aloqasi: {syncStatus?.isConnected ? "Ulangan (Faol)" : "Oflayn xotira"}
+              </strong>
+              {syncStatus?.pendingCount > 0 ? (
+                <span className="badge badge--warning" style={{ fontSize: "0.72rem" }}>
+                  {syncStatus.pendingCount} ta kutilmoqda
+                </span>
+              ) : (
+                <span className="badge badge--success" style={{ fontSize: "0.72rem" }}>
+                  DBga to'liq saqlangan
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>
+              {syncStatus?.lastSyncedAt
+                ? `Oxirgi sync: ${formatDateTime(syncStatus.lastSyncedAt)}`
+                : "Avtomatik sinxronizatsiya faol"}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            className="btn btn--primary btn--xs"
+            onClick={() => triggerManualSync()}
+            disabled={syncStatus?.isSyncing}
+          >
+            <RefreshCw size={13} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+            <span>{syncStatus?.isSyncing ? "Sinxronlanmoqda..." : "Qoʻlda sinxronlash"}</span>
+          </button>
+          <Link to="/settings" className="btn btn--ghost btn--xs">
+            <span>Barcha sozlamalar →</span>
+          </Link>
         </div>
       </div>
 

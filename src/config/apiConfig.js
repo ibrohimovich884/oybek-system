@@ -82,5 +82,5 @@ export const API_ENDPOINTS = {
   EXERCISE_LOGS: "/api/exercises/logs",
 };
 
-export const API_TIMEOUT_MS = 6000;
+export const API_TIMEOUT_MS = 15000;
 

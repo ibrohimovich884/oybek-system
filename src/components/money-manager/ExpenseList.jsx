@@ -3,10 +3,10 @@ import ExpenseRow from "./ExpenseRow.jsx";
 import EditTransactionModal from "./EditTransactionModal.jsx";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { formatSum } from "../../utils/format.js";
-import { Search, Filter, Calendar, XCircle } from "lucide-react";
+import { Search, Filter, Calendar, XCircle, Clock, RefreshCw } from "lucide-react";
 
 export default function ExpenseList({ expenses }) {
-  const { deleteExpense } = useExpenses();
+  const { deleteExpense, syncStatus, triggerManualSync } = useExpenses();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all"); // "all" | "expense" | "income" | "transfer"
@@ -90,8 +90,38 @@ export default function ExpenseList({ expenses }) {
     setDateFilter("all");
   };
 
+  const unsyncedCount = useMemo(() => {
+    return (expenses || []).filter((e) => e.synced === false).length;
+  }, [expenses]);
+
   return (
     <div className="expenses-ledger-section">
+      {/* Agar xotirada saqlangan, DBga yuborilishi kutilayotgan tranzaksiyalar bo'lsa */}
+      {unsyncedCount > 0 && (
+        <div className="sync-pending-banner">
+          <div className="sync-pending-banner__left">
+            <Clock size={16} className="text-warning animate-pulse" />
+            <div>
+              <span className="sync-pending-banner__title">
+                {unsyncedCount} ta tranzaksiya faqat qurilma xotirasida
+              </span>
+              <span className="sync-pending-banner__sub">
+                Server DBga saqlanishi kutilmoqda. Internet ulanganda avtomatik saqlanadi.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn--subtle btn--xs"
+            onClick={() => triggerManualSync()}
+            disabled={syncStatus?.isSyncing}
+          >
+            <RefreshCw size={13} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+            <span>{syncStatus?.isSyncing ? "Sinxronlanmoqda..." : "Hozir DBga yozish"}</span>
+          </button>
+        </div>
+      )}
+
       {/* Filtrlash paneli */}
       <div className="filter-bar">
         {/* Qidiruv input */}

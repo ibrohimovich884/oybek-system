@@ -53,16 +53,17 @@ class ApiClient {
   /**
    * Backend bilan aloqani xavfsiz tekshirish (Health Check)
    */
-  async checkHealth() {
+  async checkHealth(timeoutMs = 8000) {
     this.state.isChecking = true;
     this.notify();
 
     const baseUrl = getBackendBaseUrl();
     const url = `${baseUrl}${API_ENDPOINTS.HEALTH}`;
+    const startTime = Date.now();
 
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2000);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch(url, {
         method: "GET",
@@ -71,17 +72,22 @@ class ApiClient {
       });
       clearTimeout(timer);
 
+      const latency = Date.now() - startTime;
       if (response.ok) {
         this.state.isConnected = true;
         this.state.error = null;
+        this.state.latency = latency;
       } else {
         this.state.isConnected = false;
         this.state.error = `HTTP ${response.status}`;
+        this.state.latency = latency;
       }
     } catch (err) {
-      // Backend yoqilmagan yoki port yopiq - bu oddiy holat, frontend buzilmaydi
       this.state.isConnected = false;
-      this.state.error = err.name === "AbortError" ? "Server javob bermadi (timeout)" : "Backend ulanmagan";
+      this.state.error = err.name === "AbortError" 
+        ? "Server javob bermadi (Server uyg'onishi 15-20s vaqt olishi mumkin)" 
+        : "Backend ulanmagan yoki oflayn";
+      this.state.latency = null;
     } finally {
       this.state.isChecking = false;
       this.state.lastChecked = new Date().toISOString();
