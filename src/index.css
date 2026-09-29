@@ -2659,10 +2659,10 @@ textarea.field-input {
 }
 
 .debt-switcher__btn.is-given {
-  background: rgba(56, 189, 248, 0.2);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
+  background: rgba(78, 184, 150, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(78, 184, 150, 0.35);
+  box-shadow: 0 2px 8px rgba(78, 184, 150, 0.12);
 }
 
 .debt-switcher__btn.is-taken {
@@ -3396,4 +3396,750 @@ textarea.field-input {
   font-size: 0.76rem;
   color: var(--text-muted);
 }
+
+/* =========================================================
+   QARZ DAFTARI (SAMSUNG NOTES / LEDGER NOTEBOOK STYLE)
+   ========================================================= */
+
+.debt-view-toggle {
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.debt-view-toggle__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.debt-view-toggle__btn:hover {
+  color: var(--text);
+}
+
+.debt-view-toggle__btn.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Notebook Container */
+.debt-ledger-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* Ledger Header */
+.debt-ledger-header {
+  display: grid;
+  grid-template-columns: 48px minmax(180px, 2fr) 130px minmax(150px, 1.4fr) 110px 110px 140px;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  align-items: center;
+}
+
+.debt-ledger-col {
+  user-select: none;
+}
+
+.debt-ledger-col--num {
+  text-align: center;
+}
+
+.debt-ledger-col--amount {
+  text-align: right;
+}
+
+.debt-ledger-col--actions {
+  text-align: right;
+}
+
+/* Ledger Ruled List (Notebook look) */
+.debt-ledger-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.debt-ledger-row {
+  display: grid;
+  grid-template-columns: 48px minmax(180px, 2fr) 130px minmax(150px, 1.4fr) 110px 110px 140px;
+  gap: 8px;
+  padding: 12px 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  position: relative;
+}
+
+.debt-ledger-row:hover {
+  background: var(--surface-hover);
+}
+
+.debt-ledger-row:last-child {
+  border-bottom: none;
+}
+
+.debt-ledger-row--settled {
+  opacity: 0.65;
+  background: rgba(34, 33, 30, 0.5);
+}
+
+.debt-ledger-row--settled:hover {
+  opacity: 0.9;
+}
+
+.debt-ledger-row--overdue {
+  border-left: 3px solid var(--expense);
+}
+
+/* Cells */
+.debt-ledger-cell {
+  display: flex;
+  align-items: center;
+}
+
+.debt-ledger-cell--num {
+  justify-content: center;
+}
+
+.debt-num-badge {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+/* Person Cell */
+.debt-person-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.debt-person-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.debt-person-avatar--given {
+  background: rgba(78, 184, 150, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(78, 184, 150, 0.3);
+}
+
+.debt-person-avatar--taken {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.debt-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.debt-person-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debt-person-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.debt-person-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.debt-person-loc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Type Pill */
+.debt-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.debt-type-pill--given {
+  background: rgba(78, 184, 150, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(78, 184, 150, 0.3);
+}
+
+.debt-type-pill--taken {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+/* Amount block */
+.debt-ledger-cell--amount {
+  justify-content: flex-end;
+}
+
+.debt-amount-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.debt-amount-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.debt-amount-val--given {
+  color: var(--income);
+}
+
+.debt-amount-val--taken {
+  color: #f59e0b;
+}
+
+.debt-amount-val--settled {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.debt-remaining-tag {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.debt-wallet-tag {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.debt-settled-tag {
+  font-size: 0.7rem;
+  color: var(--income);
+  font-weight: 600;
+}
+
+/* Due Date Pill */
+.debt-due-block {
+  display: flex;
+  align-items: center;
+}
+
+.debt-due-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.debt-due-pill--normal {
+  color: var(--text-muted);
+}
+
+.debt-due-pill--urgent {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.debt-due-pill--overdue {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--expense);
+  font-weight: 700;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.debt-due-pill--unknown {
+  color: var(--text-dim);
+}
+
+.debt-due-pill--settled {
+  color: var(--income);
+}
+
+/* Status Stack */
+.debt-status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+
+.debt-status-pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.debt-db-badge {
+  font-size: 0.65rem !important;
+  padding: 1px 5px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
+/* Actions in row */
+.debt-ledger-cell--actions {
+  justify-content: flex-end;
+}
+
+.debt-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.debt-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.debt-action-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-focus);
+}
+
+.debt-action-btn--pay {
+  background: rgba(78, 184, 150, 0.12);
+  border-color: rgba(78, 184, 150, 0.3);
+  color: var(--accent);
+}
+
+.debt-action-btn--pay:hover {
+  background: var(--accent);
+  color: #0b1713;
+}
+
+.debt-action-btn--settle {
+  color: var(--income);
+  padding: 4px 6px;
+}
+
+.debt-action-btn--settle:hover {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: var(--income);
+}
+
+.debt-action-btn--view {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.debt-action-btn--view:hover {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Detail Modal Components */
+.debt-detail-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.debt-detail-avatar--given {
+  background: rgba(78, 184, 150, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(78, 184, 150, 0.35);
+}
+
+.debt-detail-avatar--taken {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.debt-detail-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.debt-detail-info-card--overdue {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.debt-detail-info-icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.debt-detail-info-lbl {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.debt-detail-info-val {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Modal mobile drag handle */
+.modal-mobile-handle {
+  display: none;
+}
+
+.debt-person-due-mobile {
+  display: none;
+}
+
+.debt-row-mobile-status {
+  display: none;
+}
+
+.debt-row-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Telefon uchun suzuvchi (FAB) tugma */
+.debt-fab-btn {
+  display: none;
+}
+
+/* Qidiruv tozalash tugmasi */
+.debts-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.debts-search-clear:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Quick chip buttons in modals */
+.quick-chip-btn {
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-chip-btn:hover,
+.quick-chip-btn:active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+/* ============================================================
+   TELEFON UCHUN TAKOMILLASHTIRISH VA QULAYLIKLAR (Mobile <= 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Sarlavha va amallar */
+  .debts-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .debts-add-btn {
+    display: none !important; /* Mobil telefonda pastdagi FAB tugmasi qulayroq */
+  }
+
+  /* KPI Statistika kartalarini ixcham qilish */
+  .debts-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .debts-stats-grid .stat-card {
+    padding: 12px 14px !important;
+  }
+
+  /* Filtr va qidiruv paneli */
+  .debts-filter-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+  }
+
+  .debts-filter-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .debts-filter-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .debts-search-box {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Suzuvchi (FAB) Yangi qarz tugmasi (pastki o'ng burchak) */
+  .debt-fab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    bottom: calc(var(--bottom-nav-h) + var(--safe-bottom) + 16px);
+    right: 16px;
+    z-index: 50;
+    background: linear-gradient(135deg, var(--accent) 0%, #3ca784 100%);
+    color: #0b1c15;
+    font-weight: 800;
+    font-size: 0.88rem;
+    padding: 12px 18px;
+    border-radius: 9999px;
+    box-shadow: 0 4px 18px rgba(78, 184, 150, 0.42), 0 2px 8px rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .debt-fab-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(78, 184, 150, 0.3);
+  }
+
+  /* ============================================================
+     SAMSUNG NOTES USLUBIDAGI DAFTAR RO'YXATI (Telefon ekranida)
+     ============================================================ */
+  .debt-ledger-header {
+    display: none;
+  }
+
+  .debt-ledger-container {
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+  }
+
+  .debt-ledger-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    grid-template-areas:
+      "num person amount"
+      ".   meta   amount"
+      ".   foot   foot";
+    row-gap: 5px;
+    column-gap: 10px;
+    padding: 12px 14px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-subtle);
+    border-left: 3px solid transparent;
+    transition: background 0.12s ease;
+  }
+
+  .debt-ledger-row:active {
+    background: var(--surface-hover);
+  }
+
+  .debt-ledger-row--overdue {
+    border-left: 3px solid var(--expense);
+  }
+
+  .debt-ledger-cell--num {
+    grid-area: num;
+    align-self: flex-start;
+    padding-top: 2px;
+    justify-content: flex-start;
+  }
+
+  .debt-ledger-cell--person {
+    grid-area: person;
+    min-width: 0;
+  }
+
+  .debt-person-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .debt-person-name {
+    font-size: 0.95rem;
+  }
+
+  .debt-person-due-mobile {
+    display: inline-flex;
+    color: var(--text-muted);
+  }
+
+  .debt-ledger-row--overdue .debt-person-due-mobile {
+    color: var(--expense);
+    font-weight: 700;
+  }
+
+  .debt-row-mobile-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .debt-ledger-cell--amount {
+    grid-area: amount;
+    text-align: right;
+    align-self: flex-start;
+    padding-top: 1px;
+  }
+
+  .debt-amount-val {
+    font-size: 1.02rem;
+  }
+
+  .debt-ledger-cell--type {
+    grid-area: meta;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .debt-ledger-cell--due {
+    display: none; /* Due date pastki foot qatoriga biriktirilgan */
+  }
+
+  .debt-ledger-cell--status {
+    display: none;
+  }
+
+  .debt-ledger-cell--actions {
+    grid-area: foot;
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-subtle);
+  }
+
+  .debt-row-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Modallar telefon uchun bottom sheet ko'rinishida */
+  .modal-mobile-handle {
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--border);
+    margin: -8px auto 14px auto;
+  }
+
+  .debt-detail-modal {
+    max-height: 92vh !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+}
+
 

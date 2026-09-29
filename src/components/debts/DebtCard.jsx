@@ -27,6 +27,7 @@ import {
 
 export default function DebtCard({
   debt,
+  onSelectDebt,
   onOpenRepay,
   onDeleteDebt,
   onSettleDebt,
@@ -80,15 +81,25 @@ export default function DebtCard({
       }}
     >
       {/* Header: Shaxs, Turi & Status */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+          cursor: onSelectDebt ? "pointer" : "default",
+        }}
+        onClick={() => onSelectDebt && onSelectDebt(debt)}
+        title={onSelectDebt ? "Informatsiyalarni ko'rish uchun bosing" : ""}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
             style={{
               width: 40,
               height: 40,
               borderRadius: "50%",
-              background: isGiven ? "rgba(56, 189, 248, 0.12)" : "rgba(245, 158, 11, 0.12)",
-              color: isGiven ? "#38bdf8" : "#f59e0b",
+              background: isGiven ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
+              color: isGiven ? "var(--accent)" : "var(--warning)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -101,7 +112,15 @@ export default function DebtCard({
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text)" }}>
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "1.05rem",
+                  fontWeight: 700,
+                  color: "var(--text)",
+                  textDecoration: onSelectDebt ? "underline dotted rgba(255,255,255,0.3)" : "none",
+                }}
+              >
                 {debt.personName}
               </h4>
               {debt.contact && (
@@ -118,8 +137,8 @@ export default function DebtCard({
                   gap: 3,
                   fontSize: "0.72rem",
                   fontWeight: 600,
-                  color: isGiven ? "#38bdf8" : "#f59e0b",
-                  background: isGiven ? "rgba(56, 189, 248, 0.1)" : "rgba(245, 158, 11, 0.1)",
+                  color: isGiven ? "var(--accent)" : "var(--warning)",
+                  background: isGiven ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
                   padding: "2px 6px",
                   borderRadius: 4,
                 }}
@@ -368,10 +387,6 @@ export default function DebtCard({
                 type="button"
                 className="btn btn--primary btn--xs"
                 onClick={() => onOpenRepay(debt)}
-                style={{
-                  background: isGiven ? "#0284c7" : "#d97706",
-                  color: "#fff",
-                }}
               >
                 <PlusCircle size={14} />
                 <span>{isGiven ? "To'lov qabul qilish" : "To'lov qilish"}</span>

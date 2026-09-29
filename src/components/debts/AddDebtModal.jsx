@@ -85,6 +85,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 540 }}
       >
+        <div className="modal-mobile-handle" />
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
@@ -92,8 +93,8 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: type === DEBT_TYPES.GIVEN ? "rgba(56, 189, 248, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                color: type === DEBT_TYPES.GIVEN ? "#38bdf8" : "#f59e0b",
+                background: type === DEBT_TYPES.GIVEN ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                color: type === DEBT_TYPES.GIVEN ? "var(--accent)" : "var(--warning)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -218,6 +219,20 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
                 <option value="USD">AQSH Dollari ($)</option>
               </select>
             </div>
+          </div>
+
+          {/* Tezkor summalar (Telefon uchun qulay) */}
+          <div className="quick-amount-chips" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: -6, marginBottom: 12 }}>
+            {(currency === "USD" ? [50, 100, 200, 500, 1000] : [100000, 300000, 500000, 1000000, 5000000]).map((val) => (
+              <button
+                key={val}
+                type="button"
+                className="quick-chip-btn"
+                onClick={() => setAmount(val)}
+              >
+                {currency === "USD" ? `$${val}` : val >= 1000000 ? `${val / 1000000} mln` : `${val / 1000} ming`}
+              </button>
+            ))}
           </div>
 
           {/* Qaysi hisobdan / Qaysi hisobga & Balansga ta'sir */}
@@ -382,13 +397,9 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
             <button
               type="submit"
               className="btn btn--primary"
-              style={{
-                background: type === DEBT_TYPES.GIVEN ? "#0284c7" : "#d97706",
-                color: "#fff",
-              }}
             >
               <CheckCircle2 size={16} />
-              <span>Qarzni qayd qilish</span>
+              <span>Qarzni saqlash</span>
             </button>
           </div>
         </form>
