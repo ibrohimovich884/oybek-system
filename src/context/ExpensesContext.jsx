@@ -604,6 +604,36 @@ export function ExpensesProvider({ children }) {
     syncService.clearQueue();
   }, []);
 
+  const clearLocalStorageData = useCallback(
+    async ({ preserveConnection = true, refetchFromDB = true } = {}) => {
+      setIsLoading(true);
+      try {
+        const result = syncService.clearAllStorage({ preserveBackendConfig: preserveConnection });
+
+        // Ichki xotirani toza holatga keltiramiz
+        setInitialWallets({ ...DEFAULT_WALLETS });
+        setReserves({ ...DEFAULT_RESERVES });
+        setExpenses([]);
+        setDebts([]);
+        setDollarRateHistory([]);
+
+        // Agar DB ulangan bo'lsa, DBdan toza ma'lumotlarni tortib olamiz
+        if (refetchFromDB) {
+          try {
+            await syncService.syncNow({ forcePull: true });
+          } catch (e) {
+            console.warn("DBdan yangilashda ogohlantirish:", e);
+          }
+        }
+        await refresh();
+        return result;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [refresh]
+  );
+
   const value = {
     expenses,
     initialWallets,
@@ -624,6 +654,7 @@ export function ExpensesProvider({ children }) {
     setAutoSync,
     clearSyncLogs,
     clearSyncQueue,
+    clearLocalStorageData,
     addExpense,
     updateExpense,
     deleteExpense,

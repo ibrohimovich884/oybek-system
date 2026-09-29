@@ -1,7 +1,7 @@
 export const DEFAULT_WALLETS = {
-  hamyon: 50000,
-  naqd: 30000,
-  karta: 100000,
+  hamyon: 0,
+  naqd: 0,
+  karta: 0,
   dollar: 0,
 };
 
@@ -54,39 +54,21 @@ export const DEFAULT_RESERVES = {
     wallet: "naqd",
     name: "Naqd Asosiy",
     amount: 0,
-    notes: [
-      {
-        text: "Dastlabki naqd asosiy zaxira balansi shakllantirildi",
-        amount_at_that_time: 0,
-        editedAt: "2026-09-20T00:00:00+05:00",
-      },
-    ],
+    notes: [],
   },
   "karta-asosiy": {
     id: "karta-asosiy",
     wallet: "karta",
     name: "Karta Asosiy",
     amount: 0,
-    notes: [
-      {
-        text: "Dastlabki karta asosiy zaxira balansi shakllantirildi",
-        amount_at_that_time: 0,
-        editedAt: "2026-09-20T00:00:00+05:00",
-      },
-    ],
+    notes: [],
   },
   "dollar-asosiy": {
     id: "dollar-asosiy",
     wallet: "dollar",
     name: "Dollar Asosiy",
     amount: 0,
-    notes: [
-      {
-        text: "Dastlabki dollar asosiy zaxira balansi shakllantirildi",
-        amount_at_that_time: 0,
-        editedAt: "2026-09-20T00:00:00+05:00",
-      },
-    ],
+    notes: [],
   },
 };
 
@@ -136,15 +118,15 @@ export const ALL_BALANCES_LIST = [
  */
 export const FUTURE_DEBT_SCHEMA = {
   template: {
-    id: "debt-sample",
-    person: "Ali Valiyev",
-    amount: 100000,
-    currency: "UZS", // yoki "USD"
-    direction: "berilgan", // "berilgan" | "olingan"
-    dueDate: "2026-10-01",
-    status: "kutilmoqda", // "kutilmoqda" | "qaytarildi" | "kechiktirilgan"
-    notes: "Oy oxirida qaytaradi",
-    createdAt: "2026-09-21T00:00:00+05:00",
+    id: "",
+    person: "",
+    amount: 0,
+    currency: "UZS",
+    direction: "berilgan",
+    dueDate: null,
+    status: "pending",
+    notes: "",
+    createdAt: "",
   },
 };
 

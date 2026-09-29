@@ -175,6 +175,38 @@ class SyncService {
     this.notify();
   }
 
+  /**
+   * Brauzerdagi barcha lokal xotirani (localStorage) tozalash
+   * @param {Object} options
+   * @param {boolean} options.preserveBackendConfig - DB URL va port saqlansinmi (standart: true)
+   */
+  clearAllStorage({ preserveBackendConfig = true } = {}) {
+    if (typeof window === "undefined") return { success: true, count: 0 };
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith("oybek")) {
+          if (
+            preserveBackendConfig &&
+            (key === "oybek_backend_url" || key === "oybek_backend_port")
+          ) {
+            continue;
+          }
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      this.notify();
+      return { success: true, clearedKeys: keysToRemove, count: keysToRemove.length };
+    } catch (err) {
+      console.error("Local storage tozalashda xatolik:", err);
+      return { success: false, error: err.message, count: 0 };
+    }
+  }
+
   getSyncStatus() {
     const queue = this.getQueue();
     const backendStatus = apiClient.getStatus();

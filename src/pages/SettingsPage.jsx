@@ -35,16 +35,45 @@ export default function SettingsPage() {
     checkBackendHealth,
     clearSyncLogs,
     clearSyncQueue,
+    clearLocalStorageData,
     downloadBackup,
     downloadCSV,
     importBackup,
     expenses,
+    debts,
   } = useExpenses();
 
   const [backendInput, setBackendInput] = useState(syncStatus?.backendUrl || DEFAULT_BACKEND_URL);
   const [syncFeedback, setSyncFeedback] = useState(null);
   const [isHealthTesting, setIsHealthTesting] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [preserveBackendConfig, setPreserveBackendConfig] = useState(true);
+
+  const handleExecuteClearStorage = async () => {
+    setIsClearing(true);
+    setSyncFeedback({ type: "loading", message: "Lokal xotira tozalanmoqda va DBdan ma'lumotlar qayta tortib olinmoqda..." });
+    try {
+      const res = await clearLocalStorageData({
+        preserveConnection: preserveBackendConfig,
+        refetchFromDB: true,
+      });
+
+      setShowClearModal(false);
+      setSyncFeedback({
+        type: "success",
+        message: `Lokal xotira (localStorage) va mock ma'lumotlar to'liq tozalandi! ${res?.count || 0} ta kesh kaliti olib tashlandi va bazadan (DB) eng so'nggi ma'lumotlar yuklandi.`,
+      });
+    } catch (err) {
+      setSyncFeedback({
+        type: "error",
+        message: "Xotirani tozalashda xatolik yuz berdi: " + err.message,
+      });
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const handleManualSync = async () => {
     setSyncFeedback({ type: "loading", message: "DB bilan sinxronizatsiya bajarilmoqda..." });
@@ -182,17 +211,30 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Tezkor sinxronlash tugmasi */}
-        <button
-          type="button"
-          className="btn btn--primary"
-          onClick={handleManualSync}
-          disabled={syncStatus?.isSyncing}
-          style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-        >
-          <RefreshCw size={16} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
-          <span>{syncStatus?.isSyncing ? "Sinxronlanmoqda..." : "Hozir sinxronlash"}</span>
-        </button>
+        {/* Tezkor amallar */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn--subtle"
+            onClick={() => setShowClearModal(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "var(--danger)" }}
+            title="Brauzerdagi kesh va eski mock ma'lumotlarni tozalash"
+          >
+            <Trash2 size={16} />
+            <span>Lokal xotirani tozalash</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={handleManualSync}
+            disabled={syncStatus?.isSyncing}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            <RefreshCw size={16} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+            <span>{syncStatus?.isSyncing ? "Sinxronlanmoqda..." : "Hozir sinxronlash"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Xabarnoma / Feedback alert */}
@@ -569,7 +611,105 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* 4. Zaxira nusxa (Backup / Restore) */}
+      {/* 4. Lokal Xotira va Keshni Tozalash (LocalStorage & Mock ma'lumotlar tozalash) */}
+      <div className="card" style={{ marginBottom: 24, padding: 20, border: "1px solid rgba(239, 68, 68, 0.25)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: "rgba(239, 68, 68, 0.12)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--danger)",
+              }}
+            >
+              <Trash2 size={20} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--text)" }}>
+                Lokal Xotira (LocalStorage) va Keshni Tozalash
+              </h3>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                DBga ulangandan so'ng brauzerdagi barcha eski mock va kesh ma'lumotlarni tozalab, bazadan yangilash
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => setShowClearModal(true)}
+            disabled={isClearing}
+            style={{
+              background: "var(--danger)",
+              borderColor: "var(--danger)",
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Trash2 size={16} />
+            <span>{isClearing ? "Tozalanmoqda..." : "Lokal xotirani tozalash"}</span>
+          </button>
+        </div>
+
+        <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
+          Maʼlumotlar bazasiga (DB) muvaffaqiyatli ulangansiz. Brauzer xotirasida (<code>localStorage</code>) avvaldan qolgan test yoki mock maʼlumotlarni tozalab tashlash uchun ushbu tugmadan foydalaning. Tozalangandan soʻng, faqat server maʼlumotlar bazangizdagi haqiqiy maʼlumotlar koʻrsatiladi.
+        </p>
+
+        {/* Xotira holati ko'rsatkichlari */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: 10,
+            padding: 12,
+            background: "var(--surface-sunken)",
+            borderRadius: 8,
+            marginBottom: 16,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Lokal xarajatlar:</div>
+            <strong style={{ fontSize: "0.95rem", color: "var(--text)" }}>{(expenses || []).length} ta yozuv</strong>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Qarz yozuvlari:</div>
+            <strong style={{ fontSize: "0.95rem", color: "var(--text)" }}>{(debts || []).length} ta yozuv</strong>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Kutilayotgan navbat:</div>
+            <strong style={{ fontSize: "0.95rem", color: (syncStatus?.pendingCount || 0) > 0 ? "var(--warning)" : "var(--income)" }}>
+              {syncStatus?.pendingCount || 0} ta buyruq
+            </strong>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>DB ulanishi:</div>
+            <strong style={{ fontSize: "0.95rem", color: syncStatus?.isConnected ? "var(--income)" : "var(--warning)" }}>
+              {syncStatus?.isConnected ? "Ulangan (DB faol)" : "Oflayn"}
+            </strong>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "0.82rem", color: "var(--text-muted)", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={preserveBackendConfig}
+              onChange={(e) => setPreserveBackendConfig(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+            <span>DB Server URL manzilini saqlab qolish (tavsiya etiladi: DB bilan aloqa uzilmaydi)</span>
+          </label>
+        </div>
+      </div>
+
+      {/* 5. Zaxira nusxa (Backup / Restore) */}
       <div className="card" style={{ marginBottom: 24, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <Download size={18} color="var(--accent)" />
@@ -620,7 +760,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* 5. Sinxronizatsiya Jurnali (Logs) */}
+      {/* 6. Sinxronizatsiya Jurnali (Logs) */}
       <div className="card" style={{ padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -695,6 +835,120 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Modal: Lokal xotirani tozalash tasdig'i */}
+      {showClearModal && (
+        <div
+          className="modal-backdrop animate-fade-in"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onClick={() => !isClearing && setShowClearModal(false)}
+        >
+          <div
+            className="modal-card animate-scale-in"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 14,
+              maxWidth: 480,
+              width: "100%",
+              padding: 24,
+              boxShadow: "0 24px 48px rgba(0, 0, 0, 0.45)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--danger)",
+                  flexShrink: 0,
+                }}
+              >
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "var(--text)" }}>
+                  Lokal xotirani tozalaysizmi?
+                </h3>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                  Brauzer keshini tozalash va DBdan ma'lumotlarni yangilash
+                </span>
+              </div>
+            </div>
+
+            <div style={{ fontSize: "0.86rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 18 }}>
+              Ushbu amal bajarilganda:
+              <ul style={{ margin: "8px 0 0 18px", padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                <li>Brauzerdagi barcha mahalliy xarajatlar, qarzlar va eski mock keshlar tozalanadi.</li>
+                <li>Hamyonlar va zaxira keshlar tozalanadi.</li>
+                <li>Ulangan ma'lumotlar bazasidan (DB) toza ma'lumotlar qayta yuklanadi.</li>
+                {preserveBackendConfig ? (
+                  <li style={{ color: "var(--income)", fontWeight: 500 }}>
+                    Backend server manzili (<code>{syncStatus?.backendUrl}</code>) saqlanib qoladi.
+                  </li>
+                ) : (
+                  <li style={{ color: "var(--danger)" }}>
+                    Backend server manzili ham tozalanadi.
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setShowClearModal(false)}
+                disabled={isClearing}
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={handleExecuteClearStorage}
+                disabled={isClearing}
+                style={{
+                  background: "var(--danger)",
+                  borderColor: "var(--danger)",
+                  color: "#fff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {isClearing ? (
+                  <>
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>Tozalanmoqda...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    <span>Ha, tozalansin</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

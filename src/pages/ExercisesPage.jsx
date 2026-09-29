@@ -153,13 +153,13 @@ export default function ExercisesPage() {
     }
   };
 
-  // Boshlang'ich mock ma'lumotlarga qaytarish
+  // Mashqlar keshini tozalash va serverdan qayta yuklash
   const handleResetData = async () => {
-    if (window.confirm("Barcha ma'lumotlarni boshlang'ich holatga qaytarishni tasdiqlaysizmi?")) {
+    if (window.confirm("Barcha mashqlar keshini tozalash va DBdan qayta yuklashni tasdiqlaysizmi?")) {
       if (typeof resetToInitialData === 'function') {
         await resetToInitialData();
         fetchData();
-        showNotification("Boshlang'ich ma'lumotlar qayta yuklandi!");
+        showNotification("Mashqlar xotirasi tozalandi va DBdan yangilandi!");
       }
     }
   };
@@ -368,7 +368,7 @@ export default function ExercisesPage() {
               id="reset-mock-data-btn"
               type="button"
               onClick={handleResetData}
-              title="Boshlang'ich mock ma'lumotlarga qaytarish"
+              title="Mashqlar keshini tozalash va DBdan yangilash"
               className="btn btn--subtle"
               style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
             >
