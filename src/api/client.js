@@ -77,6 +77,9 @@ class ApiClient {
         this.state.isConnected = true;
         this.state.error = null;
         this.state.latency = latency;
+        const body = await response.json().catch(() => null);
+        const problems = body?.schema && body.schema.ok === false ? body.schema.problems : null;
+        this.state.schemaProblems = problems && problems.length ? problems : null;
       } else {
         this.state.isConnected = false;
         this.state.error = `HTTP ${response.status}`;
@@ -125,10 +128,16 @@ class ApiClient {
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => "");
+        let message = errorText;
+        try {
+          message = JSON.parse(errorText)?.error || errorText;
+        } catch {
+          // JSON emas (masalan HTML) — o'z holicha qoldiramiz
+        }
         return {
           ok: false,
           status: res.status,
-          error: errorText || `Server xatosi: ${res.status}`,
+          error: message ? String(message).slice(0, 300) : `Server xatosi: ${res.status}`,
           isNetworkError: false,
         };
       }

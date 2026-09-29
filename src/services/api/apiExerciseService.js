@@ -1,8 +1,9 @@
 /**
  * Real Backend API Exercise Service (OYBEK SysteM)
- * 
- * Ulanish: https://oybek-system-backend-1.onrender.com/api/exercises
- * Backend bilan aloqa bo'lmaganda ham xatosiz ishlaydi.
+ *
+ * Muhim: server bilan yozilmagan (synced:false) mashq va loglar lokalda saqlanib,
+ * keyingi o'qishda qayta yuboriladi. Avval server bo'sh ro'yxat qaytarsa (yoki POST
+ * xato bersa) lokal mashqlar shunchaki o'chib ketardi.
  */
 
 import { apiClient } from '../../api/client.js';
@@ -10,6 +11,7 @@ import { API_ENDPOINTS } from '../../config/apiConfig.js';
 
 const STORAGE_EXERCISES_KEY = 'oybek_exercises_list';
 const STORAGE_LOGS_KEY = 'oybek_exercise_logs';
+const STORAGE_PENDING_DELETES_KEY = 'oybek_exercises_pending_deletes';
 
 function getLocal(key) {
   if (typeof window === 'undefined') return [];
@@ -28,26 +30,84 @@ function setLocal(key, data) {
   } catch {}
 }
 
+const logKey = (l) => `${l.exerciseId}|${l.date}`;
+
+function markExercise(id, patch) {
+  setLocal(
+    STORAGE_EXERCISES_KEY,
+    getLocal(STORAGE_EXERCISES_KEY).map((e) => (e.id === id ? { ...e, ...patch } : e))
+  );
+}
+
+function markLog(exerciseId, date, patch) {
+  setLocal(
+    STORAGE_LOGS_KEY,
+    getLocal(STORAGE_LOGS_KEY).map((l) =>
+      l.exerciseId === exerciseId && l.date === date ? { ...l, ...patch } : l
+    )
+  );
+}
+
+async function retryPendingDeletes() {
+  const pending = getLocal(STORAGE_PENDING_DELETES_KEY);
+  if (pending.length === 0) return pending;
+  const still = [];
+  for (const id of pending) {
+    const res = await apiClient.delete(`${API_ENDPOINTS.EXERCISES}/${encodeURIComponent(id)}`);
+    if (!res.ok) still.push(id);
+  }
+  setLocal(STORAGE_PENDING_DELETES_KEY, still);
+  return still;
+}
+
 /**
- * Serverdan mashqlar ro'yxatini olish
+ * Serverdan mashqlar ro'yxatini olish (yuborilmaganlarni qayta yuboradi)
  */
 export const getExercises = async () => {
+  const pendingDeletes = await retryPendingDeletes();
+
+  // Avval yuborilmagan lokal mashqlarni serverga urinib ko'ramiz
+  for (const ex of getLocal(STORAGE_EXERCISES_KEY).filter((e) => e.synced === false)) {
+    const { synced, ...payload } = ex;
+    const r = await apiClient.post(API_ENDPOINTS.EXERCISES, payload);
+    if (r.ok) markExercise(ex.id, { synced: true });
+  }
+
   const res = await apiClient.get(API_ENDPOINTS.EXERCISES);
   if (res.ok && Array.isArray(res.data)) {
-    setLocal(STORAGE_EXERCISES_KEY, res.data);
-    return res.data;
+    const unsynced = getLocal(STORAGE_EXERCISES_KEY).filter((e) => e.synced === false);
+    const map = new Map();
+    res.data
+      .filter((e) => !pendingDeletes.includes(e.id))
+      .forEach((e) => map.set(e.id, { ...e, synced: true }));
+    unsynced.forEach((e) => map.set(e.id, e));
+    const merged = Array.from(map.values());
+    setLocal(STORAGE_EXERCISES_KEY, merged);
+    return merged;
   }
   return getLocal(STORAGE_EXERCISES_KEY);
 };
 
 /**
- * Serverdan mashq loglarini olish
+ * Serverdan mashq loglarini olish (yuborilmaganlarni saqlab qoladi)
  */
 export const getLogs = async () => {
+  for (const log of getLocal(STORAGE_LOGS_KEY).filter((l) => l.synced === false && l.completed)) {
+    const { synced, id, ...rest } = log;
+    const { exerciseId, date, completed, completedAt, ...details } = rest;
+    const r = await apiClient.post(API_ENDPOINTS.EXERCISE_LOGS, { exerciseId, date, completed: true, details });
+    if (r.ok) markLog(exerciseId, date, { synced: true });
+  }
+
   const res = await apiClient.get(API_ENDPOINTS.EXERCISE_LOGS);
   if (res.ok && Array.isArray(res.data)) {
-    setLocal(STORAGE_LOGS_KEY, res.data);
-    return res.data;
+    const unsynced = getLocal(STORAGE_LOGS_KEY).filter((l) => l.synced === false);
+    const map = new Map();
+    res.data.forEach((l) => map.set(logKey(l), { ...l, synced: true }));
+    unsynced.forEach((l) => map.set(logKey(l), l));
+    const merged = Array.from(map.values());
+    setLocal(STORAGE_LOGS_KEY, merged);
+    return merged;
   }
   return getLocal(STORAGE_LOGS_KEY);
 };
@@ -57,8 +117,7 @@ export const getLogs = async () => {
  */
 export const logExercise = async (exerciseId, date, completed, details = {}) => {
   const payload = { exerciseId, date, completed, details };
-  
-  // Lokal xotirada tezkor yangilash
+
   const logs = getLocal(STORAGE_LOGS_KEY);
   const nowTime = new Date().toTimeString().slice(0, 5);
   const existingIndex = logs.findIndex((l) => l.exerciseId === exerciseId && l.date === date);
@@ -73,16 +132,18 @@ export const logExercise = async (exerciseId, date, completed, details = {}) => 
         completed: true,
         completedAt: updatedLogs[existingIndex].completedAt || nowTime,
         ...details,
+        synced: false,
       };
       resultLog = updatedLogs[existingIndex];
     } else {
       resultLog = {
-        id: `log_${date}_${exerciseId}_${Date.now()}`,
+        id: `log_${date}_${exerciseId}`,
         exerciseId,
         date,
         completed: true,
         completedAt: nowTime,
         ...details,
+        synced: false,
       };
       updatedLogs.push(resultLog);
     }
@@ -95,12 +156,12 @@ export const logExercise = async (exerciseId, date, completed, details = {}) => 
 
   setLocal(STORAGE_LOGS_KEY, updatedLogs);
 
-  // Backendga yuborish
   const res = await apiClient.post(API_ENDPOINTS.EXERCISE_LOGS, payload);
   if (res.ok && res.data) {
+    if (completed) markLog(exerciseId, date, { synced: true });
     return res.data;
   }
-
+  console.warn('Mashq logi serverga yozilmadi:', res.error);
   return resultLog;
 };
 
@@ -120,15 +181,15 @@ export const addExercise = async (newExercise) => {
   };
 
   const list = getLocal(STORAGE_EXERCISES_KEY);
-  list.push(exercise);
+  list.push({ ...exercise, synced: false });
   setLocal(STORAGE_EXERCISES_KEY, list);
 
-  // Backendga yuborish
   const res = await apiClient.post(API_ENDPOINTS.EXERCISES, exercise);
   if (res.ok && res.data) {
+    markExercise(exercise.id, { synced: true });
     return res.data;
   }
-
+  console.warn('Mashq serverga yozilmadi:', res.error);
   return exercise;
 };
 
@@ -136,13 +197,13 @@ export const addExercise = async (newExercise) => {
  * Mashqni o'chirish
  */
 export const deleteExercise = async (exerciseId) => {
-  const exercises = getLocal(STORAGE_EXERCISES_KEY).filter((e) => e.id !== exerciseId);
-  setLocal(STORAGE_EXERCISES_KEY, exercises);
+  setLocal(STORAGE_EXERCISES_KEY, getLocal(STORAGE_EXERCISES_KEY).filter((e) => e.id !== exerciseId));
+  setLocal(STORAGE_LOGS_KEY, getLocal(STORAGE_LOGS_KEY).filter((l) => l.exerciseId !== exerciseId));
 
-  const logs = getLocal(STORAGE_LOGS_KEY).filter((l) => l.exerciseId !== exerciseId);
-  setLocal(STORAGE_LOGS_KEY, logs);
-
-  await apiClient.delete(`${API_ENDPOINTS.EXERCISES}/${encodeURIComponent(exerciseId)}`);
+  const res = await apiClient.delete(`${API_ENDPOINTS.EXERCISES}/${encodeURIComponent(exerciseId)}`);
+  if (!res.ok) {
+    setLocal(STORAGE_PENDING_DELETES_KEY, [...getLocal(STORAGE_PENDING_DELETES_KEY), exerciseId]);
+  }
   return true;
 };
 
@@ -152,5 +213,6 @@ export const deleteExercise = async (exerciseId) => {
 export const resetToInitialData = async () => {
   setLocal(STORAGE_EXERCISES_KEY, []);
   setLocal(STORAGE_LOGS_KEY, []);
+  setLocal(STORAGE_PENDING_DELETES_KEY, []);
   return true;
 };

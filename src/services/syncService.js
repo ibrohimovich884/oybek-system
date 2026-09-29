@@ -209,6 +209,8 @@ class SyncService {
 
     let pushedCount = 0;
     let pulledCount = 0;
+    let failedCount = 0;
+    let lastFailure = null;
 
     try {
       this.addLog("info", "Server bilan aloqa tekshirilmoqda...");
@@ -218,55 +220,56 @@ class SyncService {
         throw new Error("Serverga ulanib bo'lmadi. Backend uyquda yoki internet yo'q.");
       }
 
+      const schemaProblems = apiClient.getStatus().schemaProblems;
+      if (schemaProblems) {
+        const first = schemaProblems[0];
+        this.addLog(
+          "error",
+          `Backend DB sxemasi noto'g'ri (${schemaProblems.length} ta muammo, masalan: ${first.table}${first.column ? "." + first.column : ""} — ${first.kind}). Backendni qayta ishga tushiring yoki 'npm run migrate' qiling.`
+        );
+      }
+
       // 2. Kutilayotgan navbatni (sync_queue) DBga yuborish
       const queue = this.getQueue();
       if (queue.length > 0) {
         this.addLog("info", `Navbatdagi ${queue.length} ta o'zgarish DBga yuborilmoqda...`);
         const remainingQueue = [];
 
+        const failures = [];
+        const fail = (item, res) => {
+          remainingQueue.push(item);
+          failures.push(res?.error || "noma'lum xato");
+        };
+
         for (const item of queue) {
           try {
+            let res = null;
             if (item.entity === "expenses") {
               if (item.type === "create") {
-                const res = await apiClient.post(API_ENDPOINTS.EXPENSES, item.payload);
-                if (res.ok) {
-                  pushedCount++;
-                  this.markLocalExpenseSynced(item.payload.id, true);
-                } else {
-                  remainingQueue.push(item);
-                }
+                res = await apiClient.post(API_ENDPOINTS.EXPENSES, item.payload);
+                if (res.ok) this.markLocalExpenseSynced(item.payload.id, true);
               } else if (item.type === "update") {
-                const res = await apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(item.targetId), item.payload);
-                if (res.ok) {
-                  pushedCount++;
-                  this.markLocalExpenseSynced(item.targetId, true);
-                } else {
-                  remainingQueue.push(item);
-                }
+                res = await apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(item.targetId), item.payload);
+                if (res.ok) this.markLocalExpenseSynced(item.targetId, true);
               } else if (item.type === "delete") {
-                const res = await apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(item.targetId));
-                if (res.ok) {
-                  pushedCount++;
-                } else {
-                  remainingQueue.push(item);
-                }
+                res = await apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(item.targetId));
               }
             } else if (item.entity === "wallets") {
-              const res = await apiClient.put(API_ENDPOINTS.WALLETS, item.payload);
-              if (res.ok) {
-                pushedCount++;
-              } else {
-                remainingQueue.push(item);
-              }
-            } else {
-              remainingQueue.push(item);
+              res = await apiClient.put(API_ENDPOINTS.WALLETS, item.payload);
             }
+
+            if (res && res.ok) pushedCount++;
+            else fail(item, res);
           } catch (itemErr) {
             console.warn("Item sync error:", itemErr);
-            remainingQueue.push(item);
+            fail(item, { error: itemErr.message });
           }
         }
 
+        if (failures.length > 0) {
+          failedCount = failures.length;
+          lastFailure = failures[0];
+        }
         this.setQueue(remainingQueue);
       }
 
@@ -289,6 +292,13 @@ class SyncService {
 
         // C) Control Panel (rezervlar / qarzlar / dollar tarixi)
         await reconcileSnapshot().catch(() => {});
+      }
+
+      if (failedCount > 0) {
+        // Avval bu holat ham "Muvaffaqiyatli" deb ko'rsatilardi
+        const msg = `${failedCount} ta o'zgarish DBga yozilmadi. Server xatosi: ${lastFailure}`;
+        this.addLog("error", msg);
+        return { success: false, pushedCount, pulledCount, failedCount, error: msg, message: msg };
       }
 
       const nowIso = new Date().toISOString();
