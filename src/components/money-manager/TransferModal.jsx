@@ -27,6 +27,7 @@ export default function TransferModal({ initialFrom = "hamyon", initialTo = "naq
   const [customRate, setCustomRate] = useState(rateInfo?.rate || 12850);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const availableWallets = ["hamyon", "naqd", "karta", "dollar"];
 
@@ -70,6 +71,7 @@ export default function TransferModal({ initialFrom = "hamyon", initialTo = "naq
     if (!numAmount || numAmount <= 0) return;
 
     setIsSubmitting(true);
+    setErrorMessage("");
     try {
       const fromCfg = WALLET_CONFIG[fromWallet] || { label: fromWallet };
       const toCfg = WALLET_CONFIG[toWallet] || { label: toWallet };
@@ -86,7 +88,7 @@ export default function TransferModal({ initialFrom = "hamyon", initialTo = "naq
       });
       onClose();
     } catch (err) {
-      alert(`O'tkazishda xatolik: ${err.message}`);
+      setErrorMessage(`O'tkazishda xatolik: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }

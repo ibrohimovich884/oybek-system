@@ -124,12 +124,45 @@ export default function ExpenseList({ expenses }) {
 
       {/* Filtrlash paneli */}
       <div className="filter-bar">
+        {/* Tezkor toifa tanlash tablari (Mobile & Desktop 1-tap qulaylik) */}
+        <div className="type-filter-tabs" role="tablist" aria-label="Amal turi filtri">
+          <button
+            type="button"
+            className={`type-filter-tab ${typeFilter === "all" ? "is-active" : ""}`}
+            onClick={() => setTypeFilter("all")}
+          >
+            <span>Barchasi</span>
+            <span className="type-filter-tab__count">({expenses.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`type-filter-tab type-filter-tab--expense ${typeFilter === "expense" ? "is-active" : ""}`}
+            onClick={() => setTypeFilter("expense")}
+          >
+            <span>Chiqim (-)</span>
+          </button>
+          <button
+            type="button"
+            className={`type-filter-tab type-filter-tab--income ${typeFilter === "income" ? "is-active" : ""}`}
+            onClick={() => setTypeFilter("income")}
+          >
+            <span>Kirim (+)</span>
+          </button>
+          <button
+            type="button"
+            className={`type-filter-tab type-filter-tab--transfer ${typeFilter === "transfer" ? "is-active" : ""}`}
+            onClick={() => setTypeFilter("transfer")}
+          >
+            <span>O'tkazma (⇄)</span>
+          </button>
+        </div>
+
         {/* Qidiruv input */}
         <div className="search-box">
           <Search size={15} className="search-box__icon" />
           <input
             type="text"
-            placeholder="Sabab, joy, kategoriya yoki kichik kategoriya qidirish..."
+            placeholder="Qidirish (sabab, joy, toifa)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-box__input"
@@ -139,6 +172,7 @@ export default function ExpenseList({ expenses }) {
               type="button"
               className="search-box__clear"
               onClick={() => setSearchQuery("")}
+              aria-label="Qidiruvni tozalash"
             >
               <XCircle size={14} />
             </button>
@@ -146,23 +180,12 @@ export default function ExpenseList({ expenses }) {
         </div>
 
         <div className="filter-controls">
-          {/* Turi bo'yicha */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">Barcha amallar</option>
-            <option value="expense">Faqat xarajatlar</option>
-            <option value="income">Faqat daromadlar</option>
-            <option value="transfer">Faqat o'tkazmalar</option>
-          </select>
-
           {/* Hamyon bo'yicha */}
           <select
             value={walletFilter}
             onChange={(e) => setWalletFilter(e.target.value)}
             className="filter-select"
+            aria-label="Hisob bo'yicha filtr"
           >
             <option value="all">Barcha hisoblar</option>
             <option value="hamyon">Hamyon (Kundalik)</option>
@@ -176,6 +199,7 @@ export default function ExpenseList({ expenses }) {
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
             className="filter-select"
+            aria-label="Vaqt bo'yicha filtr"
           >
             <option value="all">Barcha vaqt</option>
             <option value="today">Bugun</option>
@@ -211,43 +235,32 @@ export default function ExpenseList({ expenses }) {
         </div>
       )}
 
-      {/* Jadval */}
+      {/* Tranzaksiyalar kartalari ro'yxati */}
       <div className="ledger-card">
-        <div className="ledger-scroll">
-          <div className="ledger">
-            <div className="ledger__head">
-              <span className="ledger-th ledger-th--date">Vaqt</span>
-              <span className="ledger-th ledger-th--wallet">Hisob</span>
-              <span className="ledger-th ledger-th--category">Kategoriya</span>
-              <span className="ledger-th ledger-th--desc">Izoh / Joy</span>
-              <span className="ledger-th ledger-th--amount">Miqdor</span>
-              <span className="ledger-th ledger-th--actions">Amallar</span>
+        <div className="ledger">
+          {filteredExpenses.length === 0 ? (
+            <div className="ledger-empty">
+              <p>Hech qanday tranzaksiya topilmadi.</p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={clearFilters}
+                >
+                  Filtrlarni bekor qilish
+                </button>
+              )}
             </div>
-
-            {filteredExpenses.length === 0 ? (
-              <div className="ledger-empty">
-                <p>Hech qanday tranzaksiya topilmadi.</p>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={clearFilters}
-                  >
-                    Filtrlarni bekor qilish
-                  </button>
-                )}
-              </div>
-            ) : (
-              filteredExpenses.map((expense) => (
-                <ExpenseRow
-                  key={expense.id}
-                  expense={expense}
-                  onEdit={(item) => setEditingItem(item)}
-                  onDelete={deleteExpense}
-                />
-              ))
-            )}
-          </div>
+          ) : (
+            filteredExpenses.map((expense) => (
+              <ExpenseRow
+                key={expense.id}
+                expense={expense}
+                onEdit={(item) => setEditingItem(item)}
+                onDelete={deleteExpense}
+              />
+            ))
+          )}
         </div>
       </div>
 

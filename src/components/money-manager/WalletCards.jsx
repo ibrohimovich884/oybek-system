@@ -88,8 +88,9 @@ export default function WalletCards({ onOpenTransfer }) {
               onClick={() => onOpenTransfer && onOpenTransfer("hamyon", "naqd")}
               title="Hamyondan Naqd yoki Kartaga pul o'tkazish"
             >
-              <ArrowRightLeft size={14} />
-              <span>Hamyondan o'tkazish</span>
+              <ArrowRightLeft size={13} />
+              <span className="btn-label-long">Hamyondan o'tkazish</span>
+              <span className="btn-label-short">O'tkazish</span>
             </button>
           </div>
         </div>
@@ -113,8 +114,9 @@ export default function WalletCards({ onOpenTransfer }) {
               onClick={() => onOpenTransfer && onOpenTransfer("naqd", "karta")}
               title="Naqd pulni kartaga o'tkazish"
             >
-              <ArrowRightLeft size={14} />
-              <span>Kartaga o'tkazish</span>
+              <ArrowRightLeft size={13} />
+              <span className="btn-label-long">Kartaga o'tkazish</span>
+              <span className="btn-label-short">Kartaga</span>
             </button>
           </div>
         </div>
@@ -138,8 +140,9 @@ export default function WalletCards({ onOpenTransfer }) {
               onClick={() => onOpenTransfer && onOpenTransfer("karta", "naqd")}
               title="Kartadan naqdga yechish"
             >
-              <ArrowRightLeft size={14} />
-              <span>Naqdga yechish</span>
+              <ArrowRightLeft size={13} />
+              <span className="btn-label-long">Naqdga yechish</span>
+              <span className="btn-label-short">Yechish</span>
             </button>
           </div>
         </div>
@@ -175,8 +178,9 @@ export default function WalletCards({ onOpenTransfer }) {
               onClick={() => onOpenTransfer && onOpenTransfer("dollar", "karta")}
               title="Dollarni so'mga almashtirish yoki o'tkazish"
             >
-              <ArrowRightLeft size={14} />
-              <span>So'mga almashtirish</span>
+              <ArrowRightLeft size={13} />
+              <span className="btn-label-long">So'mga almashtirish</span>
+              <span className="btn-label-short">Almashtirish</span>
             </button>
           </div>
         </div>

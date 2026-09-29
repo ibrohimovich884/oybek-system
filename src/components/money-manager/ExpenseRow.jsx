@@ -32,16 +32,106 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
 
   return (
     <div className={`ledger-row ledger-row--${expense.type || "expense"}`}>
-      {/* 1 & 2. Sana va To'lov usuli */}
-      <div className="ledger-cell ledger-cell--meta">
-        <div className="ledger-cell--date">
-          <span className="ledger-row__date mono" title={`spentAt: ${expense.spentAt}\ncreatedAt: ${expense.createdAt || 'N/A'}`}>
-            {formatDateTime(expense.spentAt)}
-          </span>
+      {/* 1. Yuqori qator: Kategoriya (chapda) va Miqdor (o'ngda) */}
+      <div className="ledger-row__header">
+        <div className="ledger-cell--category">
+          {isTransfer ? (
+            <div className="category-tag category-tag--transfer">
+              <ArrowRightLeft size={13} color="var(--transfer)" />
+              <span className="cat-name">O'tkazma</span>
+            </div>
+          ) : (
+            <div className="ledger-cat-group">
+              <div className="category-tag">
+                {catObj.emoji ? (
+                  <span className="cat-emoji">{catObj.emoji}</span>
+                ) : (
+                  <CategoryIcon iconName={catObj.icon} color="var(--text)" size={13} />
+                )}
+                <span className="cat-name">{catObj.label}</span>
+              </div>
+              {expense.subcategory && (
+                <span
+                  className="subcat-pill"
+                  title={`Kichik toifa: ${expense.subcategory}`}
+                >
+                  <span className="subcat-arrow">↳</span>
+                  <span className="subcat-text">{expense.subcategory}</span>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="ledger-cell--wallet">
-          <div className="ledger-row__wallet-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+        <div
+          className={`ledger-cell--amount mono ${
+            isIncome
+              ? "ledger-row__amount--income"
+              : isTransfer
+              ? "ledger-row__amount--transfer"
+              : "ledger-row__amount--expense"
+          }`}
+        >
+          <div className="ledger-amount-val">
+            {isIncome ? "+" : isTransfer ? "⇄ " : "-"}
+            {expense.currency === "USD" || paymentMethod === "dollar"
+              ? formatDollar(expense.amount)
+              : formatSum(expense.amount)}
+          </div>
+          {(expense.currency === "USD" || paymentMethod === "dollar") && expense.exchangeRateAtTime && (
+            <span className="ledger-amount-sub">
+              ~ {formatSum(expense.amount * expense.exchangeRateAtTime)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 2. O'rta qator: Sabab va Teglar (Joy, Soni, Tahrir) - agar mavjud bo'lsa */}
+      {(expense.reason || expense.location || quantity > 1 || hasEdits) && (
+        <div className="ledger-cell--desc">
+          {expense.reason && (
+            <div className="ledger-row__reason" title={expense.reason}>
+              {expense.reason}
+            </div>
+          )}
+          {(expense.location || quantity > 1 || hasEdits) && (
+            <div className="ledger-tags-row">
+              {quantity > 1 && (
+                <span className="badge badge--qty" title={`Soni: ${quantity}`}>
+                  <Layers size={10} />
+                  <span>{quantity} dona</span>
+                </span>
+              )}
+              {hasEdits && (
+                <span className="badge badge--edited" title={`${expense.edits.length} marta tahrirlangan`}>
+                  <History size={10} />
+                  <span>tahrirlangan ({expense.edits.length})</span>
+                </span>
+              )}
+              {expense.location && (
+                <div className="ledger-row__location" title={expense.location}>
+                  <MapPin size={11} className="location-pin" />
+                  <span className="location-text">{expense.location}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. Quyi qator: Vaqt, Hisob va DB holati (chapda) hamda Tahrirlash/O'chirish (o'ngda) */}
+      <div className="ledger-row__footer">
+        <div className="ledger-cell--meta">
+          <span
+            className="ledger-row__date mono"
+            title={`spentAt: ${expense.spentAt}\ncreatedAt: ${expense.createdAt || 'N/A'}`}
+          >
+            {formatDateTime(expense.spentAt)}
+          </span>
+
+          <span className="ledger-meta-dot">•</span>
+
+          <div className="ledger-row__wallet-badge">
             {isTransfer ? (
               <span className="badge badge--transfer" title="Hisoblararo o'tkazma">
                 <ArrowRightLeft size={11} />
@@ -59,7 +149,6 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
               </span>
             )}
 
-            {/* DB saqlanganlik holati nishoni (Icon) */}
             {expense.synced ? (
               <span
                 className="badge badge--db-synced"
@@ -71,7 +160,7 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
             ) : (
               <span
                 className="badge badge--db-pending"
-                title="Hozircha faqat xotirada, internet ulanganda DBga avtomatik saqlanadi"
+                title="Hozircha xotirada, internet ulanganda DBga avtomatik yoziladi"
               >
                 <Clock size={10} className="badge--db-icon" />
                 <span>Xotirada</span>
@@ -79,112 +168,27 @@ export default function ExpenseRow({ expense, onEdit, onDelete }) {
             )}
           </div>
         </div>
-      </div>
 
-      {/* 3. Kategoriya va Kichik Kategoriya (Subcategory) */}
-      <div className="ledger-cell ledger-cell--category">
-        {isTransfer ? (
-          <div className="category-tag category-tag--transfer">
-            <ArrowRightLeft size={13} color="var(--transfer)" />
-            <span>O'tkazma</span>
-          </div>
-        ) : (
-          <div className="ledger-cat-group">
-            <div className="category-tag">
-              {catObj.emoji ? (
-                <span className="cat-emoji">{catObj.emoji}</span>
-              ) : (
-                <CategoryIcon iconName={catObj.icon} color="var(--text)" size={13} />
-              )}
-              <span className="cat-name">{catObj.label}</span>
-            </div>
-            {expense.subcategory && (
-              <span
-                className="subcat-pill"
-                title={`Kichik kategoriya: ${expense.subcategory}`}
-              >
-                <span className="subcat-arrow">↳</span>
-                <span className="subcat-text">{expense.subcategory}</span>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 4. Sabab, Soni & Joy */}
-      <div className="ledger-cell ledger-cell--desc">
-        <div className="ledger-desc-row">
-          <span className="ledger-row__reason" title={expense.reason || ""}>
-            {expense.reason || "—"}
-          </span>
-          {quantity > 1 && (
-            <span
-              className="badge badge--qty"
-              title={`Soni: ${quantity}`}
-            >
-              <Layers size={10} />
-              <span>{quantity} dona</span>
-            </span>
-          )}
-          {hasEdits && (
-            <span
-              className="badge badge--edited"
-              title={`${expense.edits.length} marta tahrirlangan`}
-            >
-              <History size={10} />
-              <span>tahrirlangan ({expense.edits.length})</span>
-            </span>
-          )}
+        <div className="ledger-cell--actions">
+          <button
+            type="button"
+            className="btn-icon"
+            title="Tahrirlash / Ko'rish"
+            onClick={() => onEdit && onEdit(expense)}
+            aria-label="Tahrirlash"
+          >
+            <Edit2 size={13} />
+          </button>
+          <button
+            type="button"
+            className="btn-icon btn-icon--danger"
+            title="O'chirish"
+            onClick={() => onDelete && onDelete(expense.id)}
+            aria-label="O'chirish"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
-        {expense.location && (
-          <div className="ledger-row__location" title={expense.location}>
-            <MapPin size={11} className="location-pin" />
-            <span>{expense.location}</span>
-          </div>
-        )}
-      </div>
-
-      {/* 5. Miqdor */}
-      <div
-        className={`ledger-cell ledger-cell--amount mono ${
-          isIncome
-            ? "ledger-row__amount--income"
-            : isTransfer
-            ? "ledger-row__amount--transfer"
-            : "ledger-row__amount--expense"
-        }`}
-      >
-        <div className="ledger-amount-val">
-          {isIncome ? "+" : isTransfer ? "⇄ " : "-"}
-          {expense.currency === "USD" || paymentMethod === "dollar"
-            ? formatDollar(expense.amount)
-            : formatSum(expense.amount)}
-        </div>
-        {(expense.currency === "USD" || paymentMethod === "dollar") && expense.exchangeRateAtTime && (
-          <span className="ledger-amount-sub">
-            ~ {formatSum(expense.amount * expense.exchangeRateAtTime)}
-          </span>
-        )}
-      </div>
-
-      {/* 6. Harakatlar */}
-      <div className="ledger-cell ledger-cell--actions">
-        <button
-          type="button"
-          className="btn-icon"
-          title="Tahrirlash / JSON ko'rish"
-          onClick={() => onEdit && onEdit(expense)}
-        >
-          <Edit2 size={14} />
-        </button>
-        <button
-          type="button"
-          className="btn-icon btn-icon--danger"
-          title="O'chirish"
-          onClick={() => onDelete && onDelete(expense.id)}
-        >
-          <Trash2 size={14} />
-        </button>
       </div>
     </div>
   );

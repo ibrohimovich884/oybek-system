@@ -536,10 +536,34 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
           </div>
 
           <div className="expense-form__field">
-            <label htmlFor={spentAtId} className="expense-form__label">
-              <Calendar size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Sarflangan vaqt (spentAt - qo'lda kiritiladi)
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label htmlFor={spentAtId} className="expense-form__label" style={{ margin: 0 }}>
+                <Calendar size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                Vaqti (spentAt)
+              </label>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className="quick-chip-btn"
+                  onClick={() => setSpentAt(toLocalDatetimeInput(new Date()))}
+                  title="Hozirgi vaqt"
+                >
+                  Hozir
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip-btn"
+                  onClick={() => {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    setSpentAt(toLocalDatetimeInput(y));
+                  }}
+                  title="Kecha shu vaqt"
+                >
+                  Kecha
+                </button>
+              </div>
+            </div>
             <input
               id={spentAtId}
               type="datetime-local"
