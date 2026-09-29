@@ -14,6 +14,7 @@
 import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
 import { generateId } from "../utils/id.js";
+import { reconcileSnapshot, readLocalSnapshot } from "./snapshotSync.js";
 
 const STORAGE_SYNC_QUEUE_KEY = "oybek-system:sync_queue";
 const STORAGE_LAST_SYNCED_KEY = "oybek-system:last_synced_at";
@@ -212,7 +213,7 @@ class SyncService {
     try {
       this.addLog("info", "Server bilan aloqa tekshirilmoqda...");
       // 1. Health check (Render cold-start uchun 12 soniya kutiladi)
-      const isAlive = await apiClient.checkHealth(12000);
+      const isAlive = await apiClient.checkHealth(45000);
       if (!isAlive) {
         throw new Error("Serverga ulanib bo'lmadi. Backend uyquda yoki internet yo'q.");
       }
@@ -285,6 +286,9 @@ class SyncService {
         if (walletRes.ok && walletRes.data) {
           localStorage.setItem("oybek-system:wallets", JSON.stringify(walletRes.data));
         }
+
+        // C) Control Panel (rezervlar / qarzlar / dollar tarixi)
+        await reconcileSnapshot().catch(() => {});
       }
 
       const nowIso = new Date().toISOString();
@@ -397,14 +401,17 @@ class SyncService {
       const reserves = rawReserves ? JSON.parse(rawReserves) : {};
       const rawDebts = localStorage.getItem("oybek-system:pending_debts");
       const debts = rawDebts ? JSON.parse(rawDebts) : [];
+      const { dollarRateHistory } = readLocalSnapshot();
 
       // 1. Zaxira endpointi orqali yuborish
       const backupPayload = {
         exportedAt: new Date().toISOString(),
         wallets,
         reserves,
+        dollarRateHistory,
         pendingDebts: debts,
         expenses,
+        confirmWipe: true, // foydalanuvchi "hammasini yuklash"ni ataylab bosdi
       };
 
       const backupRes = await apiClient.post(API_ENDPOINTS.BACKUP, backupPayload);

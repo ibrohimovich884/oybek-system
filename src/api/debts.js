@@ -1,5 +1,6 @@
 import { generateId } from "../utils/id.js";
 import { formatISOWithOffset } from "../utils/format.js";
+import { scheduleSnapshotPush } from "../services/snapshotSync.js";
 
 const STORAGE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
 
@@ -22,6 +23,7 @@ export function readLocalDebts() {
 export function writeLocalDebts(debts) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_PENDING_DEBTS_KEY, JSON.stringify(debts));
+  scheduleSnapshotPush();
 }
 
 export async function getDebts() {

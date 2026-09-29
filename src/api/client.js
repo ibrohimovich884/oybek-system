@@ -53,7 +53,7 @@ class ApiClient {
   /**
    * Backend bilan aloqani xavfsiz tekshirish (Health Check)
    */
-  async checkHealth(timeoutMs = 8000) {
+  async checkHealth(timeoutMs = 45000) {
     this.state.isChecking = true;
     this.notify();
 

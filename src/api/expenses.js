@@ -18,6 +18,7 @@ import {
   setBackendBaseUrl as saveBackendBaseUrl,
 } from "../config/apiConfig.js";
 import { syncService } from "../services/syncService.js";
+import { scheduleSnapshotPush } from "../services/snapshotSync.js";
 
 const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
 const STORAGE_WALLETS_KEY = "oybek-system:wallets";
@@ -86,6 +87,7 @@ function readLocalReserves() {
 function writeLocalReserves(reserves) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_RESERVES_KEY, JSON.stringify(reserves));
+  scheduleSnapshotPush();
 }
 
 /**
@@ -106,6 +108,7 @@ function readLocalDollarRateHistory() {
 function writeLocalDollarRateHistory(history) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_DOLLAR_RATES_KEY, JSON.stringify(history));
+  scheduleSnapshotPush();
 }
 
 /**
@@ -126,6 +129,7 @@ function readLocalPendingDebts() {
 function writeLocalPendingDebts(debts) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_PENDING_DEBTS_KEY, JSON.stringify(debts));
+  scheduleSnapshotPush();
 }
 
 /**
@@ -257,8 +261,10 @@ export async function getWallets() {
   const res = await apiClient.get(API_ENDPOINTS.WALLETS);
   if (res.ok && res.data && typeof res.data === "object") {
     const parsed = {
+      hamyon: Number(res.data.hamyon ?? DEFAULT_WALLETS.hamyon),
       naqd: Number(res.data.naqd ?? DEFAULT_WALLETS.naqd),
       karta: Number(res.data.karta ?? DEFAULT_WALLETS.karta),
+      dollar: Number(res.data.dollar ?? DEFAULT_WALLETS.dollar),
     };
     writeLocalWallets(parsed);
     return parsed;
@@ -291,6 +297,8 @@ export async function addExpense(payload) {
     edits: [],
     type,
     wallet: paymentMethod,
+    currency: payload.currency || (paymentMethod === "dollar" ? "USD" : "UZS"),
+    exchangeRateAtTime: payload.exchangeRateAtTime || null,
     fromWallet: payload.fromWallet || (type === "transfer" ? "karta" : null),
     toWallet: payload.toWallet || (type === "transfer" ? "naqd" : null),
     synced: false, // Boshlanishida xotirada, DB tasdig'i kutiladi

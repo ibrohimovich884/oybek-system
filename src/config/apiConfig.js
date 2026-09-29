@@ -34,7 +34,11 @@ export function getBackendBaseUrl() {
     return `http://localhost:${envPort}`;
   }
 
-  // 4. Standart production backend
+  // 4. Lokal dev rejimida (npm run dev) — lokal backendga ulanamiz,
+  //    production build'da esa Render'dagi backendga.
+  if (import.meta.env?.DEV) {
+    return `http://localhost:${DEFAULT_BACKEND_PORT}`;
+  }
   return DEFAULT_BACKEND_URL;
 }
 
@@ -80,7 +84,9 @@ export const API_ENDPOINTS = {
   BACKUP: "/api/backup",
   EXERCISES: "/api/exercises",
   EXERCISE_LOGS: "/api/exercises/logs",
+  SNAPSHOT: "/api/snapshot",
 };
 
-export const API_TIMEOUT_MS = 15000;
+// Render (bepul tarif) uxlab qolgan servisni uyg'otishi 30-60s olishi mumkin
+export const API_TIMEOUT_MS = 60000;
 
