@@ -6,7 +6,7 @@
  * yoki localStorage orqali o'zgartirish mumkin.
  */
 
-export const DEFAULT_BACKEND_URL = "https://oybek-system-backend-1.onrender.com";
+export const DEFAULT_BACKEND_URL = "https://oybek-system-backend-ce93.onrender.com";
 export const DEFAULT_BACKEND_PORT = 5000;
 
 const STORAGE_URL_KEY = "oybek_system:backend_url";

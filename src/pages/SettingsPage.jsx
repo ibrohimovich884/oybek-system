@@ -430,7 +430,7 @@ export default function SettingsPage() {
                 className="input"
                 value={backendInput}
                 onChange={(e) => setBackendInput(e.target.value)}
-                placeholder="https://oybek-system-backend-1.onrender.com"
+                placeholder="https://oybek-system-backend-ce93.onrender.com"
                 style={{ width: "100%", fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}
               />
             </div>
