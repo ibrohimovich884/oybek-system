@@ -37,6 +37,16 @@
     display: flex;
     align-items: center;
     gap: var(--sp-25);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    user-select: none;
+  }
+
+  .mobile-header__brand:active {
+    opacity: 0.8;
+    transform: scale(0.98);
   }
 
   .mobile-header__logo {
@@ -140,6 +150,14 @@
   display: flex;
   align-items: center;
   gap: var(--sp-25);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar__brand:hover {
+  opacity: 0.88;
 }
 
 .sidebar__logo-badge {
@@ -348,6 +366,16 @@
     font-weight: 600;
     transition: all 0.15s ease;
     touch-action: manipulation;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav__item:active {
+    transform: scale(0.94);
   }
 
   .mobile-bottom-nav__item.is-active {
@@ -356,6 +384,22 @@
 
   .mobile-bottom-nav__item.is-active svg {
     transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-bottom-nav {
+    height: calc(56px + var(--safe-bottom));
+  }
+
+  .mobile-bottom-nav__item {
+    font-size: 0.68rem;
+    gap: 2px;
+  }
+
+  .mobile-bottom-nav__item span {
+    white-space: nowrap;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -371,6 +415,21 @@
   .content {
     padding: var(--sp-4) var(--sp-4) calc(var(--bottom-nav-h) + var(--safe-bottom) + 24px) var(--sp-4);
     max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 12px 12px calc(56px + var(--safe-bottom) + 20px) 12px !important;
+  }
+
+  .page-title {
+    font-size: 1.35rem !important;
+  }
+
+  .page-subtitle {
+    font-size: 0.78rem !important;
+    line-height: 1.4 !important;
   }
 }
 
@@ -2957,37 +3016,56 @@ textarea.field-input {
 .home-page {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
 }
 
 .home-header {
-  margin-bottom: var(--sp-1);
+  margin-bottom: 2px;
+}
+
+.home-header__top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-header__date {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
 }
 
 .home-quick-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-3);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-25);
 }
 
-@media (max-width: 580px) {
+@media (max-width: 768px) {
   .home-quick-actions {
-    grid-template-columns: 1fr;
-    gap: var(--sp-2);
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .quick-action-card--analytics {
+    grid-column: 1 / -1;
   }
 }
 
 .quick-action-card {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--sp-3) var(--sp-4);
+  padding: 11px 13px;
   text-decoration: none;
   color: var(--text);
   transition: all 0.15s ease;
+  min-height: 54px;
 }
 
 .quick-action-card:hover {
@@ -2997,13 +3075,13 @@ textarea.field-input {
 }
 
 .quick-action-card:active {
-  transform: scale(0.99);
+  transform: scale(0.98);
 }
 
 .quick-action-card__icon {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3015,46 +3093,261 @@ textarea.field-input {
   color: var(--accent);
 }
 
-.quick-action-card__icon--info {
+.quick-action-card__icon--debts {
   background: rgba(56, 189, 248, 0.15);
   color: #38bdf8;
+}
+
+.quick-action-card__icon--info {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
 }
 
 .quick-action-card__text {
   display: flex;
   flex-direction: column;
-  line-height: 1.3;
+  line-height: 1.25;
+  min-width: 0;
 }
 
 .quick-action-card__title {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quick-action-card__sub {
   font-size: var(--fs-2xs);
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.home-section {
-  display: flex;
-  flex-direction: column;
+.section-desc {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  display: block;
+}
+
+/* Wallet Grid for Home (2x2 on mobile 375px) */
+.wallet-grid--home {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-3);
+  margin-bottom: 0;
 }
 
-.section-header-row {
+@media (max-width: 860px) {
+  .wallet-grid--home {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .wallet-grid--home .wallet-card {
+    padding: 10px 12px;
+    gap: 4px;
+  }
+
+  .wallet-grid--home .wallet-card__header {
+    gap: 6px;
+  }
+
+  .wallet-grid--home .wallet-card__icon-wrapper {
+    width: 26px;
+    height: 26px;
+  }
+
+  .wallet-grid--home .wallet-card__label {
+    font-size: 0.78rem;
+  }
+
+  .wallet-grid--home .wallet-card__amount {
+    font-size: 1.05rem;
+    margin: 2px 0;
+  }
+
+  .wallet-grid--home .wallet-card__footer {
+    padding-top: 4px;
+    font-size: 0.68rem;
+  }
+}
+
+/* Home Recent Transactions Mobile Feed */
+.home-recent-feed {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.home-tx-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
+  gap: 11px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.12s ease;
 }
 
-.section-title {
-  font-size: var(--fs-base);
-  font-weight: 700;
-  margin: 0;
+.home-tx-item:last-of-type {
+  border-bottom: none;
+}
+
+.home-tx-item:active {
+  background: var(--surface-hover);
+}
+
+.home-tx-icon-col {
+  flex-shrink: 0;
+}
+
+.home-tx-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text);
+  font-size: 1.05rem;
+}
+
+.home-tx-icon--transfer {
+  color: #818cf8;
+  background: rgba(129, 140, 248, 0.12);
+  border-color: rgba(129, 140, 248, 0.25);
+}
+
+.home-tx-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-tx-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-tx-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-tx-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.home-tx-date {
+  color: var(--text-dim);
+}
+
+.home-tx-dot {
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.home-tx-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.home-tx-badge--hamyon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.home-tx-badge--karta {
+  background: var(--karta-soft);
+  color: var(--karta);
+}
+
+.home-tx-badge--naqd {
+  background: var(--naqd-soft);
+  color: var(--naqd);
+}
+
+.home-tx-badge--dollar {
+  background: var(--dollar-soft);
+  color: var(--dollar);
+}
+
+.home-tx-badge--transfer {
+  background: rgba(129, 140, 248, 0.15);
+  color: #818cf8;
+}
+
+.home-tx-subcat {
+  color: var(--accent);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.home-tx-amount {
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.home-tx-amount--expense {
+  color: var(--expense);
+}
+
+.home-tx-amount--income {
+  color: var(--income);
+}
+
+.home-tx-amount--transfer {
+  color: #818cf8;
+}
+
+.home-recent-feed__footer {
+  padding: 9px 14px;
+  background: var(--surface-2);
+  text-align: center;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.home-view-all-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.home-view-all-link:hover {
+  opacity: 0.85;
 }
 
 .home-empty-card {

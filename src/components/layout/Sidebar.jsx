@@ -13,13 +13,23 @@ import {
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { syncStatus } = useExpenses();
+  const { syncStatus, debts } = useExpenses();
+
+  const pendingDebtsCount = (debts || []).filter(
+    (d) => d.status !== "settled"
+  ).length;
 
   const navItems = [
     { to: "/", label: "Bosh sahifa", icon: Home },
     { to: "/money", label: "Money manager", icon: Wallet },
+    {
+      to: "/debts",
+      label: "Qarz daftari",
+      icon: HandCoins,
+      badge: pendingDebtsCount > 0 ? `${pendingDebtsCount}` : null,
+      badgeType: pendingDebtsCount > 0 ? "info" : null,
+    },
     { to: "/control", label: "Control panel", icon: SlidersHorizontal },
-    { to: "/debts", label: "Qarz daftari", icon: HandCoins },
     { to: "/exercises", label: "Mashqlar", icon: Dumbbell, badge: "Tez kunda" },
     {
       to: "/settings",
@@ -43,13 +53,19 @@ export default function Sidebar({ isOpen, onClose }) {
 
       <aside className={`sidebar ${isOpen ? "is-open" : ""}`}>
         <div className="sidebar__header">
-          <div className="sidebar__brand">
+          <NavLink
+            to="/"
+            onClick={onClose}
+            className="sidebar__brand"
+            title="Bosh sahifaga qaytish"
+            style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}
+          >
             <div className="sidebar__logo-badge">OS</div>
             <div className="sidebar__brand-text">
               <span className="sidebar__brand-name">OYBEK SysteM</span>
               <span className="sidebar__brand-tag">Shaxsiy panel</span>
             </div>
-          </div>
+          </NavLink>
 
           <button
             type="button"
