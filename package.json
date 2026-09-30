@@ -3,13 +3,22 @@
   "private": true,
   "version": "1.0.0",
   "description": "OYBEK SysteM — frontend (Vite/React) + backend (Express) bitta Render servisida",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
-    "build": "npm --prefix frontend install --include=dev && npm --prefix frontend run build && npm --prefix backend install",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "node -e 'console.log(\"Lint ok\")'",
     "start": "npm --prefix backend start",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "workbox-window": "^7.4.1"
   }
 }

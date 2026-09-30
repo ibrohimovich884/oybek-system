@@ -77,10 +77,20 @@ export default function ExercisesPage() {
           setLoading(false);
         }
       });
+
+    const handleSyncComplete = () => {
+      if (active) fetchData();
+    };
+
+    window.addEventListener("oybek:sync-complete", handleSyncComplete);
+    window.addEventListener("oybek:exercise-synced", handleSyncComplete);
+
     return () => {
       active = false;
+      window.removeEventListener("oybek:sync-complete", handleSyncComplete);
+      window.removeEventListener("oybek:exercise-synced", handleSyncComplete);
     };
-  }, []);
+  }, [fetchData]);
 
   // Xabarnoma ko'rsatish
   const showNotification = (msg) => {

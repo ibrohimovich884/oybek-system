@@ -122,9 +122,7 @@ export async function updateExpense(id, updates) {
     [id]
   );
   if (currentRows.length === 0) {
-    const err = new Error("Tranzaksiya topilmadi");
-    err.status = 404;
-    throw err;
+    return await createExpense({ id, ...updates });
   }
   const current = currentRows[0];
 

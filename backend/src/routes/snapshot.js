@@ -24,12 +24,19 @@ router.put("/", async (req, res) => {
   const { reserves, dollarRateHistory, pendingDebts } = req.body;
   try {
     await pool.query(
-      `UPDATE app_snapshot SET
-         reserves = COALESCE($1::jsonb, reserves),
-         dollar_rate_history = COALESCE($2::jsonb, dollar_rate_history),
-         pending_debts = COALESCE($3::jsonb, pending_debts),
-         updated_at = now()
-       WHERE id = 1`,
+      `INSERT INTO app_snapshot (id, reserves, dollar_rate_history, pending_debts, updated_at)
+       VALUES (
+         1,
+         COALESCE($1::jsonb, '{}'::jsonb),
+         COALESCE($2::jsonb, '[]'::jsonb),
+         COALESCE($3::jsonb, '[]'::jsonb),
+         now()
+       )
+       ON CONFLICT (id) DO UPDATE SET
+         reserves = CASE WHEN $1::jsonb IS NOT NULL THEN $1::jsonb ELSE app_snapshot.reserves END,
+         dollar_rate_history = CASE WHEN $2::jsonb IS NOT NULL THEN $2::jsonb ELSE app_snapshot.dollar_rate_history END,
+         pending_debts = CASE WHEN $3::jsonb IS NOT NULL THEN $3::jsonb ELSE app_snapshot.pending_debts END,
+         updated_at = now()`,
       [
         reserves !== undefined ? JSON.stringify(reserves) : null,
         dollarRateHistory !== undefined ? JSON.stringify(dollarRateHistory) : null,

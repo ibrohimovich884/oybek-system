@@ -600,8 +600,35 @@ export default function SettingsPage() {
                     {item.type === "create" ? "Qo'shish" : item.type === "update" ? "Tahrir" : "O'chirish"}
                   </span>
                   <span>
-                    <strong>{item.entity}:</strong> {item.payload?.reason || item.payload?.category || item.targetId}
-                    {item.payload?.amount && ` (${formatSum(item.payload.amount)})`}
+                    <strong>
+                      {item.entity === "expenses"
+                        ? "Tranzaksiya (transactions)"
+                        : item.entity === "wallets"
+                        ? "Hamyonlar (wallets)"
+                        : item.entity === "debts"
+                        ? "Qarzlar (app_snapshot)"
+                        : item.entity === "reserves"
+                        ? "Zaxiralar (app_snapshot)"
+                        : item.entity === "dollar_rate_history"
+                        ? "Dollar tarixi (app_snapshot)"
+                        : item.entity === "exercises"
+                        ? "Mashq (exercises)"
+                        : item.entity === "exercise_logs"
+                        ? "Mashq jurnali (exercise_logs)"
+                        : item.entity === "exchange_rate"
+                        ? "MB kursi (cbu_rate_log)"
+                        : item.entity}
+                      :
+                    </strong>{" "}
+                    {item.payload?.personName ||
+                      item.payload?.name ||
+                      item.payload?.reason ||
+                      item.payload?.category ||
+                      (item.payload?.rate ? `${item.payload.rate} so'm` : "") ||
+                      (item.payload?.date ? `Sana: ${item.payload.date}` : "") ||
+                      item.targetId}
+                    {item.payload?.amount !== undefined &&
+                      ` (${formatSum(item.payload.amount)})`}
                   </span>
                 </div>
                 <span className="mono" style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>

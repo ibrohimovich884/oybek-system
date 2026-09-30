@@ -32,3 +32,11 @@ export async function syncFromCbu() {
   );
   return { rate: Number(rows[0].rate), recordedAt: rows[0].recorded_at };
 }
+
+export async function logRate(rate) {
+  const { rows } = await pool.query(
+    "INSERT INTO cbu_rate_log (rate) VALUES ($1) RETURNING *",
+    [rate]
+  );
+  return { rate: Number(rows[0].rate), recordedAt: rows[0].recorded_at };
+}

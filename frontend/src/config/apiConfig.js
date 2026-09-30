@@ -37,11 +37,8 @@ export function getBackendBaseUrl() {
     return `http://localhost:${envPort}`;
   }
 
-  // 4. Lokal dev rejimida (npm run dev) — lokal backendga ulanamiz,
-  //    production build'da esa shu sayt bilan bir xil manzil (nisbiy yo'l).
-  if (import.meta.env?.DEV) {
-    return `http://localhost:${DEFAULT_BACKEND_PORT}`;
-  }
+  // 4. Standart holatda nisbiy yo'l ("") ishlatiladi — bu esa Vite dev proxy yoki
+  //    ishlab chiqarish muhitida same-origin orqali so'rovlarni xavfsiz yo'naltiradi.
   return DEFAULT_BACKEND_URL;
 }
 
@@ -92,6 +89,9 @@ export const API_ENDPOINTS = {
   EXERCISES: "/api/exercises",
   EXERCISE_LOGS: "/api/exercises/logs",
   SNAPSHOT: "/api/snapshot",
+  EXCHANGE_RATE_USD: "/api/exchange-rate/usd",
+  EXCHANGE_RATE_SYNC_CBU: "/api/exchange-rate/usd/sync-cbu",
+  EXCHANGE_RATE_LOG: "/api/exchange-rate/usd/log",
 };
 
 // Render (bepul tarif) uxlab qolgan servisni uyg'otishi 30-60s olishi mumkin

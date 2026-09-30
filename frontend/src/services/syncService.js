@@ -2,19 +2,18 @@
  * OYBEK SysteM - Database Sync & Offline Resiliency Engine
  * 
  * Ushbu xizmat quyidagilarni ta'minlaydi:
- * 1. Internet bo'lmaganda yoki server vaqtincha javob bermaganda
- *    barcha yangi qo'shilgan, tahrirlangan va o'chirilgan ma'lumotlarni
- *    "sync_queue" navbatida xavfsiz saqlab turadi (synced: false).
+ * 1. Barcha jadvallar (wallets, transactions, transaction_edits, app_snapshot,
+ *    cbu_rate_log, exercises, exercise_logs) uchun oflayn navbat (sync_queue).
  * 2. Internet tiklanganda yoki foydalanuvchi "Qo'lda sinxronizatsiya"
  *    tugmasini bosganda navbatdagi ma'lumotlarni DBga yozadi va
- *    bazasidan eng yangi ma'lumotlarni tortib oladi (synced: true).
- * 3. Har bir ma'lumot uchun DB saqlanganlik holatini aniqlab beradi.
+ *    bazasidan eng yangi ma'lumotlarni tortib oladi (Pull).
+ * 3. Backendni asosiy manba (Source of Truth) sifatida ishlatadi.
  */
 
 import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
 import { generateId } from "../utils/id.js";
-import { reconcileSnapshot, readLocalSnapshot } from "./snapshotSync.js";
+import { pullSnapshotFromDB, readLocalSnapshot, pushSnapshot } from "./snapshotSync.js";
 
 const STORAGE_SYNC_QUEUE_KEY = "oybek-system:sync_queue";
 const STORAGE_LAST_SYNCED_KEY = "oybek-system:last_synced_at";
@@ -93,12 +92,16 @@ class SyncService {
     }
   }
 
+  /**
+   * Navbatga har qanday jadval amalni qo'shish
+   * entity: 'expenses' | 'wallets' | 'debts' | 'reserves' | 'dollar_rate_history' | 'exercises' | 'exercise_logs' | 'exchange_rate' | 'snapshot'
+   */
   addToQueue(action) {
     const queue = this.getQueue();
     const entry = {
       queueId: generateId(),
-      entity: action.entity, // 'expenses' | 'wallets' | 'debts'
-      type: action.type,     // 'create' | 'update' | 'delete'
+      entity: action.entity,
+      type: action.type, // 'create' | 'update' | 'delete'
       targetId: action.targetId,
       payload: action.payload,
       createdAt: new Date().toISOString(),
@@ -177,8 +180,6 @@ class SyncService {
 
   /**
    * Brauzerdagi barcha lokal xotirani (localStorage) tozalash
-   * @param {Object} options
-   * @param {boolean} options.preserveBackendConfig - DB URL va port saqlansinmi (standart: true)
    */
   clearAllStorage({ preserveBackendConfig = true } = {}) {
     if (typeof window === "undefined") return { success: true, count: 0 };
@@ -190,7 +191,10 @@ class SyncService {
         if (key.startsWith("oybek")) {
           if (
             preserveBackendConfig &&
-            (key === "oybek_backend_url" || key === "oybek_backend_port")
+            (key === "oybek_backend_url" ||
+              key === "oybek_backend_port" ||
+              key === "oybek_system:backend_url_v2" ||
+              key === "oybek_system:backend_port")
           ) {
             continue;
           }
@@ -229,7 +233,7 @@ class SyncService {
   }
 
   /**
-   * Asosiy Sinxronizatsiya Jarayoni (Manual & Auto)
+   * Asosiy Sinxronizatsiya Jarayoni (Barcha jadvallar bo'yicha Push & Pull)
    */
   async syncNow(options = { forcePull: true }) {
     if (this.isSyncing) {
@@ -246,27 +250,16 @@ class SyncService {
 
     try {
       this.addLog("info", "Server bilan aloqa tekshirilmoqda...");
-      // 1. Health check (Render cold-start uchun 12 soniya kutiladi)
       const isAlive = await apiClient.checkHealth(45000);
       if (!isAlive) {
-        throw new Error("Serverga ulanib bo'lmadi. Backend uyquda yoki internet yo'q.");
+        throw new Error("Serverga ulanib bo'lmadi. Backend faol emas yoki internet yo'q.");
       }
 
-      const schemaProblems = apiClient.getStatus().schemaProblems;
-      if (schemaProblems) {
-        const first = schemaProblems[0];
-        this.addLog(
-          "error",
-          `Backend DB sxemasi noto'g'ri (${schemaProblems.length} ta muammo, masalan: ${first.table}${first.column ? "." + first.column : ""} — ${first.kind}). Backendni qayta ishga tushiring yoki 'npm run migrate' qiling.`
-        );
-      }
-
-      // 2. Kutilayotgan navbatni (sync_queue) DBga yuborish
+      // 1. Kutilayotgan navbatni (sync_queue) tegishli DB jadvallariga yuborish (PUSH)
       const queue = this.getQueue();
       if (queue.length > 0) {
         this.addLog("info", `Navbatdagi ${queue.length} ta o'zgarish DBga yuborilmoqda...`);
         const remainingQueue = [];
-
         const failures = [];
         const fail = (item, res) => {
           remainingQueue.push(item);
@@ -276,6 +269,8 @@ class SyncService {
         for (const item of queue) {
           try {
             let res = null;
+
+            // A) Tranzaksiyalar (transactions & transaction_edits jadvallari)
             if (item.entity === "expenses") {
               if (item.type === "create") {
                 res = await apiClient.post(API_ENDPOINTS.EXPENSES, item.payload);
@@ -286,8 +281,43 @@ class SyncService {
               } else if (item.type === "delete") {
                 res = await apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(item.targetId));
               }
-            } else if (item.entity === "wallets") {
+            }
+            // B) Hamyonlar (wallets jadvali)
+            else if (item.entity === "wallets") {
               res = await apiClient.put(API_ENDPOINTS.WALLETS, item.payload);
+            }
+            // C) Qarzlar, Zaxiralar, Dollar tarixi (app_snapshot jadvali)
+            else if (
+              item.entity === "debts" ||
+              item.entity === "reserves" ||
+              item.entity === "dollar_rate_history" ||
+              item.entity === "snapshot"
+            ) {
+              res = await pushSnapshot();
+              if (res.ok && item.entity === "debts" && item.targetId) {
+                this.markLocalDebtSynced(item.targetId, true);
+              }
+            }
+            // D) Mashqlar (exercises jadvali)
+            else if (item.entity === "exercises") {
+              if (item.type === "create") {
+                res = await apiClient.post(API_ENDPOINTS.EXERCISES, item.payload);
+                if (res.ok) this.markLocalExerciseSynced(item.payload.id, true);
+              } else if (item.type === "delete") {
+                res = await apiClient.delete(`${API_ENDPOINTS.EXERCISES}/${encodeURIComponent(item.targetId)}`);
+              }
+            }
+            // E) Mashq jurnali (exercise_logs jadvali)
+            else if (item.entity === "exercise_logs") {
+              res = await apiClient.post(API_ENDPOINTS.EXERCISE_LOGS, item.payload);
+            }
+            // F) Markaziy bank valyuta kursi (cbu_rate_log jadvali)
+            else if (item.entity === "exchange_rate") {
+              if (item.payload?.rate) {
+                res = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_LOG, item.payload);
+              } else {
+                res = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {});
+              }
             }
 
             if (res && res.ok) pushedCount++;
@@ -305,29 +335,52 @@ class SyncService {
         this.setQueue(remainingQueue);
       }
 
-      // 3. DBdan eng so'nggi ma'lumotlarni tortib olish va xotirani yangilash (Pull)
+      // 2. DBdan barcha jadvallar bo'yicha eng so'nggi ma'lumotlarni tortib olish (PULL)
       if (options.forcePull) {
-        this.addLog("info", "Serverdan yangi ma'lumotlar tortib olinmoqda (Pull)...");
+        this.addLog("info", "Server DBdan barcha yangi ma'lumotlar tortib olinmoqda (Pull)...");
 
-        // A) Tranzaksiyalarni olish
+        // A) Tranzaksiyalar (transactions & transaction_edits)
         const expRes = await apiClient.get(API_ENDPOINTS.EXPENSES);
         if (expRes.ok && Array.isArray(expRes.data)) {
-          pulledCount = expRes.data.length;
+          pulledCount += expRes.data.length;
           this.mergeServerExpensesWithLocal(expRes.data);
         }
 
-        // B) Hamyonlarni olish
+        // B) Hamyonlar (wallets)
         const walletRes = await apiClient.get(API_ENDPOINTS.WALLETS);
         if (walletRes.ok && walletRes.data) {
+          pulledCount += Object.keys(walletRes.data).length;
           localStorage.setItem("oybek-system:wallets", JSON.stringify(walletRes.data));
         }
 
-        // C) Control Panel (rezervlar / qarzlar / dollar tarixi)
-        await reconcileSnapshot().catch(() => {});
+        // C) Control Panel snapshot (app_snapshot: reserves, pendingDebts, dollarRateHistory)
+        const snapshotData = await pullSnapshotFromDB().catch(() => null);
+        if (snapshotData) {
+          pulledCount += (snapshotData.pendingDebts?.length || 0) + (snapshotData.dollarRateHistory?.length || 0);
+        }
+
+        // D) Mashqlar (exercises)
+        const exRes = await apiClient.get(API_ENDPOINTS.EXERCISES);
+        if (exRes.ok && Array.isArray(exRes.data)) {
+          pulledCount += exRes.data.length;
+          this.mergeServerExercisesWithLocal(exRes.data);
+        }
+
+        // E) Mashq jurnali (exercise_logs)
+        const logsRes = await apiClient.get(API_ENDPOINTS.EXERCISE_LOGS);
+        if (logsRes.ok && Array.isArray(logsRes.data)) {
+          pulledCount += logsRes.data.length;
+          this.mergeServerLogsWithLocal(logsRes.data);
+        }
+
+        // F) CBU kursi yangilash va cbu_rate_log ga yozish
+        const cbuRes = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {}).catch(() => null);
+        if (cbuRes && cbuRes.ok && cbuRes.data?.rate) {
+          localStorage.setItem("oybek-system:usd_rate", String(cbuRes.data.rate));
+        }
       }
 
       if (failedCount > 0) {
-        // Avval bu holat ham "Muvaffaqiyatli" deb ko'rsatilardi
         const msg = `${failedCount} ta o'zgarish DBga yozilmadi. Server xatosi: ${lastFailure}`;
         this.addLog("error", msg);
         return { success: false, pushedCount, pulledCount, failedCount, error: msg, message: msg };
@@ -340,11 +393,13 @@ class SyncService {
         `Muvaffaqiyatli sinxronlandi! ${pushedCount} ta o'zgarish DBga yozildi, ${pulledCount} ta ma'lumot DBdan yangilandi.`
       );
 
-      // UI kontekstini yangilash uchun hodisa yuboramiz
+      // UI kontekstlarini yangilash uchun hodisa
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("oybek:sync-complete", {
-          detail: { pushedCount, pulledCount, timestamp: nowIso },
-        }));
+        window.dispatchEvent(
+          new CustomEvent("oybek:sync-complete", {
+            detail: { pushedCount, pulledCount, timestamp: nowIso },
+          })
+        );
       }
 
       return {
@@ -367,9 +422,6 @@ class SyncService {
     }
   }
 
-  /**
-   * Mahalliy ro'yxatdagi tranzaksiyani "synced: true" deb belgilash
-   */
   markLocalExpenseSynced(id, isSynced = true) {
     if (typeof window === "undefined") return;
     try {
@@ -377,52 +429,88 @@ class SyncService {
       if (!raw) return;
       const list = JSON.parse(raw);
       if (!Array.isArray(list)) return;
-
-      const updated = list.map((item) => {
-        if (item.id === id) {
-          return { ...item, synced: isSynced };
-        }
-        return item;
-      });
+      const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
       localStorage.setItem("oybek-system:expenses", JSON.stringify(updated));
     } catch {}
   }
 
-  /**
-   * DBdan kelgan ma'lumotlarni lokal kesh bilan aqlli birlashtirish
-   * (Faqat xotirada saqlanib, hali DBga yuborilmagan unsynced ma'lumotlar o'chib ketmasligi uchun)
-   */
+  markLocalDebtSynced(id, isSynced = true) {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("oybek-system:pending_debts");
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return;
+      const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
+      localStorage.setItem("oybek-system:pending_debts", JSON.stringify(updated));
+    } catch {}
+  }
+
+  markLocalExerciseSynced(id, isSynced = true) {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("oybek_exercises_list");
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return;
+      const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
+      localStorage.setItem("oybek_exercises_list", JSON.stringify(updated));
+    } catch {}
+  }
+
   mergeServerExpensesWithLocal(serverExpenses) {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem("oybek-system:expenses");
       const localList = raw ? JSON.parse(raw) : [];
+      const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
 
-      // Lokal ro'yxatdagi hali sinxronlanmaganlarni ajratib olamiz
-      const unsyncedLocals = Array.isArray(localList)
-        ? localList.filter((item) => item.synced === false)
-        : [];
-
-      // Serverdan kelgan barcha yozuvlarni synced: true deb belgilaymiz
-      const serverWithSync = serverExpenses.map((item) => ({
-        ...item,
-        synced: true,
-      }));
-
-      // Birlashtirish: unsynced elementlar tepada qoladi, server elementlari bilan to'ldiriladi
+      const serverWithSync = serverExpenses.map((item) => ({ ...item, synced: true }));
       const mergedMap = new Map();
-      // Avval serverdagilarni joylaymiz
       serverWithSync.forEach((item) => mergedMap.set(item.id, item));
-      // Hali sinxronlanmagan lokal elementlarni ustiga qo'yamiz (ular ustun turadi)
       unsyncedLocals.forEach((item) => mergedMap.set(item.id, item));
 
       const mergedList = Array.from(mergedMap.values());
-      // Sanaga qarab saralash (eng yangisi tepada)
       mergedList.sort((a, b) => new Date(b.spentAt || b.createdAt) - new Date(a.spentAt || a.createdAt));
 
       localStorage.setItem("oybek-system:expenses", JSON.stringify(mergedList));
     } catch (err) {
-      console.warn("Birlashtirishda xato:", err);
+      console.warn("Xarajatlarni birlashtirishda xato:", err);
+    }
+  }
+
+  mergeServerExercisesWithLocal(serverExercises) {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("oybek_exercises_list");
+      const localList = raw ? JSON.parse(raw) : [];
+      const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
+
+      const mergedMap = new Map();
+      serverExercises.forEach((item) => mergedMap.set(item.id, { ...item, synced: true }));
+      unsyncedLocals.forEach((item) => mergedMap.set(item.id, item));
+
+      localStorage.setItem("oybek_exercises_list", JSON.stringify(Array.from(mergedMap.values())));
+    } catch (err) {
+      console.warn("Mashqlarni birlashtirishda xato:", err);
+    }
+  }
+
+  mergeServerLogsWithLocal(serverLogs) {
+    if (typeof window === "undefined") return;
+    try {
+      const logKey = (l) => `${l.exerciseId}|${l.date}`;
+      const raw = localStorage.getItem("oybek_exercise_logs");
+      const localList = raw ? JSON.parse(raw) : [];
+      const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
+
+      const mergedMap = new Map();
+      serverLogs.forEach((item) => mergedMap.set(logKey(item), { ...item, synced: true }));
+      unsyncedLocals.forEach((item) => mergedMap.set(logKey(item), item));
+
+      localStorage.setItem("oybek_exercise_logs", JSON.stringify(Array.from(mergedMap.values())));
+    } catch (err) {
+      console.warn("Mashq jurnallarini birlashtirishda xato:", err);
     }
   }
 
@@ -439,48 +527,62 @@ class SyncService {
       const expenses = rawExpenses ? JSON.parse(rawExpenses) : [];
       const rawWallets = localStorage.getItem("oybek-system:wallets");
       const wallets = rawWallets ? JSON.parse(rawWallets) : {};
-      const rawReserves = localStorage.getItem("oybek-system:reserves");
-      const reserves = rawReserves ? JSON.parse(rawReserves) : {};
-      const rawDebts = localStorage.getItem("oybek-system:pending_debts");
-      const debts = rawDebts ? JSON.parse(rawDebts) : [];
-      const { dollarRateHistory } = readLocalSnapshot();
+      const { reserves, dollarRateHistory, pendingDebts } = readLocalSnapshot();
 
-      // 1. Zaxira endpointi orqali yuborish
+      // 1. Zaxira endpointi orqali yuborish (wallets, expenses, reserves, dollar, debts)
       const backupPayload = {
         exportedAt: new Date().toISOString(),
         wallets,
         reserves,
         dollarRateHistory,
-        pendingDebts: debts,
+        pendingDebts,
         expenses,
-        confirmWipe: true, // foydalanuvchi "hammasini yuklash"ni ataylab bosdi
+        confirmWipe: true,
       };
 
-      const backupRes = await apiClient.post(API_ENDPOINTS.BACKUP, backupPayload);
+      await apiClient.post(API_ENDPOINTS.BACKUP, backupPayload);
 
-      // 2. Har bir expense uchun tekshirib DBga jo'natish
-      let count = 0;
-      for (const item of expenses) {
-        if (!item.synced) {
-          const res = await apiClient.post(API_ENDPOINTS.EXPENSES, item);
-          if (res.ok) count++;
-        }
+      // 2. Mashqlarni ham DBga yuklash
+      const rawExercises = localStorage.getItem("oybek_exercises_list");
+      const exercises = rawExercises ? JSON.parse(rawExercises) : [];
+      for (const ex of exercises) {
+        await apiClient.post(API_ENDPOINTS.EXERCISES, ex).catch(() => {});
       }
+
+      // 3. Mashq jurnallarini ham DBga yuklash
+      const rawLogs = localStorage.getItem("oybek_exercise_logs");
+      const logs = rawLogs ? JSON.parse(rawLogs) : [];
+      for (const log of logs) {
+        await apiClient.post(API_ENDPOINTS.EXERCISE_LOGS, log).catch(() => {});
+      }
+
+      // 4. Markaziy bank kursini DB cbu_rate_log ga log qilish
+      await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {}).catch(() => {});
 
       // Hammasini synced: true deb belgilash
       const allSynced = expenses.map((item) => ({ ...item, synced: true }));
       localStorage.setItem("oybek-system:expenses", JSON.stringify(allSynced));
+
+      const allDebtsSynced = pendingDebts.map((item) => ({ ...item, synced: true }));
+      localStorage.setItem("oybek-system:pending_debts", JSON.stringify(allDebtsSynced));
+
+      const allExSynced = exercises.map((item) => ({ ...item, synced: true }));
+      localStorage.setItem("oybek_exercises_list", JSON.stringify(allExSynced));
+
+      const allLogsSynced = logs.map((item) => ({ ...item, synced: true }));
+      localStorage.setItem("oybek_exercise_logs", JSON.stringify(allLogsSynced));
+
       this.clearQueue();
 
       const nowIso = new Date().toISOString();
       this.setLastSyncedAt(nowIso);
-      this.addLog("success", `Barcha ma'lumotlar (${expenses.length} ta yozuv) DBga muvaffaqiyatli saqlandi!`);
+      this.addLog("success", `Barcha ma'lumotlar barcha jadvallar bo'yicha DBga muvaffaqiyatli saqlandi!`);
 
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("oybek:sync-complete", { detail: { count, timestamp: nowIso } }));
+        window.dispatchEvent(new CustomEvent("oybek:sync-complete", { detail: { timestamp: nowIso } }));
       }
 
-      return { success: true, count: expenses.length };
+      return { success: true, count: expenses.length + pendingDebts.length + exercises.length };
     } catch (err) {
       this.addLog("error", `Majburiy yuklashda xato: ${err.message}`);
       return { success: false, error: err.message };

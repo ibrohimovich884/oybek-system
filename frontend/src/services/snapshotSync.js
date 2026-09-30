@@ -1,11 +1,9 @@
 /**
  * Control Panel ma'lumotlarini (reserves, dollarRateHistory, pendingDebts)
- * backendning /api/snapshot endpointi bilan sinxronlash.
+ * backendning /api/snapshot endpointi (PostgreSQL `app_snapshot` jadvali)
+ * bilan sinxronlash.
  *
- * Avval bu ma'lumotlar faqat localStorage'da qolib ketardi va DBga
- * umuman yetib bormasdi. Endi har bir o'zgarishdan keyin (debounce bilan)
- * backendga yuboriladi. Yangi qurilmada (lokal ma'lumot bo'sh bo'lsa)
- * serverdan tortib olinadi.
+ * Backend asosiy ma'lumot manbai (Source of Truth) sifatida ishlaydi.
  */
 import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
@@ -18,6 +16,7 @@ const KEYS = {
 const MARKER_KEY = "oybek-system:snapshot_synced_at";
 
 function readJson(key, fallback) {
+  if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
@@ -36,7 +35,7 @@ export function readLocalSnapshot() {
 
 let timer = null;
 
-export function scheduleSnapshotPush(delayMs = 1500) {
+export function scheduleSnapshotPush(delayMs = 800) {
   if (typeof window === "undefined") return;
   clearTimeout(timer);
   timer = setTimeout(() => {
@@ -45,41 +44,65 @@ export function scheduleSnapshotPush(delayMs = 1500) {
 }
 
 export async function pushSnapshot() {
-  const res = await apiClient.put(API_ENDPOINTS.SNAPSHOT, readLocalSnapshot());
-  if (res.ok) localStorage.setItem(MARKER_KEY, new Date().toISOString());
-  return res.ok;
-}
-
-function serverHasData(s) {
-  return (
-    (s.pendingDebts?.length || 0) > 0 ||
-    (s.dollarRateHistory?.length || 0) > 0 ||
-    Object.keys(s.reserves || {}).length > 0
-  );
+  const payload = readLocalSnapshot();
+  const res = await apiClient.put(API_ENDPOINTS.SNAPSHOT, payload);
+  if (res.ok) {
+    localStorage.setItem(MARKER_KEY, new Date().toISOString());
+  }
+  return res;
 }
 
 /**
- * Yangi qurilmada serverdagi snapshotni lokalga yozadi.
- * Mavjud lokal ma'lumot bor bo'lsa ustidan YOZMAYDI — o'rniga uni serverga yuboradi.
+ * Backenddan app_snapshot ma'lumotlarini olish va lokal xotira bilan birlashtirish (Pull)
  */
-export async function reconcileSnapshot() {
+export async function pullSnapshotFromDB() {
   const res = await apiClient.get(API_ENDPOINTS.SNAPSHOT);
-  if (!res.ok || !res.data) return false;
-
-  const local = readLocalSnapshot();
-  const localPristine =
-    !localStorage.getItem(MARKER_KEY) &&
-    (local.pendingDebts?.length || 0) === 0 &&
-    (local.dollarRateHistory?.length || 0) === 0;
-
-  if (localPristine && serverHasData(res.data)) {
-    if (res.data.reserves && Object.keys(res.data.reserves).length) {
-      localStorage.setItem(KEYS.reserves, JSON.stringify(res.data.reserves));
-    }
-    localStorage.setItem(KEYS.dollarRateHistory, JSON.stringify(res.data.dollarRateHistory || []));
-    localStorage.setItem(KEYS.pendingDebts, JSON.stringify(res.data.pendingDebts || []));
-    localStorage.setItem(MARKER_KEY, new Date().toISOString());
-    return true;
+  if (!res.ok || !res.data) {
+    return null;
   }
-  return pushSnapshot();
+
+  const server = res.data;
+  const local = readLocalSnapshot();
+
+  // 1. Qarzlar (pendingDebts): Hali serverga yuborilmagan unsynced qarzlarni saqlab qolamiz
+  const localDebts = Array.isArray(local.pendingDebts) ? local.pendingDebts : [];
+  const unsyncedDebts = localDebts.filter((d) => d.synced === false);
+
+  const serverDebts = Array.isArray(server.pendingDebts) ? server.pendingDebts : [];
+  const debtMap = new Map();
+  serverDebts.forEach((d) => debtMap.set(d.id, { ...d, synced: true }));
+  unsyncedDebts.forEach((d) => debtMap.set(d.id, d));
+  const mergedDebts = Array.from(debtMap.values());
+  localStorage.setItem(KEYS.pendingDebts, JSON.stringify(mergedDebts));
+
+  // 2. Dollar kursi tarixi (dollarRateHistory)
+  const localDollarHistory = Array.isArray(local.dollarRateHistory) ? local.dollarRateHistory : [];
+  const unsyncedDollar = localDollarHistory.filter((d) => d.synced === false);
+  const serverDollarHistory = Array.isArray(server.dollarRateHistory) ? server.dollarRateHistory : [];
+  const dollarMap = new Map();
+  serverDollarHistory.forEach((d) => dollarMap.set(d.id, { ...d, synced: true }));
+  unsyncedDollar.forEach((d) => dollarMap.set(d.id, d));
+  const mergedDollarHistory = Array.from(dollarMap.values());
+  localStorage.setItem(KEYS.dollarRateHistory, JSON.stringify(mergedDollarHistory));
+
+  // 3. Rezervlar (reserves)
+  if (server.reserves && typeof server.reserves === "object" && Object.keys(server.reserves).length > 0) {
+    const mergedReserves = {
+      ...(local.reserves || {}),
+      ...server.reserves,
+    };
+    localStorage.setItem(KEYS.reserves, JSON.stringify(mergedReserves));
+  }
+
+  localStorage.setItem(MARKER_KEY, new Date().toISOString());
+
+  return {
+    reserves: readJson(KEYS.reserves, {}),
+    dollarRateHistory: mergedDollarHistory,
+    pendingDebts: mergedDebts,
+  };
+}
+
+export async function reconcileSnapshot() {
+  return await pullSnapshotFromDB();
 }

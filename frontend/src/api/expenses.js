@@ -18,7 +18,7 @@ import {
   setBackendBaseUrl as saveBackendBaseUrl,
 } from "../config/apiConfig.js";
 import { syncService } from "../services/syncService.js";
-import { scheduleSnapshotPush } from "../services/snapshotSync.js";
+import { scheduleSnapshotPush, pushSnapshot, pullSnapshotFromDB } from "../services/snapshotSync.js";
 
 const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
 const STORAGE_WALLETS_KEY = "oybek-system:wallets";
@@ -456,7 +456,22 @@ export async function updateWallets(updates) {
   };
 
   writeLocalWallets(saved);
-  apiClient.put(API_ENDPOINTS.WALLETS, saved).catch(() => {});
+
+  const queueEntry = syncService.addToQueue({
+    entity: "wallets",
+    type: "update",
+    targetId: "wallets",
+    payload: saved,
+  });
+
+  apiClient.put(API_ENDPOINTS.WALLETS, saved)
+    .then((res) => {
+      if (res && res.ok) {
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.addLog("success", "Hamyonlar balansi DBga saqlandi");
+      }
+    })
+    .catch(() => {});
 
   return saved;
 }
@@ -465,11 +480,19 @@ export async function updateWallets(updates) {
  * Asosiy (reserve) balanslarni olish
  */
 export async function getReserves() {
+  try {
+    const pulled = await pullSnapshotFromDB();
+    if (pulled && pulled.reserves) {
+      return pulled.reserves;
+    }
+  } catch (e) {
+    console.warn("DBdan rezervlarni olishda ogohlantirish:", e);
+  }
   return readLocalReserves();
 }
 
 /**
- * Asosiy balansni yangilash (APPEND-ONLY notes bilan)
+ * Asosiy balansni yangilash (APPEND-ONLY notes bilan va DBga snapshot yuborish)
  */
 export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }) {
   const reserves = readLocalReserves();
@@ -497,6 +520,22 @@ export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }
 
   writeLocalReserves(reserves);
 
+  const queueEntry = syncService.addToQueue({
+    entity: "reserves",
+    type: "update",
+    targetId: id,
+    payload: { id, amount: newAmount, noteText: cleanNote, exchangeRateAtTime },
+  });
+
+  pushSnapshot()
+    .then((res) => {
+      if (res && res.ok) {
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.addLog("success", `Rezerv balansi DBga saqlandi: ${id}`);
+      }
+    })
+    .catch(() => {});
+
   // Agar Dollar Asosiy bo'lsa, kurs tarixini ham saqlaymiz
   if (id === "dollar-asosiy" && newAmount !== oldAmount) {
     const diff = newAmount - oldAmount;
@@ -517,6 +556,14 @@ export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }
  * Dollar kursi tarixi
  */
 export async function getDollarRateHistory() {
+  try {
+    const pulled = await pullSnapshotFromDB();
+    if (pulled && Array.isArray(pulled.dollarRateHistory)) {
+      return pulled.dollarRateHistory;
+    }
+  } catch (e) {
+    console.warn("DBdan dollar tarixini olishda ogohlantirish:", e);
+  }
   return readLocalDollarRateHistory();
 }
 
@@ -533,6 +580,23 @@ export function addDollarRateRecord(record) {
   };
   history.unshift(newRecord);
   writeLocalDollarRateHistory(history);
+
+  const queueEntry = syncService.addToQueue({
+    entity: "dollar_rate_history",
+    type: "create",
+    targetId: newRecord.id,
+    payload: newRecord,
+  });
+
+  pushSnapshot()
+    .then((res) => {
+      if (res && res.ok) {
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.addLog("success", `Dollar tarixi DBga saqlandi: ${newRecord.direction} ${newRecord.amount}$`);
+      }
+    })
+    .catch(() => {});
+
   return newRecord;
 }
 

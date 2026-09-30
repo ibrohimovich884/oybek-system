@@ -1,12 +1,15 @@
 /**
  * CBU.uz (O'zbekiston Markaziy banki) Valyuta kurslari xizmati
- * API: https://cbu.uz/uz/arkhiv-kursov-valyut/json/
  * 
- * Imkoniyatlari:
- * - Real vaqtda AQSH Dollari (USD) kursini olish
- * - Internet yo'q bo'lsa yoki API ishlamasa, so'nggi keshdan foydalanish
- * - Foydalanuvchi qo'lda kurs kiritishi uchun fallback rejim
+ * DB `cbu_rate_log` jadvali bilan to'liq integratsiya qilingan:
+ * 1. Kurs so'ralganda birinchi navbatda backend orqali CBU'dan yangilab DBga yozadi (/api/exchange-rate/usd/sync-cbu).
+ * 2. Backend oflayn bo'lsa, to'g'ridan-to'g'ri CBU.uz dan olib keshlaydi va DBga yuborish uchun navbatga qo'yadi.
+ * 3. Qo'lda kiritilgan kurs yoki avvalgi kesh fallback sifatida ishlatiladi.
  */
+
+import { apiClient } from "../api/client.js";
+import { API_ENDPOINTS } from "../config/apiConfig.js";
+import { syncService } from "./syncService.js";
 
 const STORAGE_RATE_KEY = "oybek-system:usd_rate";
 const STORAGE_RATE_META_KEY = "oybek-system:usd_rate_meta";
@@ -61,8 +64,52 @@ export function getStoredRateData() {
 }
 
 export async function fetchCbuUsdRate() {
-  // Agar foydalanuvchi qo'lda kurs belgilagan bo'lsa, uni ustuvor saqlaymiz,
-  // lekin fonda CBU kursini ham yangilab keshlab qo'yamiz.
+  const manualRaw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_MANUAL_RATE_KEY) : null;
+  const manualRate = manualRaw ? parseFloat(manualRaw) : null;
+
+  // 1. Birinchi navbatda backend orqali DB `cbu_rate_log` ga yozish va olishga urinamiz
+  try {
+    const serverRes = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {});
+    if (serverRes.ok && serverRes.data && serverRes.data.rate) {
+      const parsedRate = Number(serverRes.data.rate);
+      const meta = {
+        date: new Date().toLocaleDateString("uz-UZ"),
+        diff: "0.00",
+        lastSuccess: new Date().toISOString(),
+      };
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_RATE_KEY, String(parsedRate));
+        localStorage.setItem(STORAGE_RATE_META_KEY, JSON.stringify(meta));
+      }
+
+      if (manualRate && !isNaN(manualRate) && manualRate > 0) {
+        return {
+          rate: manualRate,
+          cbuRate: parsedRate,
+          date: meta.date,
+          diff: meta.diff,
+          isManual: true,
+          isOnline: true,
+          source: "qo'lda kiritilgan (DB CBU mavjud)",
+        };
+      }
+
+      return {
+        rate: parsedRate,
+        cbuRate: parsedRate,
+        date: meta.date,
+        diff: meta.diff,
+        isManual: false,
+        isOnline: true,
+        source: "CBU.uz (DB loglandi)",
+      };
+    }
+  } catch (backendErr) {
+    console.warn("Backend orqali CBU log qilish kechikdi, to'g'ridan-to'g'ri CBU tekshiriladi:", backendErr.message);
+  }
+
+  // 2. Agar backend javob bermasa, brauzerdan to'g'ridan-to'g'ri CBU API ga murojaat
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 6000);
 
@@ -103,8 +150,22 @@ export async function fetchCbuUsdRate() {
       localStorage.setItem(STORAGE_RATE_META_KEY, JSON.stringify(meta));
     }
 
-    const manualRaw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_MANUAL_RATE_KEY) : null;
-    const manualRate = manualRaw ? parseFloat(manualRaw) : null;
+    // DBga log qilish uchun navbatga olamiz va backendga urinib ko'ramiz
+    const queueEntry = syncService.addToQueue({
+      entity: "exchange_rate",
+      type: "create",
+      targetId: "cbu_usd",
+      payload: { rate: parsedRate },
+    });
+
+    apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_LOG, { rate: parsedRate })
+      .then((res) => {
+        if (res.ok) {
+          syncService.removeFromQueue(queueEntry.queueId);
+          syncService.addLog("success", `Dollar kursi cbu_rate_log DBga yozildi (${parsedRate})`);
+        }
+      })
+      .catch(() => {});
 
     if (manualRate && !isNaN(manualRate) && manualRate > 0) {
       return {
@@ -129,7 +190,7 @@ export async function fetchCbuUsdRate() {
     };
   } catch (err) {
     clearTimeout(timeoutId);
-    console.warn("CBU API'dan kurs olishda ogohlantirish (fallback ishlatiladi):", err.message);
+    console.warn("CBU API'dan kurs olishda ogohlantirish (kesh ishlatiladi):", err.message);
     const stored = getStoredRateData();
     return {
       ...stored,
