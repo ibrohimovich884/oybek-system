@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#282624" />
+      <stop offset="100%" stop-color="#181716" />
+    </linearGradient>
+    <linearGradient id="accentGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ea896" />
+      <stop offset="100%" stop-color="#4d7c6e" />
+    </linearGradient>
+  </defs>
+
+  <!-- Full bleed background covering 100% of maskable area -->
+  <rect width="512" height="512" fill="#1c1b1a" />
+
+  <!-- Inner Content strictly inside the 75% safe area (radius < 190 from center) -->
+  <!-- Outer Ring of O -->
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#3a3833" stroke-width="4" />
+  <circle cx="256" cy="256" r="95" fill="none" stroke="#f2efe8" stroke-width="24" stroke-linecap="round" />
+  
+  <!-- Accent Inner Core with System Node -->
+  <circle cx="256" cy="256" r="50" fill="none" stroke="url(#accentGradMask)" stroke-width="16" stroke-dasharray="150 45" />
+  <circle cx="256" cy="256" r="22" fill="url(#accentGradMask)" />
+
+  <!-- Axis indicators inside safe zone -->
+  <line x1="256" y1="135" x2="256" y2="152" stroke="url(#accentGradMask)" stroke-width="7" stroke-linecap="round" />
+  <line x1="256" y1="360" x2="256" y2="377" stroke="url(#accentGradMask)" stroke-width="7" stroke-linecap="round" />
+  <line x1="135" y1="256" x2="152" y2="256" stroke="url(#accentGradMask)" stroke-width="7" stroke-linecap="round" />
+  <line x1="360" y1="256" x2="377" y2="256" stroke="url(#accentGradMask)" stroke-width="7" stroke-linecap="round" />
+</svg>

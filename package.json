@@ -1,0 +1,15 @@
+{
+  "name": "oybek-system-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "OYBEK SysteM — frontend (Vite/React) + backend (Express) bitta Render servisida",
+  "scripts": {
+    "build": "npm --prefix frontend install --include=dev && npm --prefix frontend run build && npm --prefix backend install",
+    "start": "npm --prefix backend start",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
