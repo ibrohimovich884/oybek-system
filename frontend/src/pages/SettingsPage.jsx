@@ -18,13 +18,14 @@ import {
   Activity,
   Zap,
   HardDrive,
-  Filter,
   Search,
   Check,
   RotateCcw,
   Sliders,
   Radio,
   FileJson,
+  Archive,
+  ClipboardList,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
 import { formatSum, formatDateTime } from "../utils/format.js";
@@ -47,19 +48,17 @@ export default function SettingsPage() {
     importBackup,
     expenses,
     debts,
-    refresh,
   } = useExpenses();
 
   // 4 asosiy bo'lim (tablar):
-  // 1. "server"   -> 🗄️ Baza va Server
-  // 2. "storage"  -> 🧹 Xotira va Kesh
-  // 3. "backup"   -> 📦 Zaxira va Eksport
-  // 4. "logs"     -> 📋 Tizim Jurnali
+  // 1. "server"   -> Baza va Server (Database & Server)
+  // 2. "storage"  -> Xotira va Kesh (Storage & Cache)
+  // 3. "backup"   -> Zaxira va Eksport (Backup & Export)
+  // 4. "logs"     -> Tizim Jurnali (System Log / Audit)
   const [activeTab, setActiveTab] = useState("server");
 
-  // Standart holatda backend shu saytning o'zi (same-origin)
-  const defaultBackendLabel = DEFAULT_BACKEND_URL || window.location.origin;
-  const [backendInput, setBackendInput] = useState(syncStatus?.backendUrl || defaultBackendLabel);
+  // Render server manzili
+  const serverUrl = "https://oybek-system.onrender.com";
   const [syncFeedback, setSyncFeedback] = useState(null);
   const [isHealthTesting, setIsHealthTesting] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
@@ -67,7 +66,7 @@ export default function SettingsPage() {
   const [isClearing, setIsClearing] = useState(false);
   const [preserveBackendConfig, setPreserveBackendConfig] = useState(true);
 
-  // Tizim jurnali uchun filter va qidiruv
+  // Tizim jurnali filtri va qidiruvi
   const [logFilter, setLogFilter] = useState("all"); // 'all' | 'success' | 'error' | 'warning'
   const [logSearch, setLogSearch] = useState("");
 
@@ -96,13 +95,7 @@ export default function SettingsPage() {
     calculateStorageStats();
   }, [calculateStorageStats, expenses, debts, activeTab]);
 
-  useEffect(() => {
-    if (syncStatus?.backendUrl) {
-      setBackendInput(syncStatus.backendUrl);
-    }
-  }, [syncStatus?.backendUrl]);
-
-  // Tezkor harakatlar
+  // Amallar
   const handleManualSync = async () => {
     setSyncFeedback({ type: "loading", message: "DB bilan sinxronizatsiya bajarilmoqda..." });
     try {
@@ -185,21 +178,9 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveBackendUrl = async () => {
-    if (!backendInput.trim()) return;
-    await changeBackendUrl(backendInput.trim());
-    setSyncFeedback({ type: "success", message: "Backend server manzili yangilandi va tekshirildi!" });
-  };
-
-  const handleResetBackendUrl = async () => {
-    setBackendInput(defaultBackendLabel);
-    await changeBackendUrl(DEFAULT_BACKEND_URL);
-    setSyncFeedback({ type: "success", message: "Standart backend manzili tiklandi!" });
-  };
-
   const handleExecuteClearStorage = async () => {
     setIsClearing(true);
-    setSyncFeedback({ type: "loading", message: "Lokal xotira tozalanmoqda va DBdan ma'lumotlar qayta tortib olinmoqda..." });
+    setSyncFeedback({ type: "loading", message: "Lokal xotira tozalanmoqda va DBdan qayta yuklanmoqda..." });
     try {
       const res = await clearLocalStorageData({
         preserveConnection: preserveBackendConfig,
@@ -210,7 +191,7 @@ export default function SettingsPage() {
       calculateStorageStats();
       setSyncFeedback({
         type: "success",
-        message: `Lokal xotira (localStorage) va mock ma'lumotlar to'liq tozalandi! ${res?.count || 0} ta kesh kaliti olib tashlandi va bazadan (DB) eng so'nggi ma'lumotlar yuklandi.`,
+        message: `Lokal xotira va eski mocklar tozalandi! ${res?.count || 0} ta kesh kaliti olib tashlandi va bazadan (DB) eng so'nggi ma'lumotlar olindi.`,
       });
     } catch (err) {
       setSyncFeedback({
@@ -231,7 +212,7 @@ export default function SettingsPage() {
       const text = await file.text();
       const res = await importBackup(text);
       if (res.success) {
-        setImportStatus({ success: true, message: "Zaxira nusxasi tizimga muvaffaqiyatli tiklandi!" });
+        setImportStatus({ success: true, message: "Zaxira nusxasi muvaffaqiyatli tiklandi!" });
         calculateStorageStats();
       } else {
         setImportStatus({ success: false, message: res.error || "Fayl formati yaroqsiz." });
@@ -247,7 +228,7 @@ export default function SettingsPage() {
   const pendingQueueCount = syncStatus?.pendingCount || 0;
   const totalLocalItems = (expenses || []).length + (debts || []).length;
 
-  // Jurnal yozuvlarini saralash va filtrlash
+  // Jurnal yozuvlarini saralash
   const filteredLogs = useMemo(() => {
     const logs = syncStatus?.logs || [];
     return logs.filter((log) => {
@@ -268,40 +249,60 @@ export default function SettingsPage() {
   return (
     <div className="settings-page animate-fade-in" style={{ paddingBottom: 60 }}>
       {/* Sarlavha qismi */}
-      <div className="dashboard-header" style={{ marginBottom: 20 }}>
+      <div className="dashboard-header" style={{ marginBottom: 16 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span className="badge badge--primary" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+            <span className="badge badge--primary" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.75rem" }}>
               <Settings size={13} />
               <span>Tizim sozlamalari</span>
             </span>
-            <span className={`badge ${syncStatus?.isConnected ? "badge--success" : "badge--warning"}`}>
-              {syncStatus?.isConnected ? "DB Faol" : "Oflayn xotira"}
+            <span className={`badge ${syncStatus?.isConnected ? "badge--success" : "badge--warning"}`} style={{ fontSize: "0.75rem" }}>
+              {syncStatus?.isConnected ? "DB Faol" : "Oflayn"}
             </span>
-            <span className={`badge ${syncStatus?.isOnline ? "badge--income" : "badge--danger"}`}>
-              {syncStatus?.isOnline ? "Internet bor" : "Internet uzilgan"}
+            <span className={`badge ${syncStatus?.isOnline ? "badge--income" : "badge--danger"}`} style={{ fontSize: "0.75rem" }}>
+              {syncStatus?.isOnline ? "Online" : "Offline"}
             </span>
           </div>
 
-          <h1 className="dashboard-title" style={{ marginTop: 8, marginBottom: 4 }}>
-            Sozlamalar va Tizim Boshqaruvi
+          <h1
+            className="dashboard-title"
+            style={{
+              fontSize: "clamp(1.25rem, 5vw, 1.6rem)",
+              margin: 0,
+              lineHeight: 1.25,
+            }}
+          >
+            Sozlamalar va Tizim
           </h1>
-          <p className="dashboard-subtitle">
-            Baza va server aloqasi, kesh va lokal xotira, zaxira nusxalar va tizim audit jurnali
+          <p
+            className="dashboard-subtitle"
+            style={{
+              fontSize: "clamp(0.78rem, 3.5vw, 0.85rem)",
+              marginTop: 4,
+              marginBottom: 0,
+            }}
+          >
+            Baza va server, kesh va lokal xotira, zaxiralar hamda audit jurnali
           </p>
         </div>
 
         {/* Global tezkor amallar */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ marginTop: 8 }}>
           <button
             type="button"
-            className="btn btn--subtle"
+            className="btn btn--subtle btn--sm"
             onClick={handleManualSync}
             disabled={syncStatus?.isSyncing}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: "0.82rem",
+              padding: "7px 12px",
+            }}
             title="Server bilan zudlik bilan sinxronlash"
           >
-            <RefreshCw size={15} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
             <span>{syncStatus?.isSyncing ? "Sinxronlanmoqda..." : "Hozir sinxronlash"}</span>
           </button>
         </div>
@@ -312,8 +313,8 @@ export default function SettingsPage() {
         <div
           className={`settings-alert settings-alert--${syncFeedback.type}`}
           style={{
-            marginBottom: 20,
-            padding: "12px 16px",
+            marginBottom: 16,
+            padding: "10px 14px",
             borderRadius: 8,
             display: "flex",
             alignItems: "center",
@@ -334,34 +335,35 @@ export default function SettingsPage() {
             color: "var(--text)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
             {syncFeedback.type === "success" ? (
-              <CheckCircle2 size={18} color="var(--income)" />
+              <CheckCircle2 size={16} color="var(--income)" style={{ flexShrink: 0 }} />
             ) : syncFeedback.type === "error" ? (
-              <AlertTriangle size={18} color="var(--danger)" />
+              <AlertTriangle size={16} color="var(--danger)" style={{ flexShrink: 0 }} />
             ) : (
-              <RefreshCw size={18} className="animate-spin" color="var(--karta)" />
+              <RefreshCw size={16} className="animate-spin" color="var(--karta)" style={{ flexShrink: 0 }} />
             )}
-            <span style={{ fontSize: "0.88rem", fontWeight: 500 }}>{syncFeedback.message}</span>
+            <span style={{ fontSize: "0.82rem", fontWeight: 500, lineHeight: 1.3 }}>{syncFeedback.message}</span>
           </div>
           <button
             type="button"
             className="btn btn--ghost btn--xs"
             onClick={() => setSyncFeedback(null)}
+            style={{ flexShrink: 0, marginLeft: 8 }}
           >
             Yopish
           </button>
         </div>
       )}
 
-      {/* 4 TA ASOSIY QULAY BO'LIM (TABLAR) */}
+      {/* 4 TA ASOSIY QULAY BO'LIM (TABLAR) - STIKERSIZ, SOF ICONLAR BILAN */}
       <div className="settings-tabs">
         <button
           type="button"
           className={`settings-tab-btn ${activeTab === "server" ? "is-active" : ""}`}
           onClick={() => setActiveTab("server")}
         >
-          <span style={{ fontSize: "1.1rem" }}>🗄️</span>
+          <Database size={15} style={{ color: activeTab === "server" ? "var(--accent)" : "currentColor" }} />
           <span>Baza va Server</span>
           {pendingQueueCount > 0 && (
             <span className="settings-tab-badge" style={{ background: "rgba(245, 158, 11, 0.2)", color: "var(--warning)" }}>
@@ -375,7 +377,7 @@ export default function SettingsPage() {
           className={`settings-tab-btn ${activeTab === "storage" ? "is-active" : ""}`}
           onClick={() => setActiveTab("storage")}
         >
-          <span style={{ fontSize: "1.1rem" }}>🧹</span>
+          <HardDrive size={15} style={{ color: activeTab === "storage" ? "var(--accent)" : "currentColor" }} />
           <span>Xotira va Kesh</span>
           <span className="settings-tab-badge">
             {totalLocalItems}
@@ -387,7 +389,7 @@ export default function SettingsPage() {
           className={`settings-tab-btn ${activeTab === "backup" ? "is-active" : ""}`}
           onClick={() => setActiveTab("backup")}
         >
-          <span style={{ fontSize: "1.1rem" }}>📦</span>
+          <Archive size={15} style={{ color: activeTab === "backup" ? "var(--accent)" : "currentColor" }} />
           <span>Zaxira va Eksport</span>
         </button>
 
@@ -396,7 +398,7 @@ export default function SettingsPage() {
           className={`settings-tab-btn ${activeTab === "logs" ? "is-active" : ""}`}
           onClick={() => setActiveTab("logs")}
         >
-          <span style={{ fontSize: "1.1rem" }}>📋</span>
+          <ClipboardList size={15} style={{ color: activeTab === "logs" ? "var(--accent)" : "currentColor" }} />
           <span>Tizim Jurnali</span>
           {syncStatus?.logs?.length > 0 && (
             <span className="settings-tab-badge">
@@ -407,220 +409,216 @@ export default function SettingsPage() {
       </div>
 
       {/* =========================================================================
-          TAB 1: 🗄️ BAZA VA SERVER
+          TAB 1: BAZA VA SERVER
           - Maʼlumotlar bazasi (DB) va internet aloqasi holati.
           - Backend Server URL manzilini sozlash va aloqani tekshirish (Ping).
           - Avtomatik va majburiy sinxronizatsiya boshqaruvi.
           - Kutilayotgan navbat (Sync Queue).
          ========================================================================= */}
       {activeTab === "server" && (
-        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* 1. Maʼlumotlar bazasi (DB) va internet aloqasi holati */}
-          <div className="card" style={{ padding: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
+          <div className="settings-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
-                  <Database size={20} style={{ color: "var(--accent)" }} />
-                  <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-                    Maʼlumotlar Bazasi (DB) va Aloqa Holati
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <Database size={18} style={{ color: "var(--accent)" }} />
+                  <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
+                    Maʼlumotlar Bazasi va Aloqa Holati
                   </h2>
                 </div>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                  Internet va markaziy maʼlumotlar bazasi aloqa koʻrsatkichlari hamda real vaqt sinxronizatsiya holati
+                <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                  Internet va markaziy maʼlumotlar bazasi aloqa koʻrsatkichlari
                 </p>
               </div>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: "100%", marginTop: 4 }}>
                 <button
                   type="button"
-                  className="btn btn--subtle btn--sm"
+                  className="btn btn--subtle btn--xs"
                   onClick={handleTestConnection}
                   disabled={isHealthTesting}
+                  style={{ flex: "1 1 120px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                 >
-                  <Activity size={14} className={isHealthTesting ? "animate-spin" : ""} />
-                  <span>{isHealthTesting ? "Tekshirilmoqda..." : "Aloqani tekshirish (Ping)"}</span>
+                  <Activity size={13} className={isHealthTesting ? "animate-spin" : ""} />
+                  <span>{isHealthTesting ? "Ping..." : "Aloqani tekshirish"}</span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn--primary btn--sm"
+                  className="btn btn--primary btn--xs"
                   onClick={handleManualSync}
                   disabled={syncStatus?.isSyncing}
+                  style={{ flex: "1 1 120px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                 >
-                  <RefreshCw size={14} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+                  <RefreshCw size={13} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
                   <span>{syncStatus?.isSyncing ? "Sinxronlanmoqda..." : "Sinxronlash"}</span>
                 </button>
               </div>
             </div>
 
-            {/* KPI kartalari */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-                gap: 12,
-                marginTop: 18,
-                paddingTop: 18,
-                borderTop: "1px solid var(--border)",
-              }}
-            >
+            {/* KPI kartalari (375px'da qulay 2 ustunli) */}
+            <div className="settings-kpi-grid-4" style={{ marginTop: 14 }}>
               {/* Internet */}
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                  {syncStatus?.isOnline ? <Wifi size={14} color="var(--income)" /> : <WifiOff size={14} color="var(--danger)" />}
-                  <span>Internet Aloqasi</span>
+              <div className="settings-kpi-box">
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
+                  {syncStatus?.isOnline ? <Wifi size={13} color="var(--income)" /> : <WifiOff size={13} color="var(--danger)" />}
+                  <span>Internet</span>
                 </div>
-                <strong style={{ fontSize: "1.05rem", color: syncStatus?.isOnline ? "var(--income)" : "var(--danger)", display: "block", marginTop: 4 }}>
-                  {syncStatus?.isOnline ? "Onlayn (Ulangan)" : "Oflayn (Uzilgan)"}
+                <strong style={{ fontSize: "0.95rem", color: syncStatus?.isOnline ? "var(--income)" : "var(--danger)", display: "block", marginTop: 4 }}>
+                  {syncStatus?.isOnline ? "Onlayn" : "Oflayn"}
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
-                  {syncStatus?.latency ? `Ping javob: ${syncStatus.latency}ms` : "Aloqa barqaror"}
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
+                  {syncStatus?.latency ? `${syncStatus.latency}ms ping` : "Barqaror"}
                 </span>
               </div>
 
               {/* DB Server */}
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Server size={14} color={syncStatus?.isConnected ? "var(--accent)" : "var(--warning)"} />
-                  <span>DB Server Holati</span>
+              <div className="settings-kpi-box">
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Server size={13} color={syncStatus?.isConnected ? "var(--accent)" : "var(--warning)"} />
+                  <span>DB Server</span>
                 </div>
-                <strong style={{ fontSize: "1.05rem", color: syncStatus?.isConnected ? "var(--accent)" : "var(--warning)", display: "block", marginTop: 4 }}>
-                  {syncStatus?.isConnected ? "Ulangan (Faol)" : syncStatus?.isChecking ? "Tekshirilmoqda..." : "Aloqa yo'q"}
+                <strong style={{ fontSize: "0.95rem", color: syncStatus?.isConnected ? "var(--accent)" : "var(--warning)", display: "block", marginTop: 4 }}>
+                  {syncStatus?.isConnected ? "Ulangan" : syncStatus?.isChecking ? "Tekshiruv..." : "Aloqa yo'q"}
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
-                  PostgreSQL / Node API
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
+                  PostgreSQL
                 </span>
               </div>
 
               {/* DBda saqlanganlar */}
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Database size={14} color="var(--income)" />
-                  <span>DBda Saqlangan</span>
+              <div className="settings-kpi-box">
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Database size={13} color="var(--income)" />
+                  <span>DBda Mavjud</span>
                 </div>
-                <strong className="mono" style={{ fontSize: "1.15rem", color: "var(--income)", display: "block", marginTop: 4 }}>
-                  {syncedExpensesCount} ta yozuv
+                <strong className="mono" style={{ fontSize: "1.05rem", color: "var(--income)", display: "block", marginTop: 4 }}>
+                  {syncedExpensesCount} ta
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
-                  Markaziy bazada xavfsiz
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
+                  Yozuv saqlangan
                 </span>
               </div>
 
               {/* Oxirgi sinxronizatsiya */}
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Clock size={14} color="var(--karta)" />
-                  <span>Oxirgi DB Sync</span>
+              <div className="settings-kpi-box">
+                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Clock size={13} color="var(--karta)" />
+                  <span>Oxirgi Sync</span>
                 </div>
-                <strong className="mono" style={{ fontSize: "0.95rem", color: "var(--text)", display: "block", marginTop: 5 }}>
-                  {syncStatus?.lastSyncedAt ? formatDateTime(syncStatus.lastSyncedAt) : "Hali qilinmagan"}
+                <strong className="mono" style={{ fontSize: "0.85rem", color: "var(--text)", display: "block", marginTop: 4 }}>
+                  {syncStatus?.lastSyncedAt ? formatDateTime(syncStatus.lastSyncedAt).split(" ")[1] || "Bajarilgan" : "Yo'q"}
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
-                  Avto va qo'lda nazoratda
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)", display: "block", marginTop: 2 }}>
+                  {syncStatus?.lastSyncedAt ? formatDateTime(syncStatus.lastSyncedAt).split(" ")[0] : "Hali qilinmagan"}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* 2. Backend Server URL manzilini sozlash va aloqani tekshirish (Ping) */}
-          <div className="card" style={{ padding: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
-              <Server size={19} color="var(--karta)" />
-              <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
-                Backend Server URL Manzili va Ping
-              </h3>
-            </div>
-            <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", marginBottom: 16 }}>
-              Maʼlumotlar bazasi saqlanadigan backend API manzili. Barcha soʻrovlar shu manzil orqali sinxronlanadi.
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* 2. Backend Server Manzili va Ping */}
+          <div className="settings-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
               <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
-                  Faol Backend Server Manzili:
-                </label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <input
-                    type="text"
-                    className="input"
-                    value={backendInput}
-                    onChange={(e) => setBackendInput(e.target.value)}
-                    placeholder={defaultBackendLabel}
-                    style={{ flex: "1 1 280px", fontFamily: "var(--font-mono)", fontSize: "0.86rem" }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={handleSaveBackendUrl}
-                  >
-                    <Check size={15} />
-                    <span>Saqlash</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--subtle"
-                    onClick={handleTestConnection}
-                    disabled={isHealthTesting}
-                  >
-                    <Activity size={15} className={isHealthTesting ? "animate-spin" : ""} />
-                    <span>{isHealthTesting ? "Ping..." : "Aloqani tekshirish (Ping)"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost text-muted"
-                    onClick={handleResetBackendUrl}
-                    title="Standart manzilni tiklash"
-                  >
-                    <RotateCcw size={15} />
-                    <span>Standart</span>
-                  </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <Server size={18} color="var(--karta)" />
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                    Asosiy Backend Server
+                  </h3>
                 </div>
+                <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                  Frontend va backend Render platformasida bitta xizmatda ishlamoqda
+                </p>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 14px",
-                  background: "rgba(56, 189, 248, 0.08)",
-                  border: "1px solid rgba(56, 189, 248, 0.2)",
-                  borderRadius: 8,
-                  fontSize: "0.78rem",
-                  color: "var(--text)",
-                }}
+              <button
+                type="button"
+                className="btn btn--subtle btn--sm"
+                onClick={handleTestConnection}
+                disabled={isHealthTesting}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
-                <div style={{ color: "var(--karta)", flexShrink: 0 }}>
-                  <Radio size={16} />
-                </div>
-                <div>
-                  <strong>Joriy ulanish:</strong>{" "}
-                  <code style={{ color: "var(--karta)", fontWeight: 600 }}>
-                    {syncStatus?.backendUrl || defaultBackendLabel}
-                  </code>
-                  <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                    ({syncStatus?.isConnected ? "✅ DB bilan faol aloqa oʻrnatilgan" : "⚠️ DBga ulanish kutilmoqda"})
-                  </span>
-                </div>
-              </div>
+                <Activity size={14} className={isHealthTesting ? "animate-spin" : ""} />
+                <span>{isHealthTesting ? "Ping tekshirilmoqda..." : "Aloqani tekshirish (Ping)"}</span>
+              </button>
+            </div>
 
-              <div style={{ padding: "10px 14px", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.2)", borderRadius: 8, fontSize: "0.78rem", color: "var(--warning)" }}>
-                ⚡ Eslatma: Render serveri 15 daqiqa kirmasangiz uyqu rejimiga oʻtishi mumkin. Birinchi soʻrovda uygʻonishi 15-20 soniya vaqt oladi.
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                padding: "12px 14px",
+                background: "rgba(56, 189, 248, 0.08)",
+                border: "1px solid rgba(56, 189, 248, 0.25)",
+                borderRadius: 8,
+                fontSize: "0.82rem",
+                color: "var(--text)",
+                marginBottom: 10,
+              }}
+            >
+              <div style={{ color: "var(--karta)", flexShrink: 0, marginTop: 2 }}>
+                <Radio size={16} />
               </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginBottom: 2 }}>
+                  Doimiy server manzili:
+                </div>
+                <code style={{ color: "var(--karta)", fontWeight: 700, fontSize: "0.92rem", wordBreak: "break-all" }}>
+                  https://oybek-system.onrender.com
+                </code>
+                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                  {syncStatus?.isConnected ? (
+                    <>
+                      <CheckCircle2 size={13} color="var(--income)" />
+                      <span style={{ color: "var(--income)", fontWeight: 600, fontSize: "0.78rem" }}>
+                        DB bilan faol aloqa oʻrnatilgan {syncStatus?.latency ? `(${syncStatus.latency}ms)` : ""}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle size={13} color="var(--warning)" />
+                      <span style={{ color: "var(--warning)", fontWeight: 600, fontSize: "0.78rem" }}>
+                        Serverga ulanish kutilmoqda (uygʻonishi 15-20s olishi mumkin)
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "8px 10px",
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
+                borderRadius: 6,
+                fontSize: "0.74rem",
+                color: "var(--warning)",
+              }}
+            >
+              <Zap size={14} style={{ flexShrink: 0 }} />
+              <span>
+                <strong>Avtomatik bogʻlanish:</strong> Tizim server manzilini qidirib oʻtirmaydi — barcha soʻrovlar toʻgʻridan-toʻgʻri Render serveriga yoʻnaltiriladi.
+              </span>
             </div>
           </div>
 
           {/* 3. Avtomatik va majburiy sinxronizatsiya boshqaruvi */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
             {/* Avtomatik sinxronizatsiya */}
-            <div className="card" style={{ padding: 22 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
-                <Zap size={19} color="var(--accent)" />
-                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>
+            <div className="settings-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <Zap size={17} color="var(--accent)" />
+                <h3 style={{ margin: 0, fontSize: "1.02rem", fontWeight: 700 }}>
                   Avtomatik Sinxronizatsiya
                 </h3>
               </div>
-              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 }}>
-                Har bir yangi kiritilgan amal, tahrir yoki oʻtkazma darhol server maʼlumotlar bazasiga yuboriladi. Aloqa uzilsa, kutilayotgan navbatga olinadi.
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
+                Yangi kiritilgan amal va tahrirlar darhol server maʼlumotlar bazasiga yuboriladi.
               </p>
 
               <div
@@ -628,99 +626,99 @@ export default function SettingsPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "12px 14px",
+                  padding: "10px 12px",
                   background: "var(--surface-sunken)",
-                  borderRadius: 8,
+                  borderRadius: 6,
                 }}
               >
                 <div>
-                  <strong style={{ fontSize: "0.9rem", color: "var(--text)", display: "block" }}>
-                    Avto-sync Rejimi
+                  <strong style={{ fontSize: "0.85rem", color: "var(--text)", display: "block" }}>
+                    Avto-sync
                   </strong>
-                  <span style={{ fontSize: "0.76rem", color: syncStatus?.autoSyncEnabled ? "var(--income)" : "var(--text-muted)" }}>
-                    {syncStatus?.autoSyncEnabled ? "Faol (Fonda avtomatik)" : "O'chirilgan (Faqat qo'lda)"}
+                  <span style={{ fontSize: "0.72rem", color: syncStatus?.autoSyncEnabled ? "var(--income)" : "var(--text-muted)" }}>
+                    {syncStatus?.autoSyncEnabled ? "Faol (Fonda avtomatik)" : "O'chirilgan"}
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  className={`btn btn--sm ${syncStatus?.autoSyncEnabled ? "btn--primary" : "btn--subtle"}`}
+                  className={`btn btn--xs ${syncStatus?.autoSyncEnabled ? "btn--primary" : "btn--subtle"}`}
                   onClick={() => setAutoSync(!syncStatus?.autoSyncEnabled)}
                 >
-                  {syncStatus?.autoSyncEnabled ? "Yoqilgan (Faol)" : "O'chirilgan"}
+                  {syncStatus?.autoSyncEnabled ? "Yoqilgan" : "O'chirilgan"}
                 </button>
               </div>
             </div>
 
             {/* Majburiy sinxronizatsiya boshqaruvi */}
-            <div className="card" style={{ padding: 22 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
-                <Sliders size={19} color="var(--income)" />
-                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>
-                  Majburiy Sinxronizatsiya Amallari
+            <div className="settings-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <Sliders size={17} color="var(--income)" />
+                <h3 style={{ margin: 0, fontSize: "1.02rem", fontWeight: 700 }}>
+                  Majburiy Sinxronlash
                 </h3>
               </div>
-              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 }}>
-                Qoʻlda toʻliq yangilash, server bazasidagi maʼlumotlarni majburiy yuklash yoki mahalliy xotirani serverga yozish.
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
+                Bazasidagi eng soʻnggi maʼlumotlarni tortib olish yoki lokal xotirani DBga majburiy yuklash.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button
                   type="button"
-                  className="btn btn--subtle"
+                  className="btn btn--subtle btn--sm"
                   onClick={handleForcePull}
                   disabled={syncStatus?.isSyncing}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px" }}
                 >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <ArrowDownCircle size={16} color="var(--accent)" />
-                    <span>DBdan yangilab olish (Force Pull)</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: "0.8rem" }}>
+                    <ArrowDownCircle size={15} color="var(--accent)" />
+                    <span>DBdan yangilab olish (Pull)</span>
                   </span>
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>Serverdan yuklash</span>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>Serverdan</span>
                 </button>
 
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--ghost btn--sm"
                   onClick={handleForcePush}
                   disabled={syncStatus?.isSyncing}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px" }}
                 >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <ArrowUpCircle size={16} color="var(--income)" />
-                    <span>Barchasini DBga yuklash (Force Push)</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: "0.8rem" }}>
+                    <ArrowUpCircle size={15} color="var(--income)" />
+                    <span>Barchasini DBga yuklash (Push)</span>
                   </span>
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>Lokalni serverga</span>
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>Lokalni</span>
                 </button>
               </div>
             </div>
           </div>
 
           {/* 4. Kutilayotgan navbat (Sync Queue) */}
-          <div className="card" style={{ padding: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <Clock size={19} color={pendingQueueCount > 0 ? "var(--warning)" : "var(--income)"} />
+          <div className="settings-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Clock size={18} color={pendingQueueCount > 0 ? "var(--warning)" : "var(--income)"} />
                 <div>
-                  <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
-                    Kutilayotgan Navbat ({pendingQueueCount} ta oʻzgarish)
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                    Kutilayotgan Navbat ({pendingQueueCount})
                   </h3>
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                    Internet yoʻqligida qilingan va hali server DBga joʻnatilmagan buyruqlar
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Internet yoʻqligida navbatga olingan buyruqlar
                   </span>
                 </div>
               </div>
 
               {pendingQueueCount > 0 && (
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 6 }}>
                   <button
                     type="button"
                     className="btn btn--primary btn--xs"
                     onClick={handleManualSync}
                     disabled={syncStatus?.isSyncing}
                   >
-                    <RefreshCw size={12} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
-                    <span>Barchasini hozir yuborish</span>
+                    <RefreshCw size={11} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+                    <span>Hozir yuborish</span>
                   </button>
                   <button
                     type="button"
@@ -731,39 +729,39 @@ export default function SettingsPage() {
                       }
                     }}
                   >
-                    <Trash2 size={12} />
-                    <span>Navbatni tozalash</span>
+                    <Trash2 size={11} />
+                    <span>Tozalash</span>
                   </button>
                 </div>
               )}
             </div>
 
             {pendingQueueCount === 0 ? (
-              <div style={{ padding: "24px 16px", background: "var(--surface-sunken)", borderRadius: 8, textAlign: "center" }}>
-                <CheckCircle2 size={26} color="var(--income)" style={{ margin: "0 auto 8px auto", display: "block" }} />
-                <span style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--income)" }}>
+              <div style={{ padding: "18px 12px", background: "var(--surface-sunken)", borderRadius: 6, textAlign: "center" }}>
+                <CheckCircle2 size={24} color="var(--income)" style={{ margin: "0 auto 6px auto", display: "block" }} />
+                <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--income)" }}>
                   Barcha maʼlumotlar toʻliq DBga saqlangan!
                 </span>
-                <p style={{ margin: "4px 0 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                  Navbatda joʻnatilishi kutilayotgan amallar mavjud emas. Tizim toʻliq yangilangan.
+                <p style={{ margin: "3px 0 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Kutilayotgan tranzaksiya mavjud emas.
                 </p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {syncStatus?.pendingQueue?.map((item) => (
                   <div
                     key={item.queueId}
+                    className="settings-queue-item"
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "10px 14px",
+                      padding: "8px 10px",
                       background: "var(--surface-sunken)",
-                      borderRadius: 8,
-                      fontSize: "0.84rem",
+                      borderRadius: 6,
+                      fontSize: "0.8rem",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                       <span
                         className="badge"
                         style={{
@@ -779,38 +777,35 @@ export default function SettingsPage() {
                               : item.type === "update"
                               ? "var(--karta)"
                               : "var(--danger)",
-                          fontSize: "0.72rem",
+                          fontSize: "0.68rem",
                           fontWeight: 700,
+                          padding: "1px 5px",
                         }}
                       >
                         {item.type === "create" ? "Qo'shish" : item.type === "update" ? "Tahrir" : "O'chirish"}
                       </span>
-                      <span>
+                      <span style={{ wordBreak: "break-word" }}>
                         <strong>
                           {item.entity === "expenses"
-                            ? "Tranzaksiya"
+                            ? "Amal"
                             : item.entity === "wallets"
-                            ? "Hamyonlar"
+                            ? "Hamyon"
                             : item.entity === "debts"
-                            ? "Qarzlar"
+                            ? "Qarz"
                             : item.entity === "reserves"
-                            ? "Zaxiralar"
-                            : item.entity === "dollar_rate_history"
-                            ? "Dollar kursi"
-                            : item.entity}
-                          :
+                            ? "Zaxira"
+                            : item.entity}:
                         </strong>{" "}
                         {item.payload?.personName ||
                           item.payload?.name ||
                           item.payload?.reason ||
                           item.payload?.category ||
-                          (item.payload?.rate ? `${item.payload.rate} so'm` : "") ||
                           item.targetId}
                         {item.payload?.amount !== undefined &&
                           ` (${formatSum(item.payload.amount)})`}
                       </span>
                     </div>
-                    <span className="mono" style={{ fontSize: "0.74rem", color: "var(--text-dim)" }}>
+                    <span className="mono" style={{ fontSize: "0.7rem", color: "var(--text-dim)", flexShrink: 0 }}>
                       {formatDateTime(item.createdAt)}
                     </span>
                   </div>
@@ -822,121 +817,115 @@ export default function SettingsPage() {
       )}
 
       {/* =========================================================================
-          TAB 2: 🧹 XOTIRA VA KESH
+          TAB 2: XOTIRA VA KESH
           - Brauzerdagi xarajatlar, qarzlar va kesh hajmi koʻrsatkichlari.
           - Eski mock va lokal keshni xavfsiz tozalash (tasdiqlash modali bilan).
           - Server manzilini saqlab qolgan holda DBdan yangi maʼlumotlarni qayta yuklash.
          ========================================================================= */}
       {activeTab === "storage" && (
-        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* 1. Brauzerdagi xarajatlar, qarzlar va kesh hajmi koʻrsatkichlari */}
-          <div className="card" style={{ padding: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
-              <HardDrive size={20} color="var(--accent)" />
-              <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-                Brauzer Xotirasi va Kesh Koʻrsatkichlari
+          <div className="settings-card">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <HardDrive size={18} color="var(--accent)" />
+              <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
+                Brauzer Xotirasi va Kesh
               </h2>
             </div>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: 18 }}>
-              Qurilmangiz brauzerida (localStorage va IndexedDB) saqlanayotgan operatsion maʼlumotlar hajmi
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 14 }}>
+              Qurilmangiz brauzerida saqlanayotgan operatsion maʼlumotlar hajmi
             </p>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-                gap: 12,
-              }}
-            >
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", display: "block" }}>Lokal Xarajatlar:</span>
-                <strong className="mono" style={{ fontSize: "1.15rem", color: "var(--text)", display: "block", marginTop: 4 }}>
-                  {(expenses || []).length} ta yozuv
+            <div className="settings-kpi-grid-5">
+              <div className="settings-kpi-box">
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Xarajatlar:</span>
+                <strong className="mono" style={{ fontSize: "1.05rem", color: "var(--text)", display: "block", marginTop: 3 }}>
+                  {(expenses || []).length} ta
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
-                  {syncedExpensesCount} ta DBda, {pendingExpensesCount} ta lokal
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                  {syncedExpensesCount} DB, {pendingExpensesCount} lokal
                 </span>
               </div>
 
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", display: "block" }}>Qarz Yozuvlari:</span>
-                <strong className="mono" style={{ fontSize: "1.15rem", color: "var(--text)", display: "block", marginTop: 4 }}>
-                  {(debts || []).length} ta yozuv
+              <div className="settings-kpi-box">
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Qarzlar:</span>
+                <strong className="mono" style={{ fontSize: "1.05rem", color: "var(--text)", display: "block", marginTop: 3 }}>
+                  {(debts || []).length} ta
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
-                  Berilgan va olingan qarzlar
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                  Qarz yozuvlari
                 </span>
               </div>
 
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", display: "block" }}>Kutilayotgan Navbat:</span>
-                <strong className="mono" style={{ fontSize: "1.15rem", color: pendingQueueCount > 0 ? "var(--warning)" : "var(--income)", display: "block", marginTop: 4 }}>
-                  {pendingQueueCount} ta buyruq
+              <div className="settings-kpi-box">
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Navbat:</span>
+                <strong className="mono" style={{ fontSize: "1.05rem", color: pendingQueueCount > 0 ? "var(--warning)" : "var(--income)", display: "block", marginTop: 3 }}>
+                  {pendingQueueCount} ta
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
-                  {pendingQueueCount === 0 ? "Barchasi DBga yetkazilgan" : "Yuborilishi kutilmoqda"}
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                  {pendingQueueCount === 0 ? "To'liq DBda" : "Kutilmoqda"}
                 </span>
               </div>
 
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", display: "block" }}>Kesh Hajmi:</span>
-                <strong className="mono" style={{ fontSize: "1.15rem", color: "var(--karta)", display: "block", marginTop: 4 }}>
+              <div className="settings-kpi-box">
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Kesh Hajmi:</span>
+                <strong className="mono" style={{ fontSize: "1.05rem", color: "var(--karta)", display: "block", marginTop: 3 }}>
                   ~{storageStats.kb} KB
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
-                  {storageStats.keysCount} ta lokal xotira kaliti
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                  {storageStats.keysCount} ta kalit
                 </span>
               </div>
 
-              <div style={{ background: "var(--surface-sunken)", padding: "12px 14px", borderRadius: 8 }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", display: "block" }}>DB Ulanish Holati:</span>
-                <strong style={{ fontSize: "1.05rem", color: syncStatus?.isConnected ? "var(--income)" : "var(--warning)", display: "block", marginTop: 4 }}>
-                  {syncStatus?.isConnected ? "Ulangan (DB faol)" : "Oflayn"}
+              <div className="settings-kpi-box" style={{ gridColumn: "span 2" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>DB Holati:</span>
+                <strong style={{ fontSize: "0.95rem", color: syncStatus?.isConnected ? "var(--income)" : "var(--warning)", display: "block", marginTop: 3 }}>
+                  {syncStatus?.isConnected ? "Ulangan (DB faol)" : "Oflayn rejim"}
                 </strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
-                  {syncStatus?.isConnected ? "Baza bilan bog'langan" : "Lokal rejim"}
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                  {syncStatus?.isConnected ? "Server bazasi bilan bog'langan" : "Lokal xotirada"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* 2. Server manzilini saqlab qolgan holda DBdan yangi maʼlumotlarni qayta yuklash */}
-          <div className="card" style={{ padding: 22, border: "1px solid rgba(78, 184, 150, 0.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
+          <div className="settings-card" style={{ border: "1px solid rgba(78, 184, 150, 0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
-                  <ArrowDownCircle size={20} color="var(--accent)" />
-                  <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--text)" }}>
-                    DBdan Yangi Maʼlumotlarni Qayta Yuklash
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <ArrowDownCircle size={18} color="var(--accent)" />
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text)" }}>
+                    DBdan Qayta Yuklash
                   </h3>
                 </div>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: 640 }}>
-                  Server manzilini va kiritilgan konfiguratsiyalarni toʻliq saqlab qolgan holda, markaziy maʼlumotlar bazasidagi eng toza va soʻnggi yozuvlarni brauzerga qayta yuklaydi.
+                <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                  Server manzilini saqlab qolgan holda, bazadagi eng yangi toza yozuvlarni brauzerga yuklaydi.
                 </p>
               </div>
 
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--primary btn--sm"
                 onClick={handleForcePull}
                 disabled={syncStatus?.isSyncing}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}
               >
-                <RefreshCw size={15} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
+                <RefreshCw size={14} className={syncStatus?.isSyncing ? "animate-spin" : ""} />
                 <span>DBdan qayta yuklash</span>
               </button>
             </div>
           </div>
 
           {/* 3. Eski mock va lokal keshni xavfsiz tozalash (tasdiqlash modali bilan) */}
-          <div className="card" style={{ padding: 22, border: "1px solid rgba(239, 68, 68, 0.25)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="settings-card" style={{ border: "1px solid rgba(239, 68, 68, 0.25)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
                     background: "rgba(239, 68, 68, 0.12)",
                     display: "flex",
                     alignItems: "center",
@@ -945,21 +934,21 @@ export default function SettingsPage() {
                     flexShrink: 0,
                   }}
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--text)" }}>
-                    Eski Mock va Lokal Keshni Xavfsiz Tozalash
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text)" }}>
+                    Eski Mock va Keshni Tozalash
                   </h3>
-                  <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                    Eski test va mock maʼlumotlarni tozalab, faqat server bazasidagi haqiqiy maʼlumotlarni qoldirish
+                  <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>
+                    Eski test yozuvlarni tozalab, faqat server bazasini qoldirish
                   </span>
                 </div>
               </div>
 
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--primary btn--sm"
                 onClick={() => setShowClearModal(true)}
                 disabled={isClearing}
                 style={{
@@ -968,28 +957,30 @@ export default function SettingsPage() {
                   color: "#fff",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
+                  justifyContent: "center",
+                  gap: 6,
+                  width: "100%",
                 }}
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
                 <span>{isClearing ? "Tozalanmoqda..." : "Lokal xotirani tozalash"}</span>
               </button>
             </div>
 
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
-              PostgreSQL bazasiga ulangandan soʻng, brauzeringiz xotirasida (<code>localStorage</code>) avvaldan saqlanib qolgan eski mock yozuvlar va sinov keshlarini tozalash tavsiya etiladi. Tozalash tugagach, tizim avtomatik ravishda bazadan eng yangi toza holatni yuklab oladi.
+            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 12 }}>
+              PostgreSQL bazasiga ulangach, brauzerdagi avvalgi sinov keshlarini tozalash tavsiya etiladi. Tozalangach, DBdan toza maʼlumotlar yuklanadi.
             </p>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--surface-sunken)", borderRadius: 8 }}>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "0.84rem", color: "var(--text)", cursor: "pointer" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "var(--surface-sunken)", borderRadius: 6 }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "var(--text)", cursor: "pointer" }}>
                 <input
                   type="checkbox"
                   checked={preserveBackendConfig}
                   onChange={(e) => setPreserveBackendConfig(e.target.checked)}
-                  style={{ cursor: "pointer", width: 16, height: 16, accentColor: "var(--accent)" }}
+                  style={{ cursor: "pointer", width: 15, height: 15, accentColor: "var(--accent)" }}
                 />
                 <span style={{ fontWeight: 500 }}>
-                  Server manzilini saqlab qolish (tavsiya etiladi: DB bilan aloqa uzilmaydi)
+                  Server manzilini saqlab qolish (DB aloqasi uzilmaydi)
                 </span>
               </label>
             </div>
@@ -998,35 +989,35 @@ export default function SettingsPage() {
       )}
 
       {/* =========================================================================
-          TAB 3: 📦 ZAXIRA VA EKSPORT
+          TAB 3: ZAXIRA VA EKSPORT
           - Barcha moliyaviy maʼlumotlarni JSON zaxira fayli sifatida yuklab olish.
           - Excel / CSV jadval formatida eksport qilish.
           - JSON zaxira faylini tizimga qayta tiklash (Import).
          ========================================================================= */}
       {activeTab === "backup" && (
-        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Sarlavha izohi */}
-          <div className="card" style={{ padding: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
-              <Download size={20} color="var(--accent)" />
-              <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-                Zaxira Nusxa va Maʼlumotlar Eksporti
+        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Sarlavha */}
+          <div className="settings-card">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <Archive size={18} color="var(--accent)" />
+              <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
+                Zaxira Nusxa va Eksport
               </h2>
             </div>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              Barcha moliyaviy maʼlumotlaringizni toʻliq saqlab olish, Excel jadvali sifatida tahlil qilish yoki avvalgi zaxira faylidan qayta tiklash
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              Moliyaviy maʼlumotlarni saqlab olish, Excel jadvali qilib yuklash yoki tiklash
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-            {/* 1. Barcha moliyaviy maʼlumotlarni JSON zaxira fayli sifatida yuklab olish */}
-            <div className="card" style={{ padding: 22, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+            {/* 1. JSON zaxira fayli */}
+            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <div
                     style={{
-                      width: 38,
-                      height: 38,
+                      width: 34,
+                      height: 34,
                       borderRadius: 8,
                       background: "rgba(78, 184, 150, 0.14)",
                       display: "flex",
@@ -1035,42 +1026,42 @@ export default function SettingsPage() {
                       color: "var(--accent)",
                     }}
                   >
-                    <FileJson size={20} />
+                    <FileJson size={18} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
                       JSON Zaxira Fayli
                     </h3>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      Toʻliq moliyaviy arxiv (.json)
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      Toʻliq arxiv (.json)
                     </span>
                   </div>
                 </div>
 
-                <p style={{ fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-                  Barcha hamyonlar, xarajat va daromad amallari, qarzlar, zaxira rezervlar va dollar kursi tarixini oʻz ichiga olgan toʻliq zaxira nusxasi.
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
+                  Hamyonlar, amallar, qarzlar, zaxira rezervlar va kurslar toʻliq arxivi.
                 </p>
               </div>
 
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--primary btn--sm"
                 onClick={downloadBackup}
-                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
               >
-                <Download size={16} />
+                <Download size={15} />
                 <span>JSON zaxirani yuklab olish</span>
               </button>
             </div>
 
-            {/* 2. Excel / CSV jadval formatida eksport qilish */}
-            <div className="card" style={{ padding: 22, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            {/* 2. Excel / CSV eksport */}
+            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <div
                     style={{
-                      width: 38,
-                      height: 38,
+                      width: 34,
+                      height: 34,
                       borderRadius: 8,
                       background: "rgba(56, 189, 248, 0.14)",
                       display: "flex",
@@ -1079,42 +1070,42 @@ export default function SettingsPage() {
                       color: "var(--karta)",
                     }}
                   >
-                    <FileSpreadsheet size={20} />
+                    <FileSpreadsheet size={18} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
                       Excel / CSV Jadvali
                     </h3>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      Jadval va hisobotlar uchun (.csv)
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      Jadvallar uchun (.csv)
                     </span>
                   </div>
                 </div>
 
-                <p style={{ fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-                  Barcha amallarni Microsoft Excel, Google Sheets yoki Apple Numbers dasturlarida koʻrish va audit qilish uchun qulay jadval formatida eksport qiling.
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
+                  Excel yoki Google Sheets dasturlarida tahlil qilish uchun jadval formatida eksport.
                 </p>
               </div>
 
               <button
                 type="button"
-                className="btn btn--subtle"
+                className="btn btn--subtle btn--sm"
                 onClick={downloadCSV}
-                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
               >
-                <FileSpreadsheet size={16} />
-                <span>Excel / CSV formatida eksport</span>
+                <FileSpreadsheet size={15} />
+                <span>Excel / CSV eksport</span>
               </button>
             </div>
 
-            {/* 3. JSON zaxira faylini tizimga qayta tiklash (Import) */}
-            <div className="card" style={{ padding: 22, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            {/* 3. Zaxirani qayta tiklash (Import) */}
+            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <div
                     style={{
-                      width: 38,
-                      height: 38,
+                      width: 34,
+                      height: 34,
                       borderRadius: 8,
                       background: "rgba(245, 158, 11, 0.14)",
                       display: "flex",
@@ -1123,37 +1114,38 @@ export default function SettingsPage() {
                       color: "var(--warning)",
                     }}
                   >
-                    <Upload size={20} />
+                    <Upload size={18} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
-                      Zaxirani Qayta Tiklash (Import)
+                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
+                      Zaxirani Qayta Tiklash
                     </h3>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      Avvalgi zaxira faylini tiklash
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      Avvalgi .json faylidan
                     </span>
                   </div>
                 </div>
 
-                <p style={{ fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-                  Avval saqlab olingan <code>.json</code> zaxira faylini tanlang. Tizim faylni oʻqib barcha yozuvlarni tiklaydi va DBga sinxronlaydi.
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
+                  Saqlab olingan <code>.json</code> zaxira faylini tanlang. Tizim yozuvlarni qayta tiklaydi.
                 </p>
               </div>
 
               <div>
                 <label
-                  className="btn btn--ghost"
+                  className="btn btn--ghost btn--sm"
                   style={{
                     width: "100%",
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 8,
+                    gap: 6,
                     border: "1px dashed var(--border)",
+                    minHeight: 40,
                   }}
                 >
-                  <Upload size={16} />
+                  <Upload size={15} />
                   <span>JSON faylini tanlash...</span>
                   <input
                     type="file"
@@ -1166,10 +1158,10 @@ export default function SettingsPage() {
                 {importStatus && (
                   <div
                     style={{
-                      marginTop: 10,
-                      padding: "8px 12px",
+                      marginTop: 8,
+                      padding: "6px 10px",
                       borderRadius: 6,
-                      fontSize: "0.8rem",
+                      fontSize: "0.76rem",
                       background: importStatus.success
                         ? "rgba(16, 185, 129, 0.12)"
                         : "rgba(239, 68, 68, 0.12)",
@@ -1187,22 +1179,22 @@ export default function SettingsPage() {
       )}
 
       {/* =========================================================================
-          TAB 4: 📋 TIZIM JURNALI
+          TAB 4: TIZIM JURNALI
           - Sinxronizatsiya va tizim hodisalari auditi/jurnali.
           - Jurnalni koʻrish va tozalash.
          ========================================================================= */}
       {activeTab === "logs" && (
-        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div className="card" style={{ padding: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <Activity size={20} color="var(--accent)" />
+        <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="settings-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ClipboardList size={18} color="var(--accent)" />
                 <div>
-                  <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
-                    Sinxronizatsiya va Tizim Jurnali (Audit)
+                  <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
+                    Sinxronizatsiya Auditi
                   </h2>
-                  <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                    Barcha sinxronizatsiya jarayonlari, muvaffaqiyatlar va xatolar qaydnomasi
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Barcha sinxronizatsiya jarayonlari qaydnomasi
                   </span>
                 </div>
               </div>
@@ -1210,67 +1202,33 @@ export default function SettingsPage() {
               {syncStatus?.logs?.length > 0 && (
                 <button
                   type="button"
-                  className="btn btn--ghost btn--sm text-muted"
+                  className="btn btn--ghost btn--xs text-muted"
                   onClick={() => {
                     if (window.confirm("Barcha tizim jurnali yozuvlarini tozalashni tasdiqlaysizmi?")) {
                       clearSyncLogs();
                     }
                   }}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={13} />
                   <span>Jurnalni tozalash</span>
                 </button>
               )}
             </div>
 
-            {/* Qidiruv va Filter paneli */}
+            {/* Qidiruv va Filter paneli (375px'da toza) */}
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 10,
-                marginBottom: 16,
-                paddingBottom: 14,
+                flexDirection: "column",
+                gap: 8,
+                marginBottom: 12,
+                paddingBottom: 10,
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              {/* Filter tugmalari */}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  className={`btn btn--xs ${logFilter === "all" ? "btn--primary" : "btn--ghost"}`}
-                  onClick={() => setLogFilter("all")}
-                >
-                  Barchasi ({syncStatus?.logs?.length || 0})
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn--xs ${logFilter === "success" ? "btn--primary" : "btn--ghost"}`}
-                  onClick={() => setLogFilter("success")}
-                >
-                  Muvaffaqiyatli
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn--xs ${logFilter === "error" ? "btn--primary" : "btn--ghost"}`}
-                  onClick={() => setLogFilter("error")}
-                >
-                  Xatolar
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn--xs ${logFilter === "warning" ? "btn--primary" : "btn--ghost"}`}
-                  onClick={() => setLogFilter("warning")}
-                >
-                  Ogohlantirishlar
-                </button>
-              </div>
-
               {/* Qidiruv inputi */}
-              <div style={{ position: "relative", minWidth: 200 }}>
+              <div style={{ position: "relative", width: "100%" }}>
                 <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)" }} />
                 <input
                   type="text"
@@ -1278,14 +1236,50 @@ export default function SettingsPage() {
                   placeholder="Jurnalda qidirish..."
                   value={logSearch}
                   onChange={(e) => setLogSearch(e.target.value)}
-                  style={{ paddingLeft: 30, fontSize: "0.8rem", width: "100%" }}
+                  style={{ paddingLeft: 30, fontSize: "0.78rem", width: "100%" }}
                 />
+              </div>
+
+              {/* Filter tugmalari */}
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className={`btn btn--xs ${logFilter === "all" ? "btn--primary" : "btn--ghost"}`}
+                  onClick={() => setLogFilter("all")}
+                  style={{ fontSize: "0.72rem", padding: "4px 8px" }}
+                >
+                  Barchasi ({syncStatus?.logs?.length || 0})
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn--xs ${logFilter === "success" ? "btn--primary" : "btn--ghost"}`}
+                  onClick={() => setLogFilter("success")}
+                  style={{ fontSize: "0.72rem", padding: "4px 8px" }}
+                >
+                  Muvaffaqiyatli
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn--xs ${logFilter === "error" ? "btn--primary" : "btn--ghost"}`}
+                  onClick={() => setLogFilter("error")}
+                  style={{ fontSize: "0.72rem", padding: "4px 8px" }}
+                >
+                  Xatolar
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn--xs ${logFilter === "warning" ? "btn--primary" : "btn--ghost"}`}
+                  onClick={() => setLogFilter("warning")}
+                  style={{ fontSize: "0.72rem", padding: "4px 8px" }}
+                >
+                  Ogohlantirish
+                </button>
               </div>
             </div>
 
             {/* Jurnal ro'yxati */}
             {filteredLogs.length === 0 ? (
-              <div style={{ fontSize: "0.85rem", color: "var(--text-dim)", textAlign: "center", padding: "32px 0" }}>
+              <div style={{ fontSize: "0.8rem", color: "var(--text-dim)", textAlign: "center", padding: "24px 0" }}>
                 {syncStatus?.logs?.length === 0
                   ? "Hozircha hech qanday tizim jurnali mavjud emas."
                   : "Tanlangan filtr boʻyicha yozuv topilmadi."}
@@ -1293,24 +1287,25 @@ export default function SettingsPage() {
             ) : (
               <div
                 style={{
-                  maxHeight: 460,
+                  maxHeight: 400,
                   overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 8,
+                  gap: 6,
                 }}
               >
                 {filteredLogs.map((log) => (
                   <div
                     key={log.id}
+                    className="settings-log-item"
                     style={{
                       display: "flex",
                       alignItems: "flex-start",
-                      gap: 10,
-                      fontSize: "0.84rem",
-                      padding: "10px 14px",
+                      gap: 8,
+                      fontSize: "0.78rem",
+                      padding: "8px 10px",
                       background: "var(--surface-sunken)",
-                      borderRadius: 8,
+                      borderRadius: 6,
                       borderLeft: `3px solid ${
                         log.level === "success"
                           ? "var(--income)"
@@ -1322,26 +1317,29 @@ export default function SettingsPage() {
                       }`,
                     }}
                   >
-                    <span
-                      style={{
-                        color:
-                          log.level === "success"
-                            ? "var(--income)"
-                            : log.level === "error"
-                            ? "var(--danger)"
-                            : log.level === "warning"
-                            ? "var(--warning)"
-                            : "var(--karta)",
-                        fontWeight: 800,
-                        fontSize: "0.95rem",
-                        lineHeight: 1,
-                        paddingTop: 1,
-                      }}
-                    >
-                      {log.level === "success" ? "✓" : log.level === "error" ? "✗" : "•"}
-                    </span>
-                    <span style={{ flex: 1, color: "var(--text)", lineHeight: 1.4 }}>{log.message}</span>
-                    <span className="mono" style={{ color: "var(--text-dim)", fontSize: "0.74rem", flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
+                      <span
+                        style={{
+                          color:
+                            log.level === "success"
+                              ? "var(--income)"
+                              : log.level === "error"
+                              ? "var(--danger)"
+                              : log.level === "warning"
+                              ? "var(--warning)"
+                              : "var(--karta)",
+                          fontWeight: 800,
+                          fontSize: "0.9rem",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {log.level === "success" ? "✓" : log.level === "error" ? "✗" : "•"}
+                      </span>
+                      <span style={{ flex: 1, color: "var(--text)", lineHeight: 1.35, wordBreak: "break-word" }}>
+                        {log.message}
+                      </span>
+                    </div>
+                    <span className="mono" style={{ color: "var(--text-dim)", fontSize: "0.68rem", alignSelf: "flex-end" }}>
                       {formatDateTime(log.timestamp)}
                     </span>
                   </div>
@@ -1352,7 +1350,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* MODAL: Lokal xotirani xavfsiz tozalash tasdig'i */}
+      {/* MODAL: Lokal xotirani xavfsiz tozalash tasdig'i (375px mos) */}
       {showClearModal && (
         <div
           className="modal-backdrop animate-fade-in"
@@ -1365,7 +1363,7 @@ export default function SettingsPage() {
             alignItems: "center",
             justifyContent: "center",
             zIndex: 9999,
-            padding: 16,
+            padding: 12,
           }}
           onClick={() => !isClearing && setShowClearModal(false)}
         >
@@ -1374,19 +1372,19 @@ export default function SettingsPage() {
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
-              borderRadius: 16,
-              maxWidth: 480,
+              borderRadius: 14,
+              maxWidth: 360,
               width: "100%",
-              padding: 24,
+              padding: 18,
               boxShadow: "0 24px 48px rgba(0, 0, 0, 0.5)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <div
                 style={{
-                  width: 46,
-                  height: 46,
+                  width: 40,
+                  height: 40,
                   borderRadius: "50%",
                   background: "rgba(239, 68, 68, 0.15)",
                   display: "flex",
@@ -1396,48 +1394,49 @@ export default function SettingsPage() {
                   flexShrink: 0,
                 }}
               >
-                <Trash2 size={24} />
+                <Trash2 size={20} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "var(--text)" }}>
-                  Lokal xotirani tozalaysizmi?
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>
+                  Xotirani tozalaysizmi?
                 </h3>
-                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                  Brauzer keshini tozalash va DBdan maʼlumotlarni yangilash
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>
+                  Lokal keshni tozalash va DBdan yangilash
                 </span>
               </div>
             </div>
 
-            <div style={{ fontSize: "0.86rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 18 }}>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.45, marginBottom: 14 }}>
               Ushbu amal bajarilganda:
-              <ul style={{ margin: "8px 0 0 18px", padding: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-                <li>Brauzerdagi eski test va mock maʼlumotlar toʻliq oʻchiriladi.</li>
-                <li>Hamyonlar va zaxira keshlar yangilanadi.</li>
-                <li>Ulangan markaziy maʼlumotlar bazasidan (DB) toza maʼlumotlar qayta tortib olinadi.</li>
+              <ul style={{ margin: "6px 0 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                <li>Brauzerdagi eski test va mock maʼlumotlar tozalanadi.</li>
+                <li>Hamyon va keshlar yangilanadi.</li>
+                <li>Markaziy maʼlumotlar bazasidan (DB) toza maʼlumotlar yuklanadi.</li>
                 {preserveBackendConfig ? (
                   <li style={{ color: "var(--income)", fontWeight: 500 }}>
-                    Backend server manzili (<code>{syncStatus?.backendUrl}</code>) saqlab qolinadi.
+                    Server URL saqlab qolinadi.
                   </li>
                 ) : (
                   <li style={{ color: "var(--danger)" }}>
-                    Backend server manzili ham tozalanadi.
+                    Server URL ham tozalanadi.
                   </li>
                 )}
               </ul>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <button
                 type="button"
-                className="btn btn--ghost"
+                className="btn btn--ghost btn--sm"
                 onClick={() => setShowClearModal(false)}
                 disabled={isClearing}
+                style={{ flex: 1, minHeight: 40 }}
               >
                 Bekor qilish
               </button>
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--primary btn--sm"
                 onClick={handleExecuteClearStorage}
                 disabled={isClearing}
                 style={{
@@ -1446,17 +1445,20 @@ export default function SettingsPage() {
                   color: "#fff",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
+                  justifyContent: "center",
+                  gap: 6,
+                  flex: 1,
+                  minHeight: 40,
                 }}
               >
                 {isClearing ? (
                   <>
-                    <RefreshCw size={15} className="animate-spin" />
+                    <RefreshCw size={13} className="animate-spin" />
                     <span>Tozalanmoqda...</span>
                   </>
                 ) : (
                   <>
-                    <Trash2 size={15} />
+                    <Trash2 size={13} />
                     <span>Ha, tozalansin</span>
                   </>
                 )}

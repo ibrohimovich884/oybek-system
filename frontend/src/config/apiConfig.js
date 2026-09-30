@@ -7,11 +7,10 @@
  * orqali boshqa serverga yo'naltirish mumkin.
  */
 
-// Bo'sh qator = "shu saytning o'zi" (same-origin). Frontend backend bilan bir joyda turadi.
-export const DEFAULT_BACKEND_URL = "";
+// Frontend va backend onrender.com da bitta servisda: https://oybek-system.onrender.com
+export const DEFAULT_BACKEND_URL = "https://oybek-system.onrender.com";
 export const DEFAULT_BACKEND_PORT = 5000;
 
-// v2: eski alohida Render backend manzili (agar brauzerda saqlangan bo'lsa) endi ishlatilmasin
 const STORAGE_URL_KEY = "oybek_system:backend_url_v2";
 const STORAGE_PORT_KEY = "oybek_system:backend_port";
 
@@ -19,26 +18,12 @@ const STORAGE_PORT_KEY = "oybek_system:backend_port";
  * Backendning to'liq asosiy manzilini olish
  */
 export function getBackendBaseUrl() {
-  // 1. Agar foydalanuvchi maxsus URL saqlagan bo'lsa
-  const savedUrl = typeof window !== "undefined" ? localStorage.getItem(STORAGE_URL_KEY) : null;
-  if (savedUrl && typeof savedUrl === "string" && savedUrl.trim()) {
-    return savedUrl.trim().replace(/\/+$/, "");
+  // 1. Agar foydalanuvchi bevosita https://oybek-system.onrender.com da bo'lsa (same-origin):
+  if (typeof window !== "undefined" && window.location.origin.includes("oybek-system.onrender.com")) {
+    return "";
   }
 
-  // 2. Agar .env orqali VITE_BACKEND_URL berilgan bo'lsa
-  const envUrl = import.meta.env?.VITE_BACKEND_URL;
-  if (envUrl && typeof envUrl === "string" && envUrl.trim()) {
-    return envUrl.trim().replace(/\/+$/, "");
-  }
-
-  // 3. Agar .env orqali port berilgan bo'lsa
-  const envPort = import.meta.env?.VITE_BACKEND_PORT;
-  if (envPort && !isNaN(Number(envPort))) {
-    return `http://localhost:${envPort}`;
-  }
-
-  // 4. Standart holatda nisbiy yo'l ("") ishlatiladi — bu esa Vite dev proxy yoki
-  //    ishlab chiqarish muhitida same-origin orqali so'rovlarni xavfsiz yo'naltiradi.
+  // 2. Standart holatda to'g'ridan-to'g'ri Render serveri
   return DEFAULT_BACKEND_URL;
 }
 

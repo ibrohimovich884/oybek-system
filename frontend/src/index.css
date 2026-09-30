@@ -4737,13 +4737,26 @@ textarea.field-input {
 }
 
 /* =========================================================
-   SETTINGS PAGE TABS & ARCHITECTURE STYLES
+   SETTINGS PAGE TABS & 375PX MOBILE ARCHITECTURE STYLES
    ========================================================= */
+.settings-page {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
 .settings-tabs {
   display: flex;
   gap: var(--sp-2);
   border-bottom: 1px solid var(--border);
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-4);
   padding-bottom: var(--sp-1);
   overflow-x: auto;
   scrollbar-width: none;
@@ -4756,13 +4769,13 @@ textarea.field-input {
 .settings-tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
-  padding: 10px 18px;
-  font-size: 0.92rem;
+  padding: 10px 16px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   border-radius: var(--radius) var(--radius) 0 0;
@@ -4783,8 +4796,8 @@ textarea.field-input {
 }
 
 .settings-tab-badge {
-  font-size: 0.72rem;
-  padding: 2px 7px;
+  font-size: 0.7rem;
+  padding: 2px 6px;
   border-radius: 9999px;
   background: var(--surface-3);
   color: var(--text-muted);
@@ -4797,16 +4810,56 @@ textarea.field-input {
   color: var(--accent);
 }
 
+/* KPI Grids */
+.settings-kpi-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.settings-kpi-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.settings-kpi-box {
+  background: var(--surface-sunken);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-server-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Mobile 375px adjustments */
 @media (max-width: 768px) {
+  .settings-kpi-grid-4,
+  .settings-kpi-grid-5 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-card {
+    padding: 14px 12px;
+    border-radius: var(--radius);
+  }
+
   .settings-tabs {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
+    gap: 5px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 5px;
-    margin-bottom: var(--sp-4);
+    padding: 4px;
+    margin-bottom: var(--sp-3);
     border-bottom: 1px solid var(--border);
   }
 
@@ -4814,12 +4867,13 @@ textarea.field-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 6px;
-    font-size: 0.8rem;
+    padding: 8px 4px;
+    font-size: 0.77rem;
+    gap: 5px;
     border-radius: var(--radius-sm);
     border: none;
     border-bottom: none;
-    min-height: 42px;
+    min-height: 40px;
     white-space: nowrap;
     text-align: center;
   }
@@ -4829,6 +4883,70 @@ textarea.field-input {
     color: var(--accent);
     border-bottom: none;
     box-shadow: var(--shadow-sm);
+  }
+
+  .settings-tab-badge {
+    font-size: 0.65rem;
+    padding: 1px 5px;
+  }
+
+  .settings-server-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .settings-server-actions > button:first-child {
+    grid-column: span 2;
+  }
+
+  .settings-kpi-box {
+    padding: 10px 10px;
+  }
+
+  .settings-kpi-box strong {
+    font-size: 0.95rem !important;
+  }
+
+  .settings-log-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+  }
+
+  .settings-log-meta {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .settings-queue-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .settings-queue-meta {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+/* Specific 375px fine-tuning */
+@media (max-width: 375px) {
+  .settings-tab-btn {
+    font-size: 0.72rem;
+    padding: 7px 2px;
+    gap: 4px;
+  }
+
+  .settings-tab-btn svg {
+    width: 13px !important;
+    height: 13px !important;
   }
 }
 
