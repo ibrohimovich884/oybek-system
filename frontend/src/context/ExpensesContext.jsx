@@ -312,6 +312,7 @@ export function ExpensesProvider({ children }) {
   /**
    * Universal Transfer: Har qanday ikki balans o'rtasida pul o'tkazish
    * (Oddiy <-> Oddiy, Oddiy <-> Asosiy, Asosiy <-> Asosiy)
+   * Yagona atomik tranzaksiya orqali bajariladi — 2 marta ayrilish xatosi bartaraf etildi.
    */
   const executeTransfer = useCallback(
     async ({ from, to, amount, targetAmount, exchangeRate, note }) => {
@@ -322,36 +323,8 @@ export function ExpensesProvider({ children }) {
       const isFromAsosiy = from.endsWith("-asosiy") || from.endsWith("_reserve");
       const isToAsosiy = to.endsWith("-asosiy") || to.endsWith("_reserve");
 
-      // 1. Manba va maqsadning joriy balanslarini aniqlaymiz
-      const currentFromBal = isFromAsosiy
-        ? Number(reserves[from]?.amount || 0)
-        : Number(initialWallets[from] ?? DEFAULT_WALLETS[from] ?? 0);
-      const newFromBal = Math.max(0, currentFromBal - numAmount);
-
-      const currentToBal = isToAsosiy
-        ? Number(reserves[to]?.amount || 0)
-        : Number(initialWallets[to] ?? DEFAULT_WALLETS[to] ?? 0);
-      const newToBal = currentToBal + finalTargetAmount;
-
-      // 2. Agar manba Asosiy zaxira bo'lsa izoh yozamiz
-      if (isFromAsosiy) {
-        await expensesApi.updateReserve(from, {
-          amount: newFromBal,
-          noteText: `O'tkazma: ${from} dan ${to} ga o'tkazildi (-${numAmount}). Izoh: ${note || "O'tkazma"}`,
-          exchangeRateAtTime: currentRate,
-        });
-      }
-
-      // 3. Agar qabul qiluvchi Asosiy zaxira bo'lsa izoh yozamiz
-      if (isToAsosiy) {
-        await expensesApi.updateReserve(to, {
-          amount: newToBal,
-          noteText: `O'tkazma: ${from} dan ${to} ga qabul qilindi (+${finalTargetAmount}). Izoh: ${note || "O'tkazma"}`,
-          exchangeRateAtTime: currentRate,
-        });
-      }
-
-      // 4. Tranzaksiyalar jadvaliga o'tkazma qaydini yozamiz
+      // Yagona transfer tranzaksiyasi:
+      // Backend barcha hamyon balanslarini va zaxira izohlarini bir vaqtning o'zida atomik tarzda yangilaydi
       await expensesApi.addExpense({
         type: "transfer",
         amount: numAmount,
@@ -362,18 +335,12 @@ export function ExpensesProvider({ children }) {
         exchangeRateAtTime: from === "dollar" || to === "dollar" ? currentRate : null,
         category: "O‘tkazma",
         subcategory: "Balanslararo",
-        reason: note || `${from} dan ${to} ga o'tkazma`,
+        reason: note?.trim() || `${from} dan ${to} ga o'tkazma`,
         location: "Ichki o'tkazma",
         spentAt: new Date().toISOString(),
       });
 
-      // 5. DB wallets jadvalidagi har ikkala hisob balansini aniq kafolatlab yangilaymiz
-      await expensesApi.updateWallets({
-        [from]: newFromBal,
-        [to]: newToBal,
-      });
-
-      // 6. Dollar ishtirok etgan bo'lsa, dollar tarixini saqlash
+      // Agar Dollar ishtirok etgan bo'lsa, dollar tarixini saqlash
       if (from === "dollar" || to === "dollar") {
         expensesApi.addDollarRateRecord({
           amount: from === "dollar" ? numAmount : finalTargetAmount,
@@ -388,7 +355,7 @@ export function ExpensesProvider({ children }) {
       await refresh();
       return true;
     },
-    [reserves, initialWallets, rateInfo, refresh]
+    [rateInfo, refresh]
   );
 
   const setManualUsdRate = useCallback(async (newRate) => {

@@ -166,6 +166,33 @@ export async function createExpense(payload) {
     if (rows.length > 0) {
       // Yangi tranzaksiya kiritildi -> wallets jadvalidagi balansni o'zgartiramiz
       await applyWalletBalanceChange(client, rows[0], 1);
+
+      // Agar transfer bo'lsa va zaxira hisob qatnashgan bo'lsa, wallet_notes ga avtomatik yozamiz
+      if (type === "transfer") {
+        const transferNote = reason?.trim() || `${resolvedFromWallet} dan ${resolvedToWallet} ga o'tkazma`;
+        const isReserveWallet = (w) => w && (w.endsWith("_reserve") || w.endsWith("-asosiy"));
+
+        if (isReserveWallet(resolvedToWallet)) {
+          const { rows: balRows } = await client.query("SELECT balance FROM wallets WHERE id = $1", [resolvedToWallet]);
+          const currentBal = balRows[0] ? Number(balRows[0].balance) : null;
+          await client.query(
+            `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
+             VALUES ($1, $2, $3, now())`,
+            [resolvedToWallet, `O'tkazma: +${amount} (${transferNote})`, currentBal]
+          ).catch((e) => console.warn("To-reserve note error:", e.message));
+        }
+
+        if (isReserveWallet(resolvedFromWallet)) {
+          const { rows: balRows } = await client.query("SELECT balance FROM wallets WHERE id = $1", [resolvedFromWallet]);
+          const currentBal = balRows[0] ? Number(balRows[0].balance) : null;
+          await client.query(
+            `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
+             VALUES ($1, $2, $3, now())`,
+            [resolvedFromWallet, `O'tkazma: -${amount} (${transferNote})`, currentBal]
+          ).catch((e) => console.warn("From-reserve note error:", e.message));
+        }
+      }
+
       await client.query("COMMIT");
       return mapExpenseRow(rows[0], []);
     }

@@ -108,23 +108,56 @@ export async function updateWallets(updates) {
   return getWallets();
 }
 
-export async function addWalletNote(walletId, { text, amountAtTime, editedAt }) {
+export async function addWalletNote(walletId, { text, amountAtTime, amount_at_time, editedAt, edited_at }) {
   const id = canonicalWalletId(walletId);
-  const { rows } = await pool.query(
-    `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
-     VALUES ($1, $2, $3, COALESCE($4, now()))
-     RETURNING *`,
-    [id, text, amountAtTime || null, editedAt || null]
-  );
-  const row = rows[0];
-  return {
-    id: row.id,
-    walletId: row.wallet_id,
-    text: row.text,
-    amountAtTime: row.amount_at_time ? Number(row.amount_at_time) : null,
-    editedAt: row.edited_at,
-    createdAt: row.edited_at,
-  };
+  const amt =
+    amountAtTime !== undefined && amountAtTime !== null && !isNaN(Number(amountAtTime))
+      ? Number(amountAtTime)
+      : (amount_at_time !== undefined && amount_at_time !== null && !isNaN(Number(amount_at_time))
+        ? Number(amount_at_time)
+        : null);
+
+  const noteText = (text || "").trim() || "Izoh";
+  const parsedDate = editedAt || edited_at ? new Date(editedAt || edited_at) : new Date();
+  const validDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (wallet_id, edited_at) DO UPDATE
+         SET text = EXCLUDED.text,
+             amount_at_time = EXCLUDED.amount_at_time
+       RETURNING *`,
+      [id, noteText, amt, validDate.toISOString()]
+    );
+    const row = rows[0];
+    return {
+      id: row.id,
+      walletId: row.wallet_id,
+      text: row.text,
+      amountAtTime: row.amount_at_time !== null ? Number(row.amount_at_time) : null,
+      editedAt: row.edited_at,
+      createdAt: row.edited_at,
+    };
+  } catch (err) {
+    // Agar UNIQUE constraint mos kelmasa, vaqt bo'yicha to'g'ridan-to'g'ri yangi qator kiritadi
+    const { rows } = await pool.query(
+      `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
+       VALUES ($1, $2, $3, now())
+       RETURNING *`,
+      [id, noteText, amt]
+    );
+    const row = rows[0];
+    return {
+      id: row.id,
+      walletId: row.wallet_id,
+      text: row.text,
+      amountAtTime: row.amount_at_time !== null ? Number(row.amount_at_time) : null,
+      editedAt: row.edited_at,
+      createdAt: row.edited_at,
+    };
+  }
 }
 
 export async function getWalletNotes(walletId) {
