@@ -71,6 +71,7 @@ async function applyWalletBalanceChange(client, tx, multiplier = 1) {
       );
     }
   } else if (type === "transfer") {
+    const targetAmount = Number(tx.target_amount ?? tx.targetAmount ?? amount);
     if (fromWallet) {
       await client.query(
         "UPDATE wallets SET balance = balance - ($1 * $2) WHERE id = $3",
@@ -80,7 +81,7 @@ async function applyWalletBalanceChange(client, tx, multiplier = 1) {
     if (toWallet) {
       await client.query(
         "UPDATE wallets SET balance = balance + ($1 * $2) WHERE id = $3",
-        [amount, multiplier, toWallet]
+        [targetAmount, multiplier, toWallet]
       );
     }
   }

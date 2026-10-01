@@ -322,52 +322,63 @@ export function ExpensesProvider({ children }) {
       const isFromAsosiy = from.endsWith("-asosiy") || from.endsWith("_reserve");
       const isToAsosiy = to.endsWith("-asosiy") || to.endsWith("_reserve");
 
-      // 1. Agar manba Asosiy zaxira bo'lsa
+      // 1. Manba va maqsadning joriy balanslarini aniqlaymiz
+      const currentFromBal = isFromAsosiy
+        ? Number(reserves[from]?.amount || 0)
+        : Number(initialWallets[from] ?? DEFAULT_WALLETS[from] ?? 0);
+      const newFromBal = Math.max(0, currentFromBal - numAmount);
+
+      const currentToBal = isToAsosiy
+        ? Number(reserves[to]?.amount || 0)
+        : Number(initialWallets[to] ?? DEFAULT_WALLETS[to] ?? 0);
+      const newToBal = currentToBal + finalTargetAmount;
+
+      // 2. Agar manba Asosiy zaxira bo'lsa izoh yozamiz
       if (isFromAsosiy) {
-        const currentAmount = reserves[from]?.amount || 0;
-        const newAmount = Math.max(0, currentAmount - numAmount);
         await expensesApi.updateReserve(from, {
-          amount: newAmount,
+          amount: newFromBal,
           noteText: `O'tkazma: ${from} dan ${to} ga o'tkazildi (-${numAmount}). Izoh: ${note || "O'tkazma"}`,
           exchangeRateAtTime: currentRate,
         });
       }
 
-      // 2. Agar qabul qiluvchi Asosiy zaxira bo'lsa
+      // 3. Agar qabul qiluvchi Asosiy zaxira bo'lsa izoh yozamiz
       if (isToAsosiy) {
-        const currentAmount = reserves[to]?.amount || 0;
-        const newAmount = currentAmount + finalTargetAmount;
         await expensesApi.updateReserve(to, {
-          amount: newAmount,
+          amount: newToBal,
           noteText: `O'tkazma: ${from} dan ${to} ga qabul qilindi (+${finalTargetAmount}). Izoh: ${note || "O'tkazma"}`,
           exchangeRateAtTime: currentRate,
         });
       }
 
-      // 3. Agar hech bo'lmaganda biri Oddiy balans bo'lsa, tranzaksiya tarixida aks etishi uchun transfer yozamiz
-      if (!isFromAsosiy || !isToAsosiy) {
-        await expensesApi.addExpense({
-          type: "transfer",
-          amount: numAmount,
-          targetAmount: finalTargetAmount,
-          wallet: from,
-          fromWallet: from,
-          toWallet: to,
-          exchangeRateAtTime: from === "dollar" || to === "dollar" ? currentRate : null,
-          category: "O‘tkazma",
-          subcategory: "Balanslararo",
-          reason: note || `${from} dan ${to} ga o'tkazma`,
-          location: "Ichki o'tkazma",
-          spentAt: new Date().toISOString(),
-        });
-      }
+      // 4. Tranzaksiyalar jadvaliga o'tkazma qaydini yozamiz
+      await expensesApi.addExpense({
+        type: "transfer",
+        amount: numAmount,
+        targetAmount: finalTargetAmount,
+        wallet: from,
+        fromWallet: from,
+        toWallet: to,
+        exchangeRateAtTime: from === "dollar" || to === "dollar" ? currentRate : null,
+        category: "O‘tkazma",
+        subcategory: "Balanslararo",
+        reason: note || `${from} dan ${to} ga o'tkazma`,
+        location: "Ichki o'tkazma",
+        spentAt: new Date().toISOString(),
+      });
 
-      // 4. Dollar ishtirok etgan bo'lsa, dollar tarixini saqlash
+      // 5. DB wallets jadvalidagi har ikkala hisob balansini aniq kafolatlab yangilaymiz
+      await expensesApi.updateWallets({
+        [from]: newFromBal,
+        [to]: newToBal,
+      });
+
+      // 6. Dollar ishtirok etgan bo'lsa, dollar tarixini saqlash
       if (from === "dollar" || to === "dollar") {
         expensesApi.addDollarRateRecord({
           amount: from === "dollar" ? numAmount : finalTargetAmount,
           direction: from === "dollar" ? "chiqim" : "kirim",
-          target: "oddiy",
+          target: isFromAsosiy || isToAsosiy ? "asosiy" : "oddiy",
           exchangeRateAtTime: currentRate,
           occurredAt: new Date().toISOString(),
           note: `O'tkazma: ${from} -> ${to}. ${note || ""}`,
@@ -377,7 +388,7 @@ export function ExpensesProvider({ children }) {
       await refresh();
       return true;
     },
-    [reserves, rateInfo, refresh]
+    [reserves, initialWallets, rateInfo, refresh]
   );
 
   const setManualUsdRate = useCallback(async (newRate) => {
