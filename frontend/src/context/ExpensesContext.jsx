@@ -145,33 +145,42 @@ export function ExpensesProvider({ children }) {
         if (isDollar) totalIncomeUSD += amt;
         else totalIncomeUZS += amt;
       }
+    }
 
-      // Faqat DBga hali bormagan (synced === false) oflayn tranzaksiyalarni lokal balansdan ayiramiz/qo'shamiz
-      if (item.synced === false) {
-        if (type === "expense") {
-          if (method === "dollar") dollar -= amt;
-          else if (method === "hamyon") hamyon -= amt;
-          else if (method === "karta") karta -= amt;
-          else if (method === "naqd") naqd -= amt;
-        } else if (type === "income") {
-          if (method === "dollar") dollar += amt;
-          else if (method === "hamyon") hamyon += amt;
-          else if (method === "karta") karta += amt;
-          else if (method === "naqd") naqd += amt;
-        } else if (type === "transfer") {
-          const from = item.fromWallet || method;
-          const to = item.toWallet;
-          const targetAmount = Number(item.targetAmount ?? amt);
+    // Faqat internet yo'q bo'lsa (backend ulanmagan paytda) oflayn navbatdagi tranzaksiyalarni lokal qo'shamiz/ayiramiz
+    const isOffline = backendStatus?.isConnected === false;
+    if (isOffline) {
+      for (const item of expenses) {
+        if (item.synced === false) {
+          const amt = Number(item.amount || 0);
+          const type = item.type || "expense";
+          const method = item.paymentMethod || item.wallet || "hamyon";
 
-          if (from === "dollar") dollar -= amt;
-          else if (from === "hamyon") hamyon -= amt;
-          else if (from === "karta") karta -= amt;
-          else if (from === "naqd") naqd -= amt;
+          if (type === "expense") {
+            if (method === "dollar") dollar -= amt;
+            else if (method === "hamyon") hamyon -= amt;
+            else if (method === "karta") karta -= amt;
+            else if (method === "naqd") naqd -= amt;
+          } else if (type === "income") {
+            if (method === "dollar") dollar += amt;
+            else if (method === "hamyon") hamyon += amt;
+            else if (method === "karta") karta += amt;
+            else if (method === "naqd") naqd += amt;
+          } else if (type === "transfer") {
+            const from = item.fromWallet || method;
+            const to = item.toWallet;
+            const targetAmount = Number(item.targetAmount ?? amt);
 
-          if (to === "dollar") dollar += targetAmount;
-          else if (to === "hamyon") hamyon += targetAmount;
-          else if (to === "karta") karta += targetAmount;
-          else if (to === "naqd") naqd += targetAmount;
+            if (from === "dollar") dollar -= amt;
+            else if (from === "hamyon") hamyon -= amt;
+            else if (from === "karta") karta -= amt;
+            else if (from === "naqd") naqd -= amt;
+
+            if (to === "dollar") dollar += targetAmount;
+            else if (to === "hamyon") hamyon += targetAmount;
+            else if (to === "karta") karta += targetAmount;
+            else if (to === "naqd") naqd += targetAmount;
+          }
         }
       }
     }
@@ -180,26 +189,26 @@ export function ExpensesProvider({ children }) {
     const totalOddiyUZS = hamyon + naqd + karta;
     const totalOddiyWithDollar = totalOddiyUZS + dollar * currentUsdRate;
 
-    // Asosiy (reserve) balanslar
+    // Asosiy (reserve) balanslar — DB wallets jadvali yagona haqiqat manbai
     const naqdAsosiy = Number(
-      reserves.naqd_reserve?.amount ??
-      reserves["naqd-asosiy"]?.amount ??
       initialWallets.naqd_reserve ??
       initialWallets["naqd-asosiy"] ??
+      reserves.naqd_reserve?.amount ??
+      reserves["naqd-asosiy"]?.amount ??
       0
     );
     const kartaAsosiy = Number(
-      reserves.karta_reserve?.amount ??
-      reserves["karta-asosiy"]?.amount ??
       initialWallets.karta_reserve ??
       initialWallets["karta-asosiy"] ??
+      reserves.karta_reserve?.amount ??
+      reserves["karta-asosiy"]?.amount ??
       0
     );
     const dollarAsosiy = Number(
-      reserves.dollar_reserve?.amount ??
-      reserves["dollar-asosiy"]?.amount ??
       initialWallets.dollar_reserve ??
       initialWallets["dollar-asosiy"] ??
+      reserves.dollar_reserve?.amount ??
+      reserves["dollar-asosiy"]?.amount ??
       0
     );
 

@@ -347,24 +347,23 @@ export async function addExpense(payload) {
     payload: newRecord,
   });
 
-  // 3. Backendga yuborishga urinib ko'ramiz
-  apiClient.post(API_ENDPOINTS.EXPENSES, newRecord)
-    .then((res) => {
-      if (res.ok) {
-        newRecord.synced = true;
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.markLocalExpenseSynced(newRecord.id, true);
-        syncService.addLog("success", `Tranzaksiya DBga saqlandi: ${newRecord.amount} (${newRecord.category})`);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id: newRecord.id } }));
-        }
-      } else {
-        syncService.addLog("warning", `Server DBga saqlash kechikdi: ${res.error || 'Navbatda qoldi'}`);
+  // 3. Backendga yuborish
+  try {
+    const res = await apiClient.post(API_ENDPOINTS.EXPENSES, newRecord);
+    if (res && res.ok) {
+      newRecord.synced = true;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.markLocalExpenseSynced(newRecord.id, true);
+      syncService.addLog("success", `Tranzaksiya DBga saqlandi: ${newRecord.amount} (${newRecord.category})`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id: newRecord.id } }));
       }
-    })
-    .catch(() => {
-      // Backend o'chiq bo'lsa navbatda qoladi
-    });
+    } else {
+      syncService.addLog("warning", `Server DBga saqlash kechikdi: ${res?.error || 'Navbatda qoldi'}`);
+    }
+  } catch {
+    // Backend o'chiq bo'lsa navbatda qoladi
+  }
 
   return newRecord;
 }
@@ -429,19 +428,20 @@ export async function updateExpense(id, updates) {
   });
 
   // Backendga yuborish
-  apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(id), updatedRecord)
-    .then((res) => {
-      if (res.ok) {
-        updatedRecord.synced = true;
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.markLocalExpenseSynced(id, true);
-        syncService.addLog("success", `Tranzaksiya yangilanishi DBga yozildi (${id})`);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
-        }
+  try {
+    const res = await apiClient.put(API_ENDPOINTS.EXPENSE_DETAIL(id), updatedRecord);
+    if (res && res.ok) {
+      updatedRecord.synced = true;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.markLocalExpenseSynced(id, true);
+      syncService.addLog("success", `Tranzaksiya yangilanishi DBga yozildi (${id})`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
       }
-    })
-    .catch(() => {});
+    }
+  } catch {
+    // Offline
+  }
 
   return updatedRecord;
 }
@@ -461,14 +461,15 @@ export async function deleteExpense(id) {
   });
 
   // Backenddan o'chirish
-  apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(id))
-    .then((res) => {
-      if (res.ok) {
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.addLog("success", `Tranzaksiya DBdan ham o'chirildi (${id})`);
-      }
-    })
-    .catch(() => {});
+  try {
+    const res = await apiClient.delete(API_ENDPOINTS.EXPENSE_DETAIL(id));
+    if (res && res.ok) {
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Tranzaksiya DBdan ham o'chirildi (${id})`);
+    }
+  } catch {
+    // Offline
+  }
 
   return { success: true };
 }
