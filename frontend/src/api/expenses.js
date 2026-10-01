@@ -26,6 +26,17 @@ const STORAGE_RESERVES_KEY = "oybek-system:reserves";
 const STORAGE_DOLLAR_RATES_KEY = "oybek-system:dollar_rate_history";
 const STORAGE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
 
+const LEGACY_MAP = {
+  "naqd-asosiy": "naqd_reserve",
+  "karta-asosiy": "karta_reserve",
+  "dollar-asosiy": "dollar_reserve",
+};
+
+export function canonicalWalletId(id) {
+  if (!id) return id;
+  return LEGACY_MAP[id] || id;
+}
+
 /**
  * Mahalliy xotiradan (localStorage) hamyonlarni o'qish
  */
@@ -38,11 +49,21 @@ function readLocalWallets() {
   }
   try {
     const parsed = JSON.parse(raw);
+    const naqdRes = Number(parsed.naqd_reserve ?? parsed["naqd-asosiy"] ?? DEFAULT_WALLETS.naqd_reserve);
+    const kartaRes = Number(parsed.karta_reserve ?? parsed["karta-asosiy"] ?? DEFAULT_WALLETS.karta_reserve);
+    const dollarRes = Number(parsed.dollar_reserve ?? parsed["dollar-asosiy"] ?? DEFAULT_WALLETS.dollar_reserve);
+
     return {
       hamyon: Number(parsed.hamyon ?? DEFAULT_WALLETS.hamyon),
       naqd: Number(parsed.naqd ?? DEFAULT_WALLETS.naqd),
       karta: Number(parsed.karta ?? DEFAULT_WALLETS.karta),
       dollar: Number(parsed.dollar ?? DEFAULT_WALLETS.dollar),
+      naqd_reserve: naqdRes,
+      karta_reserve: kartaRes,
+      dollar_reserve: dollarRes,
+      "naqd-asosiy": naqdRes,
+      "karta-asosiy": kartaRes,
+      "dollar-asosiy": dollarRes,
     };
   } catch {
     return { ...DEFAULT_WALLETS };
@@ -66,17 +87,20 @@ function readLocalReserves() {
   }
   try {
     const parsed = JSON.parse(raw);
-    // Har bir asosiy balans mavjudligini va append-only notes massivini tekshiramiz
     const res = { ...DEFAULT_RESERVES };
-    for (const key of ["naqd-asosiy", "karta-asosiy", "dollar-asosiy"]) {
-      if (parsed && parsed[key]) {
-        res[key] = {
-          ...DEFAULT_RESERVES[key],
-          ...parsed[key],
-          amount: Number(parsed[key].amount || 0),
-          notes: Array.isArray(parsed[key].notes) ? parsed[key].notes : [...DEFAULT_RESERVES[key].notes],
-        };
-      }
+    const keys = ["naqd_reserve", "karta_reserve", "dollar_reserve"];
+    for (const key of keys) {
+      const legacyKey = key.replace("_reserve", "-asosiy");
+      const src = (parsed && (parsed[key] || parsed[legacyKey])) || DEFAULT_RESERVES[key];
+      const data = {
+        ...DEFAULT_RESERVES[key],
+        ...src,
+        id: key,
+        amount: Number(src.amount || 0),
+        notes: Array.isArray(src.notes) ? src.notes : [],
+      };
+      res[key] = data;
+      res[legacyKey] = data;
     }
     return res;
   } catch {
@@ -136,13 +160,14 @@ function writeLocalPendingDebts(debts) {
  * Tranzaksiya ma'lumotlarini to'liq va xatosiz standartga keltirish
  */
 export function normalizeExpense(item) {
-  const paymentMethod = item.paymentMethod || item.wallet || "hamyon";
-  const wallet = item.wallet || paymentMethod;
+  const rawPaymentMethod = item.paymentMethod || item.wallet || "hamyon";
+  const paymentMethod = canonicalWalletId(rawPaymentMethod);
+  const wallet = canonicalWalletId(item.wallet || rawPaymentMethod);
   const quantity = Number(item.quantity ?? 1);
   const spentAt = formatISOWithOffset(item.spentAt || item.createdAt || new Date());
   const createdAt = formatISOWithOffset(item.createdAt || item.spentAt || new Date());
   const edits = Array.isArray(item.edits) ? item.edits : [];
-  const currency = item.currency || (wallet === "dollar" ? "USD" : "UZS");
+  const currency = item.currency || (wallet === "dollar" || wallet === "dollar_reserve" ? "USD" : "UZS");
   const exchangeRateAtTime = item.exchangeRateAtTime || item.exchangeRate || null;
 
   let category = item.category || "Qorin uchun";
@@ -187,8 +212,8 @@ export function normalizeExpense(item) {
     wallet,
     currency,
     exchangeRateAtTime,
-    fromWallet: item.fromWallet || null,
-    toWallet: item.toWallet || null,
+    fromWallet: item.fromWallet ? canonicalWalletId(item.fromWallet) : null,
+    toWallet: item.toWallet ? canonicalWalletId(item.toWallet) : null,
     synced: item.synced !== undefined ? Boolean(item.synced) : true,
   };
 }
@@ -222,8 +247,6 @@ function writeLocalExpenses(items) {
 
 /**
  * Barcha xarajatlar ro'yxatini olish
- * Backend ishlasa - backenddan oladi, mahalliy o'zgarishlar bilan aqlli birlashtiradi;
- * Backend ishlamasa - xatosiz mahalliy bazadan oladi.
  */
 export async function getExpenses() {
   const localItems = readLocalExpenses();
@@ -255,16 +278,23 @@ export async function getExpenses() {
 }
 
 /**
- * Hamyonlar balansini olish
+ * Hamyonlar balansini olish (barcha 7 ta hamyon)
  */
 export async function getWallets() {
   const res = await apiClient.get(API_ENDPOINTS.WALLETS);
   if (res.ok && res.data && typeof res.data === "object") {
+    const d = res.data;
     const parsed = {
-      hamyon: Number(res.data.hamyon ?? DEFAULT_WALLETS.hamyon),
-      naqd: Number(res.data.naqd ?? DEFAULT_WALLETS.naqd),
-      karta: Number(res.data.karta ?? DEFAULT_WALLETS.karta),
-      dollar: Number(res.data.dollar ?? DEFAULT_WALLETS.dollar),
+      hamyon: Number(d.hamyon ?? DEFAULT_WALLETS.hamyon),
+      naqd: Number(d.naqd ?? DEFAULT_WALLETS.naqd),
+      karta: Number(d.karta ?? DEFAULT_WALLETS.karta),
+      dollar: Number(d.dollar ?? DEFAULT_WALLETS.dollar),
+      naqd_reserve: Number(d.naqd_reserve ?? d["naqd-asosiy"] ?? DEFAULT_WALLETS.naqd_reserve),
+      karta_reserve: Number(d.karta_reserve ?? d["karta-asosiy"] ?? DEFAULT_WALLETS.karta_reserve),
+      dollar_reserve: Number(d.dollar_reserve ?? d["dollar-asosiy"] ?? DEFAULT_WALLETS.dollar_reserve),
+      "naqd-asosiy": Number(d.naqd_reserve ?? d["naqd-asosiy"] ?? DEFAULT_WALLETS.naqd_reserve),
+      "karta-asosiy": Number(d.karta_reserve ?? d["karta-asosiy"] ?? DEFAULT_WALLETS.karta_reserve),
+      "dollar-asosiy": Number(d.dollar_reserve ?? d["dollar-asosiy"] ?? DEFAULT_WALLETS.dollar_reserve),
     };
     writeLocalWallets(parsed);
     return parsed;
@@ -453,7 +483,13 @@ export async function updateWallets(updates) {
     naqd: Number(updates.naqd !== undefined ? updates.naqd : current.naqd),
     karta: Number(updates.karta !== undefined ? updates.karta : current.karta),
     dollar: Number(updates.dollar !== undefined ? updates.dollar : current.dollar),
+    naqd_reserve: Number(updates.naqd_reserve !== undefined ? updates.naqd_reserve : (updates["naqd-asosiy"] !== undefined ? updates["naqd-asosiy"] : current.naqd_reserve)),
+    karta_reserve: Number(updates.karta_reserve !== undefined ? updates.karta_reserve : (updates["karta-asosiy"] !== undefined ? updates["karta-asosiy"] : current.karta_reserve)),
+    dollar_reserve: Number(updates.dollar_reserve !== undefined ? updates.dollar_reserve : (updates["dollar-asosiy"] !== undefined ? updates["dollar-asosiy"] : current.dollar_reserve)),
   };
+  saved["naqd-asosiy"] = saved.naqd_reserve;
+  saved["karta-asosiy"] = saved.karta_reserve;
+  saved["dollar-asosiy"] = saved.dollar_reserve;
 
   writeLocalWallets(saved);
 
@@ -494,11 +530,13 @@ export async function getReserves() {
 /**
  * Asosiy balansni yangilash (APPEND-ONLY notes bilan va DBga snapshot yuborish)
  */
-export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }) {
+export async function updateReserve(rawId, { amount, noteText, exchangeRateAtTime }) {
+  const id = canonicalWalletId(rawId);
+  const legacyId = id.replace("_reserve", "-asosiy");
   const reserves = readLocalReserves();
-  const target = reserves[id];
+  const target = reserves[id] || reserves[legacyId];
   if (!target) {
-    throw new Error(`Asosiy zaxira topilmadi: ${id}`);
+    throw new Error(`Asosiy zaxira topilmadi: ${rawId}`);
   }
 
   const oldAmount = Number(target.amount || 0);
@@ -508,17 +546,31 @@ export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }
   const existingNotes = Array.isArray(target.notes) ? [...target.notes] : [];
   const cleanNote = (noteText || "").trim() || `Balans yangilandi: ${newAmount}`;
 
-  // APPEND-ONLY: Eski izoh o'chirilmaydi, yangi izoh qo'shiladi
-  existingNotes.unshift({
+  const newNoteEntry = {
+    id: generateId(),
     text: cleanNote,
     amount_at_that_time: newAmount,
+    amountAtTime: newAmount,
     editedAt: now,
-  });
+    createdAt: now,
+    exchangeRate: exchangeRateAtTime || null,
+  };
+
+  // APPEND-ONLY: Eski izoh o'chirilmaydi, yangi izoh qo'shiladi
+  existingNotes.unshift(newNoteEntry);
 
   target.amount = newAmount;
   target.notes = existingNotes;
+  reserves[id] = target;
+  reserves[legacyId] = target;
 
   writeLocalReserves(reserves);
+
+  // Wallets lokal bazasini ham sinxron yangilaymiz
+  const localWallets = readLocalWallets();
+  localWallets[id] = newAmount;
+  localWallets[legacyId] = newAmount;
+  writeLocalWallets(localWallets);
 
   const queueEntry = syncService.addToQueue({
     entity: "reserves",
@@ -526,6 +578,14 @@ export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }
     targetId: id,
     payload: { id, amount: newAmount, noteText: cleanNote, exchangeRateAtTime },
   });
+
+  // DB wallets jadvaliga ham yuboramiz
+  apiClient.put(API_ENDPOINTS.WALLETS, { [id]: newAmount }).catch(() => {});
+  apiClient.post(`${API_ENDPOINTS.WALLETS}/${id}/notes`, {
+    text: cleanNote,
+    amountAtTime: newAmount,
+    editedAt: now,
+  }).catch(() => {});
 
   pushSnapshot()
     .then((res) => {
@@ -537,7 +597,7 @@ export async function updateReserve(id, { amount, noteText, exchangeRateAtTime }
     .catch(() => {});
 
   // Agar Dollar Asosiy bo'lsa, kurs tarixini ham saqlaymiz
-  if (id === "dollar-asosiy" && newAmount !== oldAmount) {
+  if ((id === "dollar_reserve" || id === "dollar-asosiy") && newAmount !== oldAmount) {
     const diff = newAmount - oldAmount;
     addDollarRateRecord({
       amount: Math.abs(diff),

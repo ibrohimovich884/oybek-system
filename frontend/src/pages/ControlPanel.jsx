@@ -68,7 +68,7 @@ export default function ControlPanel() {
           <button
             type="button"
             className="btn btn--primary"
-            onClick={() => handleOpenTransfer("naqd", "naqd-asosiy")}
+            onClick={() => handleOpenTransfer("naqd", "naqd_reserve")}
           >
             <ArrowRightLeft size={16} />
             <span>Universal o'tkazma</span>
@@ -274,45 +274,45 @@ export default function ControlPanel() {
             </div>
           </div>
 
-          {/* B) Naqd pul (Oddiy + Asosiy) */}
+          {/* B) Naqd pul (Oddiy + Zaxira) */}
           <ReserveCard
             walletId="naqd"
-            reserveId="naqd-asosiy"
+            reserveId="naqd_reserve"
             title="Naqd Pul"
             icon={Banknote}
             colorVar="--naqd"
             oddiyAmount={currentBalances.naqd}
-            reserveData={reserves["naqd-asosiy"]}
+            reserveData={reserves.naqd_reserve || reserves["naqd-asosiy"]}
             currency="UZS"
             currentRate={currentRate}
             onEditReserve={(id) => setEditingReserveId(id)}
             onTransfer={(from, to) => handleOpenTransfer(from, to)}
           />
 
-          {/* C) Plastik karta (Oddiy + Asosiy) */}
+          {/* C) Plastik karta (Oddiy + Zaxira) */}
           <ReserveCard
             walletId="karta"
-            reserveId="karta-asosiy"
+            reserveId="karta_reserve"
             title="Plastik Karta (Uzcard / Humo)"
             icon={CreditCard}
             colorVar="--karta"
             oddiyAmount={currentBalances.karta}
-            reserveData={reserves["karta-asosiy"]}
+            reserveData={reserves.karta_reserve || reserves["karta-asosiy"]}
             currency="UZS"
             currentRate={currentRate}
             onEditReserve={(id) => setEditingReserveId(id)}
             onTransfer={(from, to) => handleOpenTransfer(from, to)}
           />
 
-          {/* D) AQSH Dollari (Oddiy + Asosiy) */}
+          {/* D) AQSH Dollari (Oddiy + Zaxira) */}
           <ReserveCard
             walletId="dollar"
-            reserveId="dollar-asosiy"
+            reserveId="dollar_reserve"
             title="AQSH Dollari ($)"
             icon={BadgeDollarSign}
             colorVar="--dollar"
             oddiyAmount={currentBalances.dollar}
-            reserveData={reserves["dollar-asosiy"]}
+            reserveData={reserves.dollar_reserve || reserves["dollar-asosiy"]}
             currency="USD"
             currentRate={currentRate}
             onEditReserve={(id) => setEditingReserveId(id)}

@@ -6,8 +6,6 @@ import * as walletsService from "../services/walletsService.js";
 const router = Router();
 
 // Frontenddagi "backup import" / "forcePushAllToDB" shu yerga POST qiladi.
-// reserves / dollarRateHistory / pendingDebts — frontend o'zi boshqaradigan
-// JSON shakli, backend ularni o'zgartirmasdan aynan shu holicha saqlaydi.
 router.post("/", async (req, res) => {
   const { wallets, expenses, reserves, dollarRateHistory, pendingDebts, confirmWipe } = req.body;
   const client = await pool.connect();
@@ -15,19 +13,48 @@ router.post("/", async (req, res) => {
     await client.query("BEGIN");
 
     if (wallets) {
-      for (const id of ["hamyon", "naqd", "karta", "dollar"]) {
-        if (wallets[id] !== undefined) {
+      for (const rawId of walletsService.WALLET_IDS) {
+        if (wallets[rawId] !== undefined) {
           await client.query("UPDATE wallets SET balance = $1 WHERE id = $2", [
-            wallets[id],
-            id,
+            Number(wallets[rawId]),
+            rawId,
           ]);
         }
+      }
+      // Eski nomlar bo'lsa
+      if (wallets["naqd-asosiy"] !== undefined) {
+        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'naqd_reserve'", [
+          Number(wallets["naqd-asosiy"]),
+        ]);
+      }
+      if (wallets["karta-asosiy"] !== undefined) {
+        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'karta_reserve'", [
+          Number(wallets["karta-asosiy"]),
+        ]);
+      }
+      if (wallets["dollar-asosiy"] !== undefined) {
+        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'dollar_reserve'", [
+          Number(wallets["dollar-asosiy"]),
+        ]);
+      }
+    }
+
+    if (reserves && typeof reserves === "object") {
+      if (reserves["naqd_reserve"]?.amount !== undefined || reserves["naqd-asosiy"]?.amount !== undefined) {
+        const amt = Number(reserves["naqd_reserve"]?.amount ?? reserves["naqd-asosiy"]?.amount ?? 0);
+        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'naqd_reserve'", [amt]);
+      }
+      if (reserves["karta_reserve"]?.amount !== undefined || reserves["karta-asosiy"]?.amount !== undefined) {
+        const amt = Number(reserves["karta_reserve"]?.amount ?? reserves["karta-asosiy"]?.amount ?? 0);
+        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'karta_reserve'", [amt]);
+      }
+      if (reserves["dollar_reserve"]?.amount !== undefined || reserves["dollar-asosiy"]?.amount !== undefined) {
+        const amt = Number(reserves["dollar_reserve"]?.amount ?? reserves["dollar-asosiy"]?.amount ?? 0);
+        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'dollar_reserve'", [amt]);
       }
     }
 
     if (Array.isArray(expenses)) {
-      // Bo'sh qurilmadan (yangi brauzer) kelgan bo'sh ro'yxat serverdagi
-      // barcha tranzaksiyalarni o'chirib yuborishining oldini olamiz.
       if (expenses.length === 0 && !confirmWipe) {
         const { rows } = await client.query("SELECT COUNT(*)::int AS n FROM transactions");
         if (rows[0].n > 0) {
@@ -41,6 +68,11 @@ router.post("/", async (req, res) => {
       await client.query("DELETE FROM transactions");
 
       for (const item of expenses) {
+        const resolvedWallet = walletsService.canonicalWalletId(item.wallet || item.paymentMethod);
+        const resolvedFrom = item.fromWallet ? walletsService.canonicalWalletId(item.fromWallet) : null;
+        const resolvedTo = item.toWallet ? walletsService.canonicalWalletId(item.toWallet) : null;
+        const resolvedPaymentMethod = item.paymentMethod ? walletsService.canonicalWalletId(item.paymentMethod) : resolvedWallet;
+
         await client.query(
           `INSERT INTO transactions
             (id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
@@ -55,10 +87,10 @@ router.post("/", async (req, res) => {
             item.subcategory,
             item.reason,
             item.location,
-            item.paymentMethod,
-            item.wallet,
-            item.fromWallet,
-            item.toWallet,
+            resolvedPaymentMethod,
+            resolvedWallet,
+            resolvedFrom,
+            resolvedTo,
             item.quantity || 1,
             item.exchangeRateAtTime || null,
             item.spentAt,

@@ -8,6 +8,7 @@ import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
 import expensesRouter from "./routes/expenses.js";
 import walletsRouter from "./routes/wallets.js";
+import debtsRouter from "./routes/debts.js";
 import exercisesRouter from "./routes/exercises.js";
 import exchangeRateRouter from "./routes/exchangeRate.js";
 import backupRouter from "./routes/backup.js";
@@ -29,6 +30,7 @@ app.use("/api/auth", authRouter);
 // yubormaydi — shuning uchun bu route'lar hozircha OCHIQ.
 app.use("/api/expenses", expensesRouter);
 app.use("/api/wallets", walletsRouter);
+app.use("/api/debts", debtsRouter);
 app.use("/api/exercises", exercisesRouter);
 app.use("/api/exchange-rate", exchangeRateRouter);
 app.use("/api/backup", backupRouter);

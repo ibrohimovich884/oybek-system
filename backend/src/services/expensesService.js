@@ -1,5 +1,6 @@
 import { pool } from "../../db/pool.js";
 import { mapExpenseRow } from "../utils/mapExpense.js";
+import { canonicalWalletId } from "./walletsService.js";
 
 // Tahrirlanganda kuzatiladigan maydonlar — frontenddagi ro'yxat bilan bir xil.
 const TRACKED_FIELDS = [
@@ -78,6 +79,11 @@ export async function createExpense(payload) {
     createdAt,
   } = payload;
 
+  const resolvedWallet = canonicalWalletId(wallet || paymentMethod);
+  const resolvedFromWallet = fromWallet ? canonicalWalletId(fromWallet) : null;
+  const resolvedToWallet = toWallet ? canonicalWalletId(toWallet) : null;
+  const resolvedPaymentMethod = paymentMethod ? canonicalWalletId(paymentMethod) : resolvedWallet;
+
   const { rows } = await pool.query(
     `INSERT INTO transactions
       (id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
@@ -93,10 +99,10 @@ export async function createExpense(payload) {
       subcategory,
       reason,
       location,
-      paymentMethod,
-      wallet,
-      fromWallet,
-      toWallet,
+      resolvedPaymentMethod,
+      resolvedWallet,
+      resolvedFromWallet,
+      resolvedToWallet,
       quantity,
       exchangeRateAtTime || null,
       spentAt,

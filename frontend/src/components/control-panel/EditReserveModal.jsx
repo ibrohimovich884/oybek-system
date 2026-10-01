@@ -127,9 +127,9 @@ export default function EditReserveModal({ reserveId, onClose }) {
                 <span>Oldingi izohlar tarixi ({reserve.notes.length}):</span>
               </div>
               <div style={{ maxHeight: 150, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
-                {reserve.notes.map((n) => (
+                {reserve.notes.map((n, idx) => (
                   <div
-                    key={n.id}
+                    key={n.id || `note-${idx}`}
                     style={{
                       padding: "8px 12px",
                       background: "var(--surface-hover)",
@@ -139,7 +139,7 @@ export default function EditReserveModal({ reserveId, onClose }) {
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", marginBottom: 2 }}>
-                      <span className="mono">{formatDateTime(n.createdAt)}</span>
+                      <span className="mono">{formatDateTime(n.editedAt || n.edited_at || n.createdAt || new Date())}</span>
                       {n.exchangeRate && <span className="mono">@ {formatRate(n.exchangeRate)}</span>}
                     </div>
                     <div style={{ color: "var(--text)" }}>{n.text}</div>

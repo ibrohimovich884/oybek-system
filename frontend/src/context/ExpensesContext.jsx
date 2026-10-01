@@ -190,9 +190,27 @@ export function ExpensesProvider({ children }) {
     const totalOddiyWithDollar = totalOddiyUZS + dollar * currentUsdRate;
 
     // Asosiy (reserve) balanslar
-    const naqdAsosiy = Number(reserves["naqd-asosiy"]?.amount || 0);
-    const kartaAsosiy = Number(reserves["karta-asosiy"]?.amount || 0);
-    const dollarAsosiy = Number(reserves["dollar-asosiy"]?.amount || 0);
+    const naqdAsosiy = Number(
+      reserves.naqd_reserve?.amount ??
+      reserves["naqd-asosiy"]?.amount ??
+      initialWallets.naqd_reserve ??
+      initialWallets["naqd-asosiy"] ??
+      0
+    );
+    const kartaAsosiy = Number(
+      reserves.karta_reserve?.amount ??
+      reserves["karta-asosiy"]?.amount ??
+      initialWallets.karta_reserve ??
+      initialWallets["karta-asosiy"] ??
+      0
+    );
+    const dollarAsosiy = Number(
+      reserves.dollar_reserve?.amount ??
+      reserves["dollar-asosiy"]?.amount ??
+      initialWallets.dollar_reserve ??
+      initialWallets["dollar-asosiy"] ??
+      0
+    );
 
     const totalAsosiyUZS = naqdAsosiy + kartaAsosiy;
     const totalAsosiyWithDollar = totalAsosiyUZS + dollarAsosiy * currentUsdRate;
@@ -210,6 +228,9 @@ export function ExpensesProvider({ children }) {
       totalOddiyUZS,
       totalOddiyWithDollar,
       total: totalOddiyWithDollar, // orqaga moslik
+      naqd_reserve: naqdAsosiy,
+      karta_reserve: kartaAsosiy,
+      dollar_reserve: dollarAsosiy,
       naqdAsosiy,
       kartaAsosiy,
       dollarAsosiy,
@@ -307,8 +328,8 @@ export function ExpensesProvider({ children }) {
       const currentRate = exchangeRate || rateInfo?.rate || 12850;
       const finalTargetAmount = Number(targetAmount || numAmount);
 
-      const isFromAsosiy = from.endsWith("-asosiy");
-      const isToAsosiy = to.endsWith("-asosiy");
+      const isFromAsosiy = from.endsWith("-asosiy") || from.endsWith("_reserve");
+      const isToAsosiy = to.endsWith("-asosiy") || to.endsWith("_reserve");
 
       // 1. Agar manba Asosiy zaxira bo'lsa
       if (isFromAsosiy) {

@@ -2,6 +2,7 @@ import { generateId } from "../utils/id.js";
 import { formatISOWithOffset } from "../utils/format.js";
 import { scheduleSnapshotPush, pushSnapshot, pullSnapshotFromDB } from "../services/snapshotSync.js";
 import { syncService } from "../services/syncService.js";
+import { apiClient } from "./client.js";
 
 const STORAGE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
 
@@ -28,9 +29,22 @@ export function writeLocalDebts(debts) {
 }
 
 /**
- * Qarzlar ro'yxatini olish (DB asosiy manba sifatida, oflayn rejimda lokal kesh)
+ * Qarzlar ro'yxatini olish (Backend /api/debts yoki snapshot yoki lokal kesh)
  */
 export async function getDebts() {
+  // 1. Yangi REST /api/debts endpointi
+  try {
+    const res = await apiClient.get("/api/debts");
+    if (res.ok && Array.isArray(res.data)) {
+      const serverDebts = res.data.map((d) => ({ ...d, synced: true }));
+      writeLocalDebts(serverDebts);
+      return serverDebts;
+    }
+  } catch (err) {
+    console.warn("/api/debts dan olishda xatolik, snapshot tekshiriladi:", err);
+  }
+
+  // 2. app_snapshot fallback
   try {
     const pulled = await pullSnapshotFromDB();
     if (pulled && Array.isArray(pulled.pendingDebts)) {
@@ -39,11 +53,12 @@ export async function getDebts() {
   } catch (err) {
     console.warn("DBdan qarzlarni olishda ogohlantirish (lokal xotira ishlatiladi):", err);
   }
+
   return readLocalDebts();
 }
 
 /**
- * Yangi qarz qo'shish (Sinxronizatsiya navbatiga olinadi va DB app_snapshot jadvaliga yoziladi)
+ * Yangi qarz qo'shish (Sinxronizatsiya navbatiga olinadi va DB debts / app_snapshot ga yoziladi)
  */
 export async function addDebtRecord(debtData) {
   const debts = readLocalDebts();
@@ -80,10 +95,10 @@ export async function addDebtRecord(debtData) {
     payload: newDebt,
   });
 
-  // 2. Darhol DBga yuborishga urinish
-  pushSnapshot()
+  // 2. REST API /api/debts ga yuborish
+  apiClient.post("/api/debts", newDebt)
     .then((res) => {
-      if (res && res.ok) {
+      if (res.ok) {
         newDebt.synced = true;
         syncService.removeFromQueue(queueEntry.queueId);
         syncService.addLog("success", `Qarz DBga saqlandi: ${newDebt.personName} (${newDebt.amount})`);
@@ -94,6 +109,9 @@ export async function addDebtRecord(debtData) {
       }
     })
     .catch(() => {});
+
+  // Snapshotga ham zaxira uchun yuboramiz
+  pushSnapshot().catch(() => {});
 
   return newDebt;
 }
@@ -127,9 +145,9 @@ export async function updateDebtRecord(id, updates) {
     payload: updated,
   });
 
-  pushSnapshot()
+  apiClient.put(`/api/debts/${id}`, updated)
     .then((res) => {
-      if (res && res.ok) {
+      if (res.ok) {
         updated.synced = true;
         syncService.removeFromQueue(queueEntry.queueId);
         syncService.addLog("success", `Qarz yangilanishi DBga saqlandi: ${updated.personName}`);
@@ -140,6 +158,8 @@ export async function updateDebtRecord(id, updates) {
       }
     })
     .catch(() => {});
+
+  pushSnapshot().catch(() => {});
 
   return updated;
 }
@@ -191,9 +211,9 @@ export async function recordDebtPayment(id, paymentData) {
     payload: updatedDebt,
   });
 
-  pushSnapshot()
+  apiClient.post(`/api/debts/${id}/payments`, newPayment)
     .then((res) => {
-      if (res && res.ok) {
+      if (res.ok) {
         updatedDebt.synced = true;
         syncService.removeFromQueue(queueEntry.queueId);
         syncService.addLog("success", `Qarz to'lovi DBga saqlandi: ${debt.personName} (+${paymentAmount})`);
@@ -204,6 +224,8 @@ export async function recordDebtPayment(id, paymentData) {
       }
     })
     .catch(() => {});
+
+  pushSnapshot().catch(() => {});
 
   return { updatedDebt, payment: newPayment };
 }
@@ -220,14 +242,16 @@ export async function deleteDebtRecord(id) {
     payload: { id },
   });
 
-  pushSnapshot()
+  apiClient.delete(`/api/debts/${id}`)
     .then((res) => {
-      if (res && res.ok) {
+      if (res.ok) {
         syncService.removeFromQueue(queueEntry.queueId);
         syncService.addLog("success", `Qarz DBdan ham o'chirildi (ID: ${id})`);
       }
     })
     .catch(() => {});
+
+  pushSnapshot().catch(() => {});
 
   return true;
 }

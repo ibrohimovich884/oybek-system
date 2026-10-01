@@ -14,19 +14,27 @@ import { formatSum, formatDollar, formatRate } from "../../utils/format.js";
 import { WALLET_CONFIG, RESERVE_CONFIG } from "../../constants/money.js";
 
 const ALL_ACCOUNTS = [
-  { id: "hamyon", name: "Hamyon", type: "oddiy", currency: "UZS", icon: Wallet },
+  { id: "hamyon", name: "Hamyon (Kundalik)", type: "oddiy", currency: "UZS", icon: Wallet },
   { id: "naqd", name: "Naqd pul (Oddiy)", type: "oddiy", currency: "UZS", icon: Banknote },
   { id: "karta", name: "Plastik karta (Oddiy)", type: "oddiy", currency: "UZS", icon: CreditCard },
   { id: "dollar", name: "AQSH Dollari (Oddiy)", type: "oddiy", currency: "USD", icon: BadgeDollarSign },
-  { id: "naqd-asosiy", name: "Naqd pul (Asosiy / Rezerv)", type: "asosiy", currency: "UZS", icon: Shield },
-  { id: "karta-asosiy", name: "Plastik karta (Asosiy / Rezerv)", type: "asosiy", currency: "UZS", icon: Shield },
-  { id: "dollar-asosiy", name: "AQSH Dollari (Asosiy / Rezerv)", type: "asosiy", currency: "USD", icon: Shield },
+  { id: "naqd_reserve", name: "Naqd pul (Zaxira hisob)", type: "zaxira", currency: "UZS", icon: Shield },
+  { id: "karta_reserve", name: "Plastik karta (Zaxira hisob)", type: "zaxira", currency: "UZS", icon: Shield },
+  { id: "dollar_reserve", name: "AQSH Dollari (Zaxira hisob)", type: "zaxira", currency: "USD", icon: Shield },
 ];
 
-export default function UniversalTransferModal({ initialFrom = "naqd", initialTo = "naqd-asosiy", onClose }) {
+export default function UniversalTransferModal({ initialFrom = "naqd", initialTo = "naqd_reserve", onClose }) {
   const { executeTransfer, currentBalances, reserves, rateInfo } = useExpenses();
-  const [fromAccount, setFromAccount] = useState(initialFrom);
-  const [toAccount, setToAccount] = useState(initialTo);
+  const [fromAccount, setFromAccount] = useState(
+    initialFrom === "naqd-asosiy" ? "naqd_reserve" :
+    initialFrom === "karta-asosiy" ? "karta_reserve" :
+    initialFrom === "dollar-asosiy" ? "dollar_reserve" : initialFrom
+  );
+  const [toAccount, setToAccount] = useState(
+    initialTo === "naqd-asosiy" ? "naqd_reserve" :
+    initialTo === "karta-asosiy" ? "karta_reserve" :
+    initialTo === "dollar-asosiy" ? "dollar_reserve" : initialTo
+  );
   const [amount, setAmount] = useState("");
   const [customRate, setCustomRate] = useState(rateInfo?.rate || 12850);
   const [reason, setReason] = useState("");
@@ -47,9 +55,9 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
     if (id === "naqd") return currentBalances.naqd;
     if (id === "karta") return currentBalances.karta;
     if (id === "dollar") return currentBalances.dollar;
-    if (id === "naqd-asosiy") return reserves["naqd-asosiy"]?.amount || 0;
-    if (id === "karta-asosiy") return reserves["karta-asosiy"]?.amount || 0;
-    if (id === "dollar-asosiy") return reserves["dollar-asosiy"]?.amount || 0;
+    if (id === "naqd_reserve" || id === "naqd-asosiy") return currentBalances.naqd_reserve || reserves.naqd_reserve?.amount || reserves["naqd-asosiy"]?.amount || 0;
+    if (id === "karta_reserve" || id === "karta-asosiy") return currentBalances.karta_reserve || reserves.karta_reserve?.amount || reserves["karta-asosiy"]?.amount || 0;
+    if (id === "dollar_reserve" || id === "dollar-asosiy") return currentBalances.dollar_reserve || reserves.dollar_reserve?.amount || reserves["dollar-asosiy"]?.amount || 0;
     return 0;
   };
 
@@ -151,8 +159,8 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label="Asosiy (Rezerv) hisoblar">
-                    {ALL_ACCOUNTS.filter((a) => a.type === "asosiy").map((a) => (
+                  <optgroup label="Zaxira (Rezerv) hisoblar">
+                    {ALL_ACCOUNTS.filter((a) => a.type === "zaxira" || a.type === "asosiy").map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
                       </option>
@@ -216,8 +224,8 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label="Asosiy (Rezerv) hisoblar">
-                    {ALL_ACCOUNTS.filter((a) => a.type === "asosiy" && a.id !== fromAccount).map((a) => (
+                  <optgroup label="Zaxira (Rezerv) hisoblar">
+                    {ALL_ACCOUNTS.filter((a) => (a.type === "zaxira" || a.type === "asosiy") && a.id !== fromAccount).map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
                       </option>

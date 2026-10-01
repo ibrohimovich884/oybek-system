@@ -3,6 +3,9 @@ export const DEFAULT_WALLETS = {
   naqd: 0,
   karta: 0,
   dollar: 0,
+  naqd_reserve: 0,
+  karta_reserve: 0,
+  dollar_reserve: 0,
 };
 
 export const WALLET_CONFIG = {
@@ -46,89 +49,139 @@ export const WALLET_CONFIG = {
     badge: "USD",
     description: "Kundalik dollar mablag'i (USD)",
   },
+  naqd_reserve: {
+    id: "naqd_reserve",
+    label: "Naqd zaxira",
+    shortLabel: "Naqd Zaxira",
+    icon: "Vault",
+    color: "#ca8a04",
+    currency: "UZS",
+    badge: "Zaxira",
+    parentId: "naqd",
+    description: "Naqd pul zaxirasi (Daxlsiz jamg'arma)",
+  },
+  karta_reserve: {
+    id: "karta_reserve",
+    label: "Karta zaxira",
+    shortLabel: "Karta Zaxira",
+    icon: "Landmark",
+    color: "#0284c7",
+    currency: "UZS",
+    badge: "Zaxira",
+    parentId: "karta",
+    description: "Karta zaxirasi (Daxlsiz jamg'arma)",
+  },
+  dollar_reserve: {
+    id: "dollar_reserve",
+    label: "Dollar zaxira",
+    shortLabel: "Dollar Zaxira",
+    icon: "ShieldAlert",
+    color: "#16a34a",
+    currency: "USD",
+    badge: "Zaxira USD",
+    parentId: "dollar",
+    description: "AQSH Dollari zaxirasi (Daxlsiz jamg'arma)",
+  },
 };
 
+// Orqaga moslik uchun aliaslar
+WALLET_CONFIG["naqd-asosiy"] = WALLET_CONFIG.naqd_reserve;
+WALLET_CONFIG["karta-asosiy"] = WALLET_CONFIG.karta_reserve;
+WALLET_CONFIG["dollar-asosiy"] = WALLET_CONFIG.dollar_reserve;
+
 export const DEFAULT_RESERVES = {
-  "naqd-asosiy": {
-    id: "naqd-asosiy",
+  naqd_reserve: {
+    id: "naqd_reserve",
     wallet: "naqd",
-    name: "Naqd Asosiy",
+    name: "Naqd zaxira",
+    amount: 0,
+    notes: [],
+  },
+  karta_reserve: {
+    id: "karta_reserve",
+    wallet: "karta",
+    name: "Karta zaxira",
+    amount: 0,
+    notes: [],
+  },
+  dollar_reserve: {
+    id: "dollar_reserve",
+    wallet: "dollar",
+    name: "Dollar zaxira",
+    amount: 0,
+    notes: [],
+  },
+  // Eski kalitlar bilan orqaga moslik
+  "naqd-asosiy": {
+    id: "naqd_reserve",
+    wallet: "naqd",
+    name: "Naqd zaxira",
     amount: 0,
     notes: [],
   },
   "karta-asosiy": {
-    id: "karta-asosiy",
+    id: "karta_reserve",
     wallet: "karta",
-    name: "Karta Asosiy",
+    name: "Karta zaxira",
     amount: 0,
     notes: [],
   },
   "dollar-asosiy": {
-    id: "dollar-asosiy",
+    id: "dollar_reserve",
     wallet: "dollar",
-    name: "Dollar Asosiy",
+    name: "Dollar zaxira",
     amount: 0,
     notes: [],
   },
 };
 
 export const RESERVE_CONFIG = {
-  "naqd-asosiy": {
-    id: "naqd-asosiy",
+  naqd_reserve: {
+    id: "naqd_reserve",
     wallet: "naqd",
-    label: "Naqd (Asosiy zaxira)",
-    shortLabel: "Naqd Asosiy",
+    name: "Naqd zaxira",
+    label: "Naqd (Zaxira hisob)",
+    shortLabel: "Naqd Zaxira",
     icon: "Vault",
     color: "#ca8a04",
     currency: "UZS",
   },
-  "karta-asosiy": {
-    id: "karta-asosiy",
+  karta_reserve: {
+    id: "karta_reserve",
     wallet: "karta",
-    label: "Karta (Asosiy zaxira)",
-    shortLabel: "Karta Asosiy",
+    name: "Karta zaxira",
+    label: "Karta (Zaxira hisob)",
+    shortLabel: "Karta Zaxira",
     icon: "Landmark",
     color: "#0284c7",
     currency: "UZS",
   },
-  "dollar-asosiy": {
-    id: "dollar-asosiy",
+  dollar_reserve: {
+    id: "dollar_reserve",
     wallet: "dollar",
-    label: "Dollar (Asosiy zaxira)",
-    shortLabel: "Dollar Asosiy",
+    name: "Dollar zaxira",
+    label: "Dollar (Zaxira hisob)",
+    shortLabel: "Dollar Zaxira",
     icon: "ShieldAlert",
     color: "#16a34a",
     currency: "USD",
   },
 };
 
+// Eski kalitlar uchun aliaslar
+RESERVE_CONFIG["naqd-asosiy"] = RESERVE_CONFIG.naqd_reserve;
+RESERVE_CONFIG["karta-asosiy"] = RESERVE_CONFIG.karta_reserve;
+RESERVE_CONFIG["dollar-asosiy"] = RESERVE_CONFIG.dollar_reserve;
+
 export const ALL_BALANCES_LIST = [
   { id: "hamyon", label: "Hamyon (Kundalik)", category: "oddiy", currency: "UZS", color: "#10b981" },
   { id: "naqd", label: "Naqd (Oddiy)", category: "oddiy", currency: "UZS", color: "#eab308" },
   { id: "karta", label: "Karta (Oddiy)", category: "oddiy", currency: "UZS", color: "#38bdf8" },
   { id: "dollar", label: "Dollar (Oddiy)", category: "oddiy", currency: "USD", color: "#22c55e" },
-  { id: "naqd-asosiy", label: "Naqd (Asosiy zaxira)", category: "asosiy", currency: "UZS", color: "#ca8a04" },
-  { id: "karta-asosiy", label: "Karta (Asosiy zaxira)", category: "asosiy", currency: "UZS", color: "#0284c7" },
-  { id: "dollar-asosiy", label: "Dollar (Asosiy zaxira)", category: "asosiy", currency: "USD", color: "#16a34a" },
+  { id: "naqd_reserve", label: "Naqd (Zaxira hisob)", category: "zaxira", currency: "UZS", color: "#ca8a04" },
+  { id: "karta_reserve", label: "Karta (Zaxira hisob)", category: "zaxira", currency: "UZS", color: "#0284c7" },
+  { id: "dollar_reserve", label: "Dollar (Zaxira hisob)", category: "zaxira", currency: "USD", color: "#16a34a" },
 ];
-
-/**
- * 5. Kutilayotgan pullar (qarz daftarchasi) - kelajak uchun struktura andozasi
- * direction: "berilgan" (siz qarz bergansiz) | "olingan" (siz kimgadir qarzsiz)
- */
-export const FUTURE_DEBT_SCHEMA = {
-  template: {
-    id: "",
-    person: "",
-    amount: 0,
-    currency: "UZS",
-    direction: "berilgan",
-    dueDate: null,
-    status: "pending",
-    notes: "",
-    createdAt: "",
-  },
-};
 
 export const EXPENSE_CATEGORIES = [
   {
@@ -342,4 +395,3 @@ export const QUICK_TEMPLATES = [
     location: "Payme / Click",
   },
 ];
-

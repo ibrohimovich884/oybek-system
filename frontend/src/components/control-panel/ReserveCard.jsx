@@ -195,9 +195,9 @@ export default function ReserveCard({
                 Hozircha izohlar mavjud emas. Balansni tahrirlaganda izohlar shu yerda paydo bo'ladi.
               </div>
             ) : (
-              notes.map((n) => (
+              notes.map((n, idx) => (
                 <div
-                  key={n.id}
+                  key={n.id || `note-${idx}`}
                   style={{
                     padding: "6px 10px",
                     borderRadius: 6,
@@ -207,7 +207,14 @@ export default function ReserveCard({
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", marginBottom: 2 }}>
-                    <span className="mono">{formatDateTime(n.createdAt)}</span>
+                    <span className="mono">{formatDateTime(n.editedAt || n.edited_at || n.createdAt || new Date())}</span>
+                    {(n.amountAtTime || n.amount_at_time || n.amount_at_that_time) !== undefined && (
+                      <span className="mono" style={{ fontWeight: 600 }}>
+                        {isDollar
+                          ? formatDollar(n.amountAtTime || n.amount_at_time || n.amount_at_that_time)
+                          : formatSum(n.amountAtTime || n.amount_at_time || n.amount_at_that_time)}
+                      </span>
+                    )}
                     {n.exchangeRate && <span className="mono">@ {formatRate(n.exchangeRate)}</span>}
                   </div>
                   <div style={{ color: "var(--text)" }}>{n.text}</div>
