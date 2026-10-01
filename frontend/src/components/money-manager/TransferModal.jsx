@@ -21,15 +21,22 @@ const WALLET_ICONS = {
 
 export default function TransferModal({ initialFrom = "hamyon", initialTo = "naqd", onClose }) {
   const { executeTransfer, currentBalances, rateInfo } = useExpenses();
-  const [fromWallet, setFromWallet] = useState(initialFrom);
-  const [toWallet, setToWallet] = useState(initialTo === initialFrom ? "naqd" : initialTo);
+
+  // Faqat oddiy kundalik valyuta hisoblari (Zaxira hisoblar ko'rinmaydi)
+  const availableWallets = ["hamyon", "naqd", "karta", "dollar"];
+
+  const safeInitialFrom = availableWallets.includes(initialFrom) ? initialFrom : "hamyon";
+  const safeInitialTo = availableWallets.includes(initialTo) && initialTo !== safeInitialFrom 
+    ? initialTo 
+    : (safeInitialFrom === "hamyon" ? "naqd" : "hamyon");
+
+  const [fromWallet, setFromWallet] = useState(safeInitialFrom);
+  const [toWallet, setToWallet] = useState(safeInitialTo);
   const [amount, setAmount] = useState("");
   const [customRate, setCustomRate] = useState(rateInfo?.rate || 12850);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
-  const availableWallets = ["hamyon", "naqd", "karta", "dollar"];
 
   const handleSwap = () => {
     const prevFrom = fromWallet;
@@ -103,6 +110,7 @@ export default function TransferModal({ initialFrom = "hamyon", initialTo = "naq
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
+        <div className="modal-mobile-handle" />
         <div className="modal-header">
           <div>
             <h3 className="modal-title">

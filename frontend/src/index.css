@@ -5331,4 +5331,56 @@ textarea.field-input {
   }
 }
 
+/* PWA Floating Indicators & Dismissable Toasts */
+.pwa-floating-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.pwa-toast-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pwa-toast-close-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.pwa-toast-close-btn:active {
+  transform: scale(0.92);
+}
+
+@media (max-width: 768px) {
+  .pwa-floating-toast {
+    bottom: calc(var(--bottom-nav-h, 56px) + var(--safe-bottom, 0px) + 10px) !important;
+    right: 10px !important;
+    left: 10px !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+}
+
+
 

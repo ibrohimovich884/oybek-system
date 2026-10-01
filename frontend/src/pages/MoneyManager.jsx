@@ -78,16 +78,8 @@ export default function MoneyManager() {
           </p>
         </div>
 
-        {/* Eksport & Import & Control panel asboblar paneli */}
+        {/* Eksport & Import asboblar paneli */}
         <div className="backup-toolbar">
-          <Link
-            to="/control"
-            className="btn btn--primary backup-btn"
-            title="Asosiy (rezerv) balanslar va nazorat paneli"
-          >
-            <SlidersHorizontal size={15} />
-            <span className="backup-btn__label">Control panel</span>
-          </Link>
           <button
             type="button"
             className="btn btn--subtle backup-btn"

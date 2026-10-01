@@ -70,7 +70,7 @@ export default function Layout({ children }) {
       {/* Asosiy kontent */}
       <main className="content">{children}</main>
 
-      {/* Mobile Bottom Navigation Bar (5 ta element - 375px+ ekranlar uchun ideal) */}
+      {/* Mobile Bottom Navigation Bar (4 ta element - 375px+ ekranlar uchun ideal) */}
       <nav className="mobile-bottom-nav" aria-label="Mobil asosiy navigatsiya">
         <NavLink
           to="/"
@@ -79,7 +79,7 @@ export default function Layout({ children }) {
             `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
           }
         >
-          <Home size={18} />
+          <Home size={19} />
           <span>Asosiy</span>
         </NavLink>
 
@@ -89,18 +89,8 @@ export default function Layout({ children }) {
             `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
           }
         >
-          <Wallet size={18} />
+          <Wallet size={19} />
           <span>Money</span>
-        </NavLink>
-
-        <NavLink
-          to="/control"
-          className={({ isActive }) =>
-            `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
-          }
-        >
-          <SlidersHorizontal size={18} />
-          <span>Boshqaruv</span>
         </NavLink>
 
         <NavLink
@@ -109,7 +99,7 @@ export default function Layout({ children }) {
             `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
           }
         >
-          <HandCoins size={18} />
+          <HandCoins size={19} />
           <span>Qarzlar</span>
         </NavLink>
 
@@ -119,7 +109,7 @@ export default function Layout({ children }) {
           className={`mobile-bottom-nav__item ${mobileMenuOpen ? "is-active" : ""}`}
           aria-label="To'liq menyu"
         >
-          <Menu size={18} />
+          <Menu size={19} />
           <span>Menyu</span>
         </button>
       </nav>
