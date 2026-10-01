@@ -12,8 +12,8 @@ import {
   CheckCircle2,
   ArrowUpRight,
   ArrowDownLeft,
+  Clock,
 } from "lucide-react";
-import { WALLET_CONFIG } from "../../constants/money.js";
 import { DEBT_TYPES, DEBT_TYPE_LABELS } from "../../constants/debts.js";
 
 export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
@@ -57,15 +57,28 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
         debt.dueDate ? debt.dueDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
       );
       setPersonalNote(debt.personalNote || "");
+      setError("");
     }
   }, [debt]);
+
+  // Tezkor muddat qo'shish funksiyasi
+  const handleAddDaysToDueDate = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setDueDate(d.toISOString().slice(0, 10));
+    setIsDueDateUnknown(false);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError("");
 
     if (!personName.trim()) {
-      setError("Iltimos, qarzdor shaxs ismini kiriting");
+      setError(
+        type === DEBT_TYPES.GIVEN
+          ? "Iltimos, qarz olgan odam ismini kiriting"
+          : "Iltimos, kimdan qarz olinganini kiriting"
+      );
       return;
     }
 
@@ -98,61 +111,57 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content modal-content--wide"
+        className="modal-content modal-content--wide debt-edit-modal animate-slide-up"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 540 }}
       >
+        {/* Mobil tortgich chiziqcha */}
         <div className="modal-mobile-handle" />
-        <div className="modal-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+
+        {/* Sarlavha qatori */}
+        <div className="modal-header debt-modal-header">
+          <div className="debt-modal-header__info">
             <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background:
-                  type === DEBT_TYPES.GIVEN
-                    ? "rgba(78, 184, 150, 0.15)"
-                    : "rgba(245, 158, 11, 0.15)",
-                color: type === DEBT_TYPES.GIVEN ? "var(--accent)" : "var(--warning)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              className={`debt-modal-header__icon ${
+                type === DEBT_TYPES.GIVEN ? "is-given" : "is-taken"
+              }`}
             >
-              {type === DEBT_TYPES.GIVEN ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
+              {type === DEBT_TYPES.GIVEN ? (
+                <ArrowUpRight size={20} />
+              ) : (
+                <ArrowDownLeft size={20} />
+              )}
             </div>
             <div>
-              <h3 className="modal-title">Qarz ma'lumotlarini tahrirlash</h3>
-              <p className="modal-subtitle">Qarzdor shaxs yoki qarz shartlarini yangilash</p>
+              <h3 className="modal-title">Qarzni tahrirlash</h3>
+              <p className="modal-subtitle">
+                {debt.personName ? `${debt.personName} qarz shartlari` : "Ma'lumotlarni yangilash"}
+              </p>
             </div>
           </div>
-          <button type="button" className="modal-close-btn" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Yopish"
+          >
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <form onSubmit={handleSubmit} className="modal-body debt-modal-form">
           {error && (
-            <div
-              style={{
-                padding: "8px 12px",
-                background: "rgba(239, 68, 68, 0.12)",
-                border: "1px solid var(--expense)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--expense)",
-                fontSize: "0.85rem",
-              }}
-            >
-              {error}
+            <div className="feedback-alert feedback-alert--error" style={{ marginBottom: 10 }}>
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Turi Switcher */}
+          {/* 1. Qarz turi tanlagich (Katta qulay tugmalar) */}
           <div className="debt-switcher">
             <button
               type="button"
-              className={`debt-switcher__btn ${type === DEBT_TYPES.GIVEN ? "is-given" : ""}`}
+              className={`debt-switcher__btn ${
+                type === DEBT_TYPES.GIVEN ? "is-given" : ""
+              }`}
               onClick={() => setType(DEBT_TYPES.GIVEN)}
             >
               <ArrowUpRight size={16} />
@@ -160,7 +169,9 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
             </button>
             <button
               type="button"
-              className={`debt-switcher__btn ${type === DEBT_TYPES.TAKEN ? "is-taken" : ""}`}
+              className={`debt-switcher__btn ${
+                type === DEBT_TYPES.TAKEN ? "is-taken" : ""
+              }`}
               onClick={() => setType(DEBT_TYPES.TAKEN)}
             >
               <ArrowDownLeft size={16} />
@@ -168,134 +179,203 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
             </button>
           </div>
 
-          {/* Ism va Aloqa */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className="field-group">
+          {/* 2. Qarzdor / Qarz beruvchi ismi va Aloqa */}
+          <div className="form-row form-row--wide-left">
+            <div className="form-group">
               <label className="field-label">
-                <User size={14} />
-                <span>{labels.personLabel} *</span>
+                {labels.personLabel} <span style={{ color: "var(--expense)" }}>*</span>
               </label>
-              <input
-                type="text"
-                className="field-input"
-                placeholder="Masalan: Rustam aka"
-                value={personName}
-                onChange={(e) => setPersonName(e.target.value)}
-                required
-              />
+              <div className="input-with-icon">
+                <User size={16} className="input-icon" />
+                <input
+                  type="text"
+                  className="field-input"
+                  placeholder={
+                    type === DEBT_TYPES.GIVEN
+                      ? "Masalan: Rustam aka"
+                      : "Masalan: Otabek aka"
+                  }
+                  value={personName}
+                  onChange={(e) => setPersonName(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
-            <div className="field-group">
-              <label className="field-label">
-                <Phone size={14} />
-                <span>Telefon / Aloqa</span>
-              </label>
-              <input
-                type="text"
-                className="field-input"
-                placeholder="+998 90 123 45 67"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-              />
+            <div className="form-group">
+              <label className="field-label">Telefon / Aloqa</label>
+              <div className="input-with-icon">
+                <Phone size={16} className="input-icon" />
+                <input
+                  type="text"
+                  className="field-input"
+                  placeholder="+998 90... yoki @telegram"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Summa, Valyuta va Hamyon */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.5fr", gap: 10 }}>
-            <div className="field-group">
+          {/* 3. Summa & Valyuta */}
+          <div className="form-row form-row--wide-left">
+            <div className="form-group">
               <label className="field-label">
-                <DollarSign size={14} />
-                <span>Qarz summasi *</span>
+                {type === DEBT_TYPES.GIVEN ? "Berilgan summa" : "Olingan summa"}{" "}
+                <span style={{ color: "var(--expense)" }}>*</span>
               </label>
-              <input
-                type="number"
-                step="any"
-                min="0"
-                className="field-input mono"
-                placeholder="Masalan: 500000"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-              />
+              <div className="input-with-icon">
+                <DollarSign size={16} className="input-icon" />
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  className="field-input mono"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
-            <div className="field-group">
+            <div className="form-group">
               <label className="field-label">Valyuta</label>
               <select
-                className="field-select"
+                className="field-input"
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={(e) => {
+                  const curr = e.target.value;
+                  setCurrency(curr);
+                  if (curr === "USD") setWallet("dollar");
+                  else if (wallet === "dollar") setWallet("naqd");
+                }}
               >
-                <option value="UZS">UZS (so'm)</option>
-                <option value="USD">USD ($)</option>
-              </select>
-            </div>
-
-            <div className="field-group">
-              <label className="field-label">
-                <Wallet size={14} />
-                <span>Hamyon</span>
-              </label>
-              <select
-                className="field-select"
-                value={wallet}
-                onChange={(e) => setWallet(e.target.value)}
-              >
-                {Object.entries(WALLET_CONFIG).map(([key, cfg]) => (
-                  <option key={key} value={key}>
-                    {cfg.label}
-                  </option>
-                ))}
+                <option value="UZS">So'm (UZS)</option>
+                <option value="USD">AQSH Dollari ($)</option>
               </select>
             </div>
           </div>
 
-          {/* Berilgan/Olingan sana va Qaytarish muddati */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className="field-group">
+          {/* Tezkor summa chiplari (Telefon uchun juda qulay) */}
+          <div className="quick-amount-chips-row">
+            {(currency === "USD"
+              ? [50, 100, 200, 500, 1000]
+              : [100000, 300000, 500000, 1000000, 5000000]
+            ).map((val) => (
+              <button
+                key={val}
+                type="button"
+                className={`quick-chip-btn ${Number(amount) === val ? "is-active" : ""}`}
+                onClick={() => setAmount(String(val))}
+              >
+                {currency === "USD"
+                  ? `$${val}`
+                  : val >= 1000000
+                  ? `${val / 1000000} mln`
+                  : `${val / 1000} ming`}
+              </button>
+            ))}
+          </div>
+
+          {/* 4. Hamyon manbasi (Faqat kundalik oddiy hisoblar) */}
+          <div className="form-group">
+            <label className="field-label">
+              <Wallet size={14} style={{ marginRight: 4, display: "inline" }} />
+              <span>{labels.walletLabel}</span>
+            </label>
+            <select
+              className="field-input"
+              value={wallet}
+              onChange={(e) => setWallet(e.target.value)}
+            >
+              {currency === "USD" ? (
+                <option value="dollar">AQSH Dollari ($) — Oddiy</option>
+              ) : (
+                <>
+                  <option value="hamyon">Hamyon (Kundalik)</option>
+                  <option value="naqd">Naqd pul</option>
+                  <option value="karta">Plastik karta</option>
+                </>
+              )}
+            </select>
+          </div>
+
+          {/* 5. Qarz sanasi va Qaytarish muddati */}
+          <div className="form-row form-row--2col">
+            <div className="form-group">
               <label className="field-label">
-                <Calendar size={14} />
+                <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
                 <span>Qarz sanasi</span>
               </label>
               <input
                 type="datetime-local"
-                className="field-input"
+                className="field-input mono"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
 
-            <div className="field-group">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label className="field-label">
-                  <Calendar size={14} />
+            <div className="form-group">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label className="field-label" style={{ margin: 0 }}>
+                  <Clock size={14} style={{ marginRight: 4, display: "inline" }} />
                   <span>Qaytarish muddati</span>
                 </label>
-                <label style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <label className="muddatsiz-toggle-label">
                   <input
                     type="checkbox"
                     checked={isDueDateUnknown}
                     onChange={(e) => setIsDueDateUnknown(e.target.checked)}
+                    style={{ accentColor: "var(--accent)" }}
                   />
                   <span>Muddatsiz</span>
                 </label>
               </div>
+
               <input
                 type="date"
-                className="field-input"
+                className="field-input mono"
                 disabled={isDueDateUnknown}
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                style={{ opacity: isDueDateUnknown ? 0.4 : 1 }}
+                style={{ opacity: isDueDateUnknown ? 0.35 : 1 }}
               />
+
+              {/* Tezkor sana tugmalari */}
+              {!isDueDateUnknown && (
+                <div className="quick-date-chips" style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => handleAddDaysToDueDate(7)}
+                  >
+                    +1 hafta
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => handleAddDaysToDueDate(30)}
+                  >
+                    +1 oy
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => handleAddDaysToDueDate(90)}
+                  >
+                    +3 oy
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Joylashuv va Sababi */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className="field-group">
+          {/* 6. Joylashuv va Sababi */}
+          <div className="form-row form-row--2col">
+            <div className="form-group">
               <label className="field-label">
-                <MapPin size={14} />
+                <MapPin size={14} style={{ marginRight: 4, display: "inline" }} />
                 <span>Joylashuv / Manzil</span>
               </label>
               <input
@@ -307,9 +387,9 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
               />
             </div>
 
-            <div className="field-group">
+            <div className="form-group">
               <label className="field-label">
-                <HelpCircle size={14} />
+                <HelpCircle size={14} style={{ marginRight: 4, display: "inline" }} />
                 <span>Qarz maqsadi / sababi</span>
               </label>
               <input
@@ -322,10 +402,10 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
             </div>
           </div>
 
-          {/* O'zim uchun shaxsiy eslatma */}
-          <div className="field-group">
+          {/* 7. Shaxsiy eslatma / izoh */}
+          <div className="form-group">
             <label className="field-label">
-              <FileText size={14} />
+              <FileText size={14} style={{ marginRight: 4, display: "inline" }} />
               <span>O'zim uchun shaxsiy eslatma (Izoh)</span>
             </label>
             <input
@@ -337,14 +417,24 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
             />
           </div>
 
-          <div className="modal-footer" style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button type="button" className="btn btn--ghost" onClick={onClose}>
-              Bekor qilish
-            </button>
-            <button type="submit" className="btn btn--primary">
-              <CheckCircle2 size={16} />
-              <span>Saqlash</span>
-            </button>
+          {/* Pastki amallar tugmalari (Telefonda katta va qulay) */}
+          <div className="modal-actions debt-modal-actions">
+            <div className="modal-actions-right debt-modal-actions-right">
+              <button
+                type="button"
+                className="btn btn--ghost debt-action-cancel"
+                onClick={onClose}
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="submit"
+                className="btn btn--primary debt-action-save"
+              >
+                <CheckCircle2 size={16} />
+                <span>Oʻzgarishlarni saqlash</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

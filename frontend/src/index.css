@@ -4734,9 +4734,120 @@ textarea.field-input {
     margin: -8px auto 14px auto;
   }
 
-  .debt-detail-modal {
+  .debt-detail-modal,
+  .debt-edit-modal {
     max-height: 92vh !important;
     border-radius: 20px 20px 0 0 !important;
+    padding: 16px 14px 24px 14px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Modal close button */
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Debt edit modal layout styles */
+.debt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.debt-modal-header__info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.debt-modal-header__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.debt-modal-header__icon.is-given {
+  background: rgba(78, 184, 150, 0.15);
+  color: var(--accent);
+}
+
+.debt-modal-header__icon.is-taken {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.debt-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quick-amount-chips-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: -4px;
+  margin-bottom: 6px;
+}
+
+.muddatsiz-toggle-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.debt-modal-actions {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.debt-modal-actions-right {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+  .debt-modal-actions-right {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+
+  .debt-action-save,
+  .debt-action-cancel {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+    font-size: 0.9rem !important;
   }
 }
 
