@@ -130,14 +130,21 @@ class ApiClient {
         const errorText = await res.text().catch(() => "");
         let message = errorText;
         try {
-          message = JSON.parse(errorText)?.error || errorText;
+          const parsed = JSON.parse(errorText);
+          message = parsed?.error || parsed?.message || errorText;
+          if (parsed?.detail) {
+            message += ` (Batafsil: ${parsed.detail})`;
+          }
+          if (parsed?.code) {
+            message += ` [Kod: ${parsed.code}]`;
+          }
         } catch {
           // JSON emas (masalan HTML) — o'z holicha qoldiramiz
         }
         return {
           ok: false,
           status: res.status,
-          error: message ? String(message).slice(0, 300) : `Server xatosi: ${res.status}`,
+          error: message ? String(message).slice(0, 1000) : `Server xatosi: ${res.status}`,
           isNetworkError: false,
         };
       }

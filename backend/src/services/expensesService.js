@@ -46,6 +46,8 @@ function sameValue(field, a, b) {
 /**
  * Tranzaksiya ta'sirini wallets jadvaliga qo'llash yoki qaytarish
  * multiplier = 1 (qo'llash), multiplier = -1 (bekor qilish/qaytarish)
+ * Diqqat: SQL ichida ($1 * $2) yozilmaydi, chunki PostgreSQL 'operator is not unique: unknown * unknown' xatosini beradi.
+ * Hisob-kitob JS da aniq qilinadi va SQL ga $1::numeric ko'rinishida beriladi.
  */
 async function applyWalletBalanceChange(client, tx, multiplier = 1) {
   const type = tx.type || "expense";
@@ -56,32 +58,36 @@ async function applyWalletBalanceChange(client, tx, multiplier = 1) {
   const fromWallet = canonicalWalletId(tx.from_wallet || tx.fromWallet);
   const toWallet = canonicalWalletId(tx.to_wallet || tx.toWallet);
 
+  const delta = amount * Number(multiplier);
+
   if (type === "expense") {
     if (wallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance - ($1 * $2) WHERE id = $3",
-        [amount, multiplier, wallet]
+        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2",
+        [delta, wallet]
       );
     }
   } else if (type === "income") {
     if (wallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance + ($1 * $2) WHERE id = $3",
-        [amount, multiplier, wallet]
+        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2",
+        [delta, wallet]
       );
     }
   } else if (type === "transfer") {
     const targetAmount = Number(tx.target_amount ?? tx.targetAmount ?? amount);
+    const targetDelta = targetAmount * Number(multiplier);
+
     if (fromWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance - ($1 * $2) WHERE id = $3",
-        [amount, multiplier, fromWallet]
+        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2",
+        [delta, fromWallet]
       );
     }
     if (toWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance + ($1 * $2) WHERE id = $3",
-        [targetAmount, multiplier, toWallet]
+        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2",
+        [targetDelta, toWallet]
       );
     }
   }
