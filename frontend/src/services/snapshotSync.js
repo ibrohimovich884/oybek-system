@@ -85,13 +85,9 @@ export async function pullSnapshotFromDB() {
   const mergedDollarHistory = Array.from(dollarMap.values());
   localStorage.setItem(KEYS.dollarRateHistory, JSON.stringify(mergedDollarHistory));
 
-  // 3. Rezervlar (reserves)
+  // 3. Rezervlar (reserves - Server DB Source of Truth)
   if (server.reserves && typeof server.reserves === "object" && Object.keys(server.reserves).length > 0) {
-    const mergedReserves = {
-      ...(local.reserves || {}),
-      ...server.reserves,
-    };
-    localStorage.setItem(KEYS.reserves, JSON.stringify(mergedReserves));
+    localStorage.setItem(KEYS.reserves, JSON.stringify(server.reserves));
   }
 
   localStorage.setItem(MARKER_KEY, new Date().toISOString());

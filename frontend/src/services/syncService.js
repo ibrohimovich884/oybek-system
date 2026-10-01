@@ -286,17 +286,27 @@ class SyncService {
             else if (item.entity === "wallets") {
               res = await apiClient.put(API_ENDPOINTS.WALLETS, item.payload);
             }
-            // C) Qarzlar, Zaxiralar, Dollar tarixi (app_snapshot jadvali)
+            // C) Qarzlar (debts & debt_payments jadvallari)
+            else if (item.entity === "debts") {
+              if (item.type === "create") {
+                res = await apiClient.post(API_ENDPOINTS.DEBTS, item.payload);
+              } else if (item.type === "update") {
+                res = await apiClient.put(API_ENDPOINTS.DEBT_DETAIL(item.targetId), item.payload);
+              } else if (item.type === "delete") {
+                res = await apiClient.delete(API_ENDPOINTS.DEBT_DETAIL(item.targetId));
+              }
+              await pushSnapshot().catch(() => {});
+              if (res?.ok && item.targetId) {
+                this.markLocalDebtSynced(item.targetId, true);
+              }
+            }
+            // D) Zaxiralar, Dollar tarixi (app_snapshot jadvali)
             else if (
-              item.entity === "debts" ||
               item.entity === "reserves" ||
               item.entity === "dollar_rate_history" ||
               item.entity === "snapshot"
             ) {
               res = await pushSnapshot();
-              if (res.ok && item.entity === "debts" && item.targetId) {
-                this.markLocalDebtSynced(item.targetId, true);
-              }
             }
             // D) Mashqlar (exercises jadvali)
             else if (item.entity === "exercises") {

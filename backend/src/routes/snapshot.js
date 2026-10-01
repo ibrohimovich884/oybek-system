@@ -9,8 +9,32 @@ router.get("/", async (req, res) => {
   try {
     const { rows } = await pool.query("SELECT * FROM app_snapshot WHERE id = 1");
     const s = rows[0] || {};
+
+    // Wallets jadvalidagi haqiqiy zaxira balanslarini olamiz (Neon DB Source of Truth)
+    const { rows: walletRows } = await pool.query(
+      "SELECT id, balance FROM wallets WHERE id IN ('naqd_reserve', 'karta_reserve', 'dollar_reserve')"
+    );
+    const walletBalanceMap = new Map();
+    walletRows.forEach((r) => walletBalanceMap.set(r.id, Number(r.balance)));
+
+    const rawReserves = s.reserves || {};
+    const reserves = { ...rawReserves };
+
+    for (const [id, bal] of walletBalanceMap.entries()) {
+      const legacyId = id.replace("_reserve", "-asosiy");
+      const currentObj = reserves[id] || reserves[legacyId] || { id, notes: [] };
+      const updatedObj = {
+        ...currentObj,
+        id,
+        amount: bal,
+        notes: Array.isArray(currentObj.notes) ? currentObj.notes : [],
+      };
+      reserves[id] = updatedObj;
+      reserves[legacyId] = updatedObj;
+    }
+
     res.json({
-      reserves: s.reserves || {},
+      reserves,
       dollarRateHistory: s.dollar_rate_history || [],
       pendingDebts: s.pending_debts || [],
       updatedAt: s.updated_at || null,

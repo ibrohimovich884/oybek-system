@@ -513,17 +513,45 @@ export async function updateWallets(updates) {
 }
 
 /**
- * Asosiy (reserve) balanslarni olish
+ * Asosiy (reserve) balanslarni olish (DB wallets va wallet_notes jadvali asosiy manba)
  */
 export async function getReserves() {
+  // 1. PostgreSQL wallets va wallet_notes jadvallaridan olish
+  try {
+    const res = await apiClient.get(`${API_ENDPOINTS.WALLETS}?withNotes=true`);
+    if (res.ok && Array.isArray(res.data)) {
+      const reserves = { ...DEFAULT_RESERVES };
+      for (const w of res.data) {
+        if (w.id === "naqd_reserve" || w.id === "karta_reserve" || w.id === "dollar_reserve") {
+          const legacyId = w.id.replace("_reserve", "-asosiy");
+          const item = {
+            id: w.id,
+            wallet: w.parentId || w.id.replace("_reserve", ""),
+            name: w.name,
+            amount: Number(w.balance || 0),
+            notes: Array.isArray(w.notes) ? w.notes : [],
+          };
+          reserves[w.id] = item;
+          reserves[legacyId] = item;
+        }
+      }
+      writeLocalReserves(reserves);
+      return reserves;
+    }
+  } catch (e) {
+    console.warn("DB wallets jadvalidan rezervlarni olishda ogohlantirish:", e);
+  }
+
+  // 2. Snapshot orqali zaxira tekshiruvi
   try {
     const pulled = await pullSnapshotFromDB();
-    if (pulled && pulled.reserves) {
+    if (pulled && pulled.reserves && Object.keys(pulled.reserves).length > 0) {
       return pulled.reserves;
     }
   } catch (e) {
-    console.warn("DBdan rezervlarni olishda ogohlantirish:", e);
+    console.warn("Snapshotdan olishda ogohlantirish:", e);
   }
+
   return readLocalReserves();
 }
 
