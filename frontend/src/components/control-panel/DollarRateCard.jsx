@@ -1,14 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
-  TrendingUp,
   RefreshCw,
   Edit3,
   RotateCcw,
   Check,
-  History,
   BadgeDollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
+  ArrowRightLeft,
+  Calculator,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { formatRate, formatDollar, formatSum, formatDateTime } from "../../utils/format.js";
@@ -19,18 +17,23 @@ export default function DollarRateCard() {
     loadCbuRate,
     setManualUsdRate,
     resetManualUsdRate,
-    dollarRateHistory,
   } = useExpenses();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditingRate, setIsEditingRate] = useState(false);
   const [manualRateInput, setManualRateInput] = useState(String(rateInfo?.rate || 12850));
-  const [showFullHistory, setShowFullHistory] = useState(false);
+
+  // Tezkor valyuta kalkulyatori holati
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcDirection, setCalcDirection] = useState("usd_to_uzs"); // 'usd_to_uzs' | 'uzs_to_usd'
+  const [calcAmount, setCalcAmount] = useState("100");
+
+  const currentRate = rateInfo?.rate || 12850;
 
   const handleRefreshCbu = async () => {
     setIsRefreshing(true);
     await loadCbuRate();
-    setTimeout(() => setIsRefreshing(false), 500);
+    setTimeout(() => setIsRefreshing(false), 400);
   };
 
   const handleSaveManualRate = async (e) => {
@@ -46,173 +49,239 @@ export default function DollarRateCard() {
     setIsEditingRate(false);
   };
 
-  const displayedHistory = showFullHistory
-    ? dollarRateHistory
-    : dollarRateHistory.slice(0, 5);
+  // Konvertor natijasi
+  const convertedResult = useMemo(() => {
+    const val = Number(calcAmount);
+    if (isNaN(val) || val <= 0) return 0;
+    if (calcDirection === "usd_to_uzs") {
+      return val * currentRate;
+    } else {
+      return val / currentRate;
+    }
+  }, [calcAmount, calcDirection, currentRate]);
 
   return (
     <div className="control-card control-card--dollar-rate">
+      {/* Sarlavha qatori */}
       <div className="control-card__header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div className="control-card__icon-wrapper" style={{ background: "var(--dollar-soft)", color: "var(--dollar)" }}>
-            <BadgeDollarSign size={20} />
+          <div
+            className="control-card__icon-wrapper"
+            style={{
+              background: "var(--dollar-soft)",
+              color: "var(--dollar)",
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <BadgeDollarSign size={19} />
           </div>
           <div>
-            <h4 className="control-card__title">AQSH Dollari Kursi (CBU.uz)</h4>
-            <span className="control-card__subtitle">
-              {rateInfo.isManual ? "Foydalanuvchi tomonidan qo'lda o'rnatilgan" : "Markaziy Bank rasmiy kursi"}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <h4 className="control-card__title" style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700 }}>
+                AQSH Dollari Kursi
+              </h4>
+              <span className={`badge ${rateInfo.isManual ? "badge--warning" : "badge--success"}`} style={{ fontSize: "0.68rem", padding: "1px 6px" }}>
+                {rateInfo.isManual ? "Qoʻlda" : "CBU.uz"}
+              </span>
+            </div>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+              {rateInfo.isManual
+                ? "Foydalanuvchi kursi faol"
+                : `Yangilangan: ${formatDateTime(rateInfo.updatedAt)}`}
             </span>
           </div>
+        </div>
+
+        {/* Amallar: Kalkulyator, Qo'lda o'zgartirish, Yangilash */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            type="button"
+            className={`btn btn--xs ${showCalculator ? "btn--primary" : "btn--subtle"}`}
+            onClick={() => setShowCalculator(!showCalculator)}
+            title="Tezkor valyuta kalkulyatori"
+            aria-label="Kalkulyator"
+            style={{ padding: "5px 9px", fontSize: "0.76rem" }}
+          >
+            <Calculator size={13} />
+            <span className="hidden-mobile-sm">Kalkulyator</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn--subtle btn--xs"
+            onClick={handleRefreshCbu}
+            disabled={isRefreshing}
+            title="CBU kursini yangilash"
+            aria-label="Yangilash"
+            style={{ padding: "5px 8px" }}
+          >
+            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
+          </button>
+        </div>
+      </div>
+
+      {/* Asosiy kurs ko'rsatkichi (Ixcham va aniq) */}
+      <div className="dollar-rate-compact-row">
+        <div className="dollar-rate-value-wrap">
+          <div className="mono dollar-rate-main-num">
+            1 $ = {formatRate(currentRate)}
+          </div>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            soʻm
+          </span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {rateInfo.isManual && (
             <button
               type="button"
-              className="btn btn--subtle"
+              className="btn btn--ghost btn--xs"
               onClick={handleResetManual}
               title="CBU rasmiy kursiga qaytarish"
-              style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+              style={{ fontSize: "0.72rem", color: "var(--warning)", padding: "4px 6px" }}
             >
-              <RotateCcw size={13} />
-              <span>CBU ga qaytarish</span>
+              <RotateCcw size={12} />
+              <span>CBUga qaytish</span>
             </button>
           )}
 
           <button
             type="button"
-            className="btn btn--subtle"
-            onClick={handleRefreshCbu}
-            disabled={isRefreshing}
-            title="CBU kursini qayta yuklash"
-            style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+            className="btn-link"
+            onClick={() => {
+              setManualRateInput(String(currentRate));
+              setIsEditingRate(!isEditingRate);
+            }}
+            style={{
+              fontSize: "0.76rem",
+              color: "var(--accent)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "4px",
+            }}
           >
-            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
-            <span>Yangilash</span>
+            <Edit3 size={13} />
+            <span>{isEditingRate ? "Yopish" : "Tahrirlash"}</span>
           </button>
         </div>
       </div>
 
-      {/* Joriy Kurs Ko'rsatkichi */}
-      <div className="dollar-rate-display" style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <div className="mono" style={{ fontSize: "2rem", fontWeight: 700, color: "var(--dollar)" }}>
-            1 USD = {formatRate(rateInfo.rate)}
-          </div>
-          <span className={`badge ${rateInfo.isManual ? "badge--warning" : "badge--success"}`}>
-            {rateInfo.isManual ? "Qo'lda kiritilgan" : "CBU Rasmiy"}
+      {/* Kursni qo'lda o'zgartirish formasi (Faqat ochilganda) */}
+      {isEditingRate && (
+        <form onSubmit={handleSaveManualRate} className="dollar-edit-rate-form animate-fade-in">
+          <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>
+            Yangi kursni kiriting (1 USD):
           </span>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, fontSize: "0.8rem", color: "var(--text-muted)" }}>
-          <span>So'nggi yangilanish: {formatDateTime(rateInfo.updatedAt)}</span>
-          <button
-            type="button"
-            className="btn-link"
-            onClick={() => {
-              setManualRateInput(String(rateInfo.rate));
-              setIsEditingRate(!isEditingRate);
-            }}
-            style={{ fontSize: "0.8rem", color: "var(--accent)", background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <Edit3 size={13} />
-            <span>{isEditingRate ? "Yopish" : "Kursni qo'lda o'zgartirish"}</span>
-          </button>
-        </div>
-
-        {/* Qo'lda o'zgartirish formasi */}
-        {isEditingRate && (
-          <form onSubmit={handleSaveManualRate} style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
             <input
               type="number"
               step="any"
               value={manualRateInput}
               onChange={(e) => setManualRateInput(e.target.value)}
               placeholder="Masalan: 12850"
-              className="expense-form__input mono"
-              style={{ maxWidth: 180, padding: "6px 10px" }}
+              className="field-input mono"
+              style={{ flex: 1, padding: "8px 12px", fontSize: "0.95rem" }}
               required
             />
-            <button type="submit" className="btn btn--primary" style={{ padding: "6px 14px" }}>
+            <button type="submit" className="btn btn--primary btn--sm" style={{ padding: "8px 14px" }}>
               <Check size={14} />
               <span>Saqlash</span>
             </button>
-          </form>
-        )}
-      </div>
-
-      {/* Kurslar va Dollar Operatsiyalari Tarixi */}
-      <div className="dollar-rate-history-section" style={{ marginTop: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600 }}>
-            <History size={14} />
-            <span>Dollar amallari & kurslar tarixi ({dollarRateHistory.length})</span>
           </div>
-          {dollarRateHistory.length > 5 && (
+        </form>
+      )}
+
+      {/* Qulaylik: Tezkor Valyuta Kalkulyatori (Mobil uchun juda qulay) */}
+      {showCalculator && (
+        <div className="dollar-calc-widget animate-fade-in">
+          <div className="dollar-calc-widget__header">
+            <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--text-muted)" }}>
+              Tezkor Konvertor
+            </span>
             <button
               type="button"
-              className="btn-link"
-              onClick={() => setShowFullHistory(!showFullHistory)}
-              style={{ fontSize: "0.78rem", color: "var(--accent)", background: "none", border: "none", cursor: "pointer" }}
+              className="dollar-calc-direction-toggle"
+              onClick={() =>
+                setCalcDirection(
+                  calcDirection === "usd_to_uzs" ? "uzs_to_usd" : "usd_to_uzs"
+                )
+              }
+              title="Yo'nalishni almashtirish"
             >
-              {showFullHistory ? "Kamroq ko'rsatish" : `Barchasini ko'rish (${dollarRateHistory.length})`}
+              <span>{calcDirection === "usd_to_uzs" ? "$ ➔ so'm" : "so'm ➔ $"}</span>
+              <ArrowRightLeft size={12} />
             </button>
-          )}
+          </div>
+
+          <div className="dollar-calc-body">
+            <div className="dollar-calc-input-wrap">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={calcAmount}
+                onChange={(e) => setCalcAmount(e.target.value)}
+                placeholder="0"
+                className="field-input mono dollar-calc-input"
+              />
+              <span className="dollar-calc-unit mono">
+                {calcDirection === "usd_to_uzs" ? "$" : "so'm"}
+              </span>
+            </div>
+
+            <div className="dollar-calc-result mono">
+              <span className="dollar-calc-result-equal">=</span>
+              <span className="dollar-calc-result-value">
+                {calcDirection === "usd_to_uzs"
+                  ? formatSum(convertedResult)
+                  : formatDollar(convertedResult)}
+              </span>
+            </div>
+          </div>
+
+          {/* Tezkor preset tugmalari */}
+          <div className="dollar-calc-presets">
+            {calcDirection === "usd_to_uzs" ? (
+              <>
+                {["10", "50", "100", "500", "1000"].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    className={`dollar-calc-preset-chip ${calcAmount === preset ? "is-active" : ""}`}
+                    onClick={() => setCalcAmount(preset)}
+                  >
+                    ${preset}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <>
+                {["100000", "500000", "1000000", "5000000"].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    className={`dollar-calc-preset-chip ${calcAmount === preset ? "is-active" : ""}`}
+                    onClick={() => setCalcAmount(preset)}
+                  >
+                    {Number(preset) >= 1000000
+                      ? `${Number(preset) / 1000000} mln`
+                      : `${Number(preset) / 1000} ming`}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
         </div>
-
-        {displayedHistory.length === 0 ? (
-          <div style={{ padding: "14px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.82rem", background: "var(--surface-hover)", borderRadius: 8 }}>
-            Hozircha dollar bo'yicha operatsiyalar tarixi mavjud emas. Dollar hisobida xarajat yoki o'tkazma qilinganda ushbu jadvalda saqlanadi.
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {displayedHistory.map((rec) => {
-              const isKirim = rec.direction === "kirim";
-              return (
-                <div
-                  key={rec.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "var(--surface-hover)",
-                    borderRadius: 6,
-                    border: "1px solid var(--border)",
-                    fontSize: "0.8rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div
-                      style={{
-                        padding: 4,
-                        borderRadius: 4,
-                        background: isKirim ? "var(--income-soft)" : "var(--danger-soft)",
-                        color: isKirim ? "var(--income)" : "var(--danger)",
-                      }}
-                    >
-                      {isKirim ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, color: "var(--text)" }}>{rec.note || "Dollar amali"}</div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                        {formatDateTime(rec.occurredAt)} • Kurs: <span className="mono">{formatRate(rec.exchangeRateAtTime)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mono" style={{ textAlign: "right", fontWeight: 700, color: isKirim ? "var(--income)" : "var(--text)" }}>
-                    {isKirim ? "+" : "-"}{formatDollar(rec.amount)}
-                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 400 }}>
-                      ~ {formatSum(rec.amount * rec.exchangeRateAtTime)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

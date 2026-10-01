@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Menu, Home, Wallet, HandCoins, PlusCircle } from "lucide-react";
+import { Menu, Home, Wallet, SlidersHorizontal, HandCoins, PlusCircle } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
 import OfflineIndicator from "../OfflineIndicator.jsx";
 
@@ -19,7 +19,7 @@ export default function Layout({ children }) {
     if (isHome) return "Bosh sahifa";
     if (isMoney) return "Money manager";
     if (isDebts) return "Qarz daftari";
-    if (isControl) return "Control panel";
+    if (isControl) return "Boshqaruv paneli";
     if (isExercises) return "Mashqlar";
     if (isSettings) return "Sozlamalar & DB";
     return "Shaxsiy panel";
@@ -70,7 +70,7 @@ export default function Layout({ children }) {
       {/* Asosiy kontent */}
       <main className="content">{children}</main>
 
-      {/* Mobile Bottom Navigation Bar (only on <= 768px, optimized for 375px+) */}
+      {/* Mobile Bottom Navigation Bar (5 ta element - 375px+ ekranlar uchun ideal) */}
       <nav className="mobile-bottom-nav" aria-label="Mobil asosiy navigatsiya">
         <NavLink
           to="/"
@@ -79,8 +79,8 @@ export default function Layout({ children }) {
             `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
           }
         >
-          <Home size={19} />
-          <span>Bosh sahifa</span>
+          <Home size={18} />
+          <span>Asosiy</span>
         </NavLink>
 
         <NavLink
@@ -89,8 +89,18 @@ export default function Layout({ children }) {
             `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
           }
         >
-          <Wallet size={19} />
+          <Wallet size={18} />
           <span>Money</span>
+        </NavLink>
+
+        <NavLink
+          to="/control"
+          className={({ isActive }) =>
+            `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
+          }
+        >
+          <SlidersHorizontal size={18} />
+          <span>Boshqaruv</span>
         </NavLink>
 
         <NavLink
@@ -99,8 +109,8 @@ export default function Layout({ children }) {
             `mobile-bottom-nav__item ${isActive ? "is-active" : ""}`
           }
         >
-          <HandCoins size={19} />
-          <span>Qarz daftari</span>
+          <HandCoins size={18} />
+          <span>Qarzlar</span>
         </NavLink>
 
         <button
@@ -109,7 +119,7 @@ export default function Layout({ children }) {
           className={`mobile-bottom-nav__item ${mobileMenuOpen ? "is-active" : ""}`}
           aria-label="To'liq menyu"
         >
-          <Menu size={19} />
+          <Menu size={18} />
           <span>Menyu</span>
         </button>
       </nav>

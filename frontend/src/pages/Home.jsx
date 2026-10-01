@@ -12,6 +12,7 @@ import {
   HandCoins,
   History,
   ArrowRightLeft,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   EXPENSE_CATEGORIES,
@@ -51,7 +52,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Tezkor harakatlar (Quick actions) - 375px ga mos */}
+      {/* Tezkor harakatlar (Quick actions) - 375px ga to'liq mos 2x2 grid */}
       <div className="home-quick-actions">
         <Link to="/money" className="quick-action-card">
           <div className="quick-action-card__icon quick-action-card__icon--primary">
@@ -59,7 +60,17 @@ export default function Home() {
           </div>
           <div className="quick-action-card__text">
             <span className="quick-action-card__title">Amal kiritish</span>
-            <span className="quick-action-card__sub">Xarajat yoki daromad</span>
+            <span className="quick-action-card__sub">Xarajat / kirim</span>
+          </div>
+        </Link>
+
+        <Link to="/control" className="quick-action-card">
+          <div className="quick-action-card__icon quick-action-card__icon--control">
+            <SlidersHorizontal size={20} />
+          </div>
+          <div className="quick-action-card__text">
+            <span className="quick-action-card__title">Boshqaruv</span>
+            <span className="quick-action-card__sub">Zaxiralar & Kurs</span>
           </div>
         </Link>
 
@@ -73,13 +84,13 @@ export default function Home() {
           </div>
         </Link>
 
-        <Link to="/money" className="quick-action-card quick-action-card--analytics">
+        <Link to="/money" className="quick-action-card">
           <div className="quick-action-card__icon quick-action-card__icon--info">
             <PieChart size={20} />
           </div>
           <div className="quick-action-card__text">
-            <span className="quick-action-card__title">Tahlil & Statistika</span>
-            <span className="quick-action-card__sub">Grafik va hisobotlar</span>
+            <span className="quick-action-card__title">Tahlil</span>
+            <span className="quick-action-card__sub">Statistika & hisobot</span>
           </div>
         </Link>
       </div>

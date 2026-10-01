@@ -113,11 +113,12 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="modal-mobile-handle" />
         <div className="modal-header">
           <div>
             <h3 className="modal-title">Universal Pul O'tkazmasi</h3>
             <p className="modal-subtitle">
-              Har qanday ikki hisob (Oddiy yoki Asosiy rezervlar) o'rtasida mablag' o'tkazish
+              Hisoblar va zaxiralar o'rtasida mablag' o'tkazish
             </p>
           </div>
           <button type="button" className="btn-icon" onClick={onClose}>
@@ -275,9 +276,31 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
 
           {/* Summa */}
           <div className="form-group transfer-amount-group">
-            <label className="field-label">
-              O'tkazma summasi ({isFromDollar ? "$" : "so'm"}) <span style={{ color: "var(--expense)" }}>*</span>
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label className="field-label" style={{ margin: 0 }}>
+                O'tkazma summasi ({isFromDollar ? "$" : "so'm"}) <span style={{ color: "var(--expense)" }}>*</span>
+              </label>
+              {fromBalance > 0 && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    className="btn btn--subtle btn--xs"
+                    onClick={() => setAmount(String(isFromDollar ? Number((fromBalance / 2).toFixed(2)) : Math.round(fromBalance / 2)))}
+                    style={{ fontSize: "0.7rem", padding: "2px 7px" }}
+                  >
+                    50%
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--subtle btn--xs"
+                    onClick={() => setAmount(String(fromBalance))}
+                    style={{ fontSize: "0.7rem", padding: "2px 7px" }}
+                  >
+                    Hammasi ({isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance)})
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="input-with-currency">
               <input
                 type="number"

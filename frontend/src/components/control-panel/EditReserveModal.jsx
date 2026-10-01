@@ -49,6 +49,7 @@ export default function EditReserveModal({ reserveId, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <div className="modal-mobile-handle" />
         <div className="modal-header">
           <div>
             <h3 className="modal-title">Asosiy Balansni Tahrirlash</h3>
