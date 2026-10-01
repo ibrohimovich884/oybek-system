@@ -117,7 +117,7 @@ export function ExpensesProvider({ children }) {
     return await expensesApi.checkBackendConnection();
   }, []);
 
-  // Hozirgi real vaqt balansi (Boshlang'ich balans + Daromadlar - Xarajatlar + O'tkazmalar)
+  // Hozirgi real vaqt balansi (DB wallets jadvalidagi jonli balans + oflayn tranzaksiyalar)
   const currentBalances = useMemo(() => {
     let hamyon = Number(initialWallets.hamyon ?? DEFAULT_WALLETS.hamyon);
     let naqd = Number(initialWallets.naqd ?? DEFAULT_WALLETS.naqd);
@@ -135,52 +135,43 @@ export function ExpensesProvider({ children }) {
       const amt = Number(item.amount || 0);
       const type = item.type || "expense";
       const method = item.paymentMethod || item.wallet || "hamyon";
+      const isDollar = item.currency === "USD" || method === "dollar";
 
+      // Umumiy statistika
       if (type === "expense") {
-        if (method === "dollar") {
-          dollar -= amt;
-          totalExpenseUSD += amt;
-        } else {
-          if (method === "hamyon") hamyon -= amt;
-          else if (method === "karta") karta -= amt;
-          else naqd -= amt;
-          totalExpenseUZS += amt;
-        }
+        if (isDollar) totalExpenseUSD += amt;
+        else totalExpenseUZS += amt;
       } else if (type === "income") {
-        if (method === "dollar") {
-          dollar += amt;
-          totalIncomeUSD += amt;
-        } else {
-          if (method === "hamyon") hamyon += amt;
+        if (isDollar) totalIncomeUSD += amt;
+        else totalIncomeUZS += amt;
+      }
+
+      // Faqat DBga hali bormagan (synced === false) oflayn tranzaksiyalarni lokal balansdan ayiramiz/qo'shamiz
+      if (item.synced === false) {
+        if (type === "expense") {
+          if (method === "dollar") dollar -= amt;
+          else if (method === "hamyon") hamyon -= amt;
+          else if (method === "karta") karta -= amt;
+          else if (method === "naqd") naqd -= amt;
+        } else if (type === "income") {
+          if (method === "dollar") dollar += amt;
+          else if (method === "hamyon") hamyon += amt;
           else if (method === "karta") karta += amt;
-          else naqd += amt;
-          totalIncomeUZS += amt;
-        }
-      } else if (type === "transfer") {
-        const from = item.fromWallet || method;
-        const to = item.toWallet;
+          else if (method === "naqd") naqd += amt;
+        } else if (type === "transfer") {
+          const from = item.fromWallet || method;
+          const to = item.toWallet;
+          const targetAmount = Number(item.targetAmount ?? amt);
 
-        // Manbadan ayirish
-        if (from === "dollar") {
-          dollar -= amt;
-        } else if (from === "hamyon") {
-          hamyon -= amt;
-        } else if (from === "karta") {
-          karta -= amt;
-        } else if (from === "naqd") {
-          naqd -= amt;
-        }
+          if (from === "dollar") dollar -= amt;
+          else if (from === "hamyon") hamyon -= amt;
+          else if (from === "karta") karta -= amt;
+          else if (from === "naqd") naqd -= amt;
 
-        // Qabul qiluvchiga qo'shish
-        const targetAmount = Number(item.targetAmount ?? amt);
-        if (to === "dollar") {
-          dollar += targetAmount;
-        } else if (to === "hamyon") {
-          hamyon += targetAmount;
-        } else if (to === "karta") {
-          karta += targetAmount;
-        } else if (to === "naqd") {
-          naqd += targetAmount;
+          if (to === "dollar") dollar += targetAmount;
+          else if (to === "hamyon") hamyon += targetAmount;
+          else if (to === "karta") karta += targetAmount;
+          else if (to === "naqd") naqd += targetAmount;
         }
       }
     }
