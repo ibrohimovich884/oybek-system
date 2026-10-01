@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
-import { formatSum, formatDollar, formatRate } from "../utils/format.js";
+import { formatSum, formatDollar } from "../utils/format.js";
 import EditReserveModal from "../components/control-panel/EditReserveModal.jsx";
 import UniversalTransferModal from "../components/control-panel/UniversalTransferModal.jsx";
 
@@ -30,9 +30,10 @@ export default function ControlPanel() {
   const [transferModal, setTransferModal] = useState(null); // { from, to } | null
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   const [isEditingRate, setIsEditingRate] = useState(false);
-  const [rateInput, setRateInput] = useState(String(rateInfo?.rate || 12850));
+  const [rateInput, setRateInput] = useState(String(Math.round(rateInfo?.rate || 12850)));
 
   const currentRate = rateInfo?.rate || 12850;
+  const roundedRate = Math.round(currentRate);
 
   const handleRefreshCbu = async (e) => {
     e.stopPropagation();
@@ -55,27 +56,34 @@ export default function ControlPanel() {
 
   return (
     <div className="cp-compact-page">
-      {/* 1. Ultra-ixcham Top Bar: Sarlavha + Kurs pill + O'tkazma tugmasi */}
+      {/* 1. Ultra-ixcham Top Bar: Sarlavha + Telefonbop Kurs ko'rsatkichi + O'tkazma */}
       <div className="cp-topbar">
         <h1 className="cp-title">Boshqaruv</h1>
 
         <div className="cp-topbar-actions">
-          {/* Kurs Pill (bosilsa tahrirlash ochiladi) */}
-          <div
-            className={`cp-rate-pill ${rateInfo?.isManual ? "is-manual" : ""}`}
-            onClick={() => {
-              setRateInput(String(currentRate));
-              setIsEditingRate(true);
-            }}
-            title="Kursni o'zgartirish yoki yangilash"
-          >
-            <span className="mono">1$ = {formatRate(currentRate)}</span>
+          {/* Kurs ko'rsatkichi (Telefon uchun no-decimals, 1$ = 12 850, 1-tap tahrirlash) */}
+          <div className="cp-rate-wrapper">
+            <button
+              type="button"
+              className={`cp-rate-pill ${rateInfo?.isManual ? "is-manual" : ""}`}
+              onClick={() => {
+                setRateInput(String(roundedRate));
+                setIsEditingRate(true);
+              }}
+              title="Dollar kursini o'zgartirish"
+            >
+              <span className="cp-rate-pill__badge">{rateInfo?.isManual ? "Qoʻlda" : "CBU"}</span>
+              <span className="mono cp-rate-pill__val">
+                1$ = {roundedRate.toLocaleString("uz-UZ")}
+              </span>
+              <Edit3 size={10} className="cp-rate-pill__icon" />
+            </button>
             <button
               type="button"
               className="cp-rate-refresh-btn"
               onClick={handleRefreshCbu}
               disabled={isRefreshingRate}
-              title="CBU kursini yangilash"
+              title="CBU rasmiy kursini yangilash"
             >
               <RefreshCw size={11} className={isRefreshingRate ? "animate-spin" : ""} />
             </button>
@@ -340,14 +348,22 @@ export default function ControlPanel() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, padding: 18 }}>
             <div className="modal-mobile-handle" />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>Dollar kursini belgilash</span>
-              <button type="button" className="btn-icon" onClick={() => setIsEditingRate(false)}>
-                <X size={16} />
+              <div>
+                <span style={{ fontWeight: 800, fontSize: "0.95rem", display: "block" }}>1 USD kursi</span>
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                  Rasmiy CBU: {Math.round(rateInfo?.rate || 12850).toLocaleString("uz-UZ")} soʻm
+                </span>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={() => setIsEditingRate(false)}>
+                <X size={18} />
               </button>
             </div>
+
             <form onSubmit={handleSaveRate} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
-                <label className="field-label" style={{ fontSize: "0.78rem" }}>1 USD kursi (so'm):</label>
+                <label className="field-label" style={{ fontSize: "0.78rem" }}>
+                  1 Dollar narxi (so'mda):
+                </label>
                 <input
                   type="number"
                   step="any"
@@ -358,14 +374,43 @@ export default function ControlPanel() {
                   required
                 />
               </div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setIsEditingRate(false)}>
-                  Bekor
+
+              {/* Tezkor kurs chiplari */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[12800, 12850, 12900, 13000].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className={`quick-chip-btn ${Number(rateInput) === r ? "is-active" : ""}`}
+                    onClick={() => setRateInput(String(r))}
+                  >
+                    {r.toLocaleString("uz-UZ")}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="btn btn--subtle btn--xs"
+                  onClick={async () => {
+                    await loadCbuRate();
+                    setIsEditingRate(false);
+                  }}
+                  title="CBU rasmiy kursini qayta o'rnatish"
+                >
+                  <RefreshCw size={12} />
+                  <span>CBU kursiga qaytarish</span>
                 </button>
-                <button type="submit" className="btn btn--primary btn--sm">
-                  <Check size={14} />
-                  <span>Saqlash</span>
-                </button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setIsEditingRate(false)}>
+                    Bekor
+                  </button>
+                  <button type="submit" className="btn btn--primary btn--sm">
+                    <Check size={14} />
+                    <span>Saqlash</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

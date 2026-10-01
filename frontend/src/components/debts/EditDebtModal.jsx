@@ -257,23 +257,33 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
             </div>
           </div>
 
-          {/* Tezkor summa chiplari (Telefon uchun juda qulay) */}
+          {/* Tezkor summa chiplari (Kichik qarzlar: 5 000, 10 000, 15 000, 20 000, 50 000) */}
           <div className="quick-amount-chips-row">
             {(currency === "USD"
-              ? [50, 100, 200, 500, 1000]
-              : [100000, 300000, 500000, 1000000, 5000000]
-            ).map((val) => (
+              ? [
+                  { val: 5, label: "$5" },
+                  { val: 10, label: "$10" },
+                  { val: 15, label: "$15" },
+                  { val: 20, label: "$20" },
+                  { val: 50, label: "$50" },
+                  { val: 100, label: "$100" },
+                ]
+              : [
+                  { val: 5000, label: "5 000" },
+                  { val: 10000, label: "10 000" },
+                  { val: 15000, label: "15 000" },
+                  { val: 20000, label: "20 000" },
+                  { val: 50000, label: "50 000" },
+                  { val: 100000, label: "100 000" },
+                ]
+            ).map((item) => (
               <button
-                key={val}
+                key={item.val}
                 type="button"
-                className={`quick-chip-btn ${Number(amount) === val ? "is-active" : ""}`}
-                onClick={() => setAmount(String(val))}
+                className={`quick-chip-btn ${Number(amount) === item.val ? "is-active" : ""}`}
+                onClick={() => setAmount(String(item.val))}
               >
-                {currency === "USD"
-                  ? `$${val}`
-                  : val >= 1000000
-                  ? `${val / 1000000} mln`
-                  : `${val / 1000} ming`}
+                {item.label}
               </button>
             ))}
           </div>
