@@ -1,4 +1,5 @@
 @import "./styles/tokens.css";
+@import "./styles/security.css";
 
 .layout {
   display: flex;
@@ -5236,22 +5237,46 @@ textarea.field-input {
   padding-bottom: 12px;
 }
 
-/* 1. Ultra-compact Top Bar */
+/* 1. Ultra-compact Header Section */
+.cp-header-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0 4px;
+}
+
+.cp-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.cp-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.cp-header-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
 .cp-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 2px 0 4px;
-}
-
-.cp-title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: -0.015em;
-  color: var(--text);
-  white-space: nowrap;
 }
 
 .cp-topbar-actions {
@@ -5613,12 +5638,30 @@ textarea.field-input {
     gap: 6px;
   }
 
+  .cp-header-section {
+    gap: 6px;
+    padding: 1px 0 2px;
+  }
+
+  .cp-header-top {
+    gap: 6px;
+  }
+
+  .cp-header-actions-row {
+    gap: 6px;
+  }
+
   .cp-topbar {
     gap: 4px;
   }
 
   .cp-title {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
+  }
+
+  .cp-lock-btn {
+    padding: 4px 8px;
+    font-size: 0.72rem;
   }
 
   .cp-rate-wrapper {

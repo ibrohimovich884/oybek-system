@@ -26,10 +26,13 @@ import {
   FileJson,
   Archive,
   ClipboardList,
+  ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
 import { formatSum, formatDateTime } from "../utils/format.js";
 import { DEFAULT_BACKEND_URL } from "../config/apiConfig.js";
+import SecuritySettingsTab from "../components/security/SecuritySettingsTab.jsx";
 
 export default function SettingsPage() {
   const {
@@ -405,6 +408,15 @@ export default function SettingsPage() {
               {syncStatus.logs.length}
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          className={`settings-tab-btn ${activeTab === "security" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("security")}
+        >
+          <ShieldCheck size={15} style={{ color: activeTab === "security" ? "var(--income)" : "currentColor" }} />
+          <span>Xavfsizlik & Parol</span>
         </button>
       </div>
 
@@ -1349,6 +1361,14 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          TAB 5: XAVFSIZLIK VA PAROL
+          - Parolni tahrirlash (Edit PIN)
+          - Qulflash boshqaruvi va sessiyalar
+          - SecurityGate orqali himoyalangan
+         ========================================================================= */}
+      {activeTab === "security" && <SecuritySettingsTab />}
 
       {/* MODAL: Lokal xotirani xavfsiz tozalash tasdig'i (375px mos) */}
       {showClearModal && (

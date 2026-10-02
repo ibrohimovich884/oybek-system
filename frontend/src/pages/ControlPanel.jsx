@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Wallet,
   ArrowRightLeft,
@@ -11,13 +12,17 @@ import {
   Edit3,
   Check,
   X,
+  Lock,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
+import { useSecurity } from "../context/SecurityContext.jsx";
 import { formatSum, formatDollar } from "../utils/format.js";
 import EditReserveModal from "../components/control-panel/EditReserveModal.jsx";
 import UniversalTransferModal from "../components/control-panel/UniversalTransferModal.jsx";
 
 export default function ControlPanel() {
+  const navigate = useNavigate();
+  const { lockScope } = useSecurity();
   const {
     currentBalances,
     reserves,
@@ -34,6 +39,21 @@ export default function ControlPanel() {
 
   const currentRate = rateInfo?.rate || 12850;
   const roundedRate = Math.round(currentRate);
+
+  const handleLockAndNavigate = () => {
+    lockScope("control_panel");
+    try {
+      const saved = sessionStorage.getItem("oybek_unlocked_scopes");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        delete parsed.control_panel;
+        sessionStorage.setItem("oybek_unlocked_scopes", JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    navigate("/");
+  };
 
   const handleRefreshCbu = async (e) => {
     e.stopPropagation();
@@ -56,11 +76,25 @@ export default function ControlPanel() {
 
   return (
     <div className="cp-compact-page">
-      {/* 1. Ultra-ixcham Top Bar: Sarlavha + Telefonbop Kurs ko'rsatkichi + O'tkazma */}
-      <div className="cp-topbar">
-        <h1 className="cp-title">Boshqaruv</h1>
+      {/* 1. Ultra-ixcham Header: Sarlavha + Qulf va tagida Kurs + O'tkazma */}
+      <div className="cp-header-section">
+        {/* Yuqori qator: Sarlavha va Qulflash */}
+        <div className="cp-header-top">
+          <h1 className="cp-title">Boshqaruv</h1>
 
-        <div className="cp-topbar-actions">
+          <button
+            type="button"
+            className="cp-lock-btn"
+            onClick={handleLockAndNavigate}
+            title="Boshqaruv panelini qulflash va Bosh sahifaga o'tish"
+          >
+            <Lock size={13} />
+            <span>Qulflash</span>
+          </button>
+        </div>
+
+        {/* Ikkinchi qator (Sarlavha tagida): Kurs ko'rsatkichi va O'tkazma */}
+        <div className="cp-header-actions-row">
           {/* Kurs ko'rsatkichi (Telefon uchun no-decimals, 1$ = 12 850, 1-tap tahrirlash) */}
           <div className="cp-rate-wrapper">
             <button

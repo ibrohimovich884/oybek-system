@@ -9,11 +9,16 @@ import {
   X,
   Database,
   RefreshCw,
+  Lock,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
+import { useSecurity } from "../../context/SecurityContext.jsx";
 
 export default function Sidebar({ isOpen, onClose }) {
   const { syncStatus, debts } = useExpenses();
+  const { isUnlocked } = useSecurity();
+
+  const isControlUnlocked = isUnlocked("control_panel");
 
   const pendingDebtsCount = (debts || []).filter(
     (d) => d.status !== "settled"
@@ -29,7 +34,13 @@ export default function Sidebar({ isOpen, onClose }) {
       badge: pendingDebtsCount > 0 ? `${pendingDebtsCount}` : null,
       badgeType: pendingDebtsCount > 0 ? "info" : null,
     },
-    { to: "/control", label: "Control panel", icon: SlidersHorizontal },
+    {
+      to: "/control",
+      label: "Control panel",
+      icon: SlidersHorizontal,
+      badge: !isControlUnlocked ? <Lock size={12} style={{ color: "#34d399" }} /> : null,
+      badgeType: !isControlUnlocked ? "lock" : null,
+    },
     { to: "/exercises", label: "Mashqlar", icon: Dumbbell, badge: "Tez kunda" },
     {
       to: "/settings",
@@ -96,8 +107,25 @@ export default function Sidebar({ isOpen, onClose }) {
                 {item.badge && (
                   <span
                     className={`sidebar__badge ${
-                      item.badgeType === "warning" ? "sidebar__badge--warning" : ""
+                      item.badgeType === "warning"
+                        ? "sidebar__badge--warning"
+                        : item.badgeType === "lock"
+                        ? "sidebar__badge--lock"
+                        : ""
                     }`}
+                    style={
+                      item.badgeType === "lock"
+                        ? {
+                            background: "rgba(16, 185, 129, 0.15)",
+                            border: "1px solid rgba(52, 211, 153, 0.3)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "3px 5px",
+                            borderRadius: "6px",
+                          }
+                        : {}
+                    }
                   >
                     {item.badge}
                   </span>
