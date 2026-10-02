@@ -30,8 +30,9 @@ if (CATEGORY_MAP["Qorin uchun"]) {
 }
 
 export default function Home() {
-  const { currentBalances, expenses } = useExpenses();
-  const recentExpenses = expenses.slice(0, 5);
+  const { currentBalances, regularExpenses, expenses } = useExpenses();
+  const txList = regularExpenses || (expenses || []).filter((e) => !e.fromWallet?.includes("reserve") && !e.toWallet?.includes("reserve"));
+  const recentExpenses = txList.slice(0, 5);
 
   const todayStr = new Date().toLocaleDateString("uz-UZ", {
     weekday: "long",
@@ -182,9 +183,9 @@ export default function Home() {
             <History size={16} className="text-muted" />
             <h2 className="section-title">So'nggi amallar</h2>
           </div>
-          {expenses.length > 0 && (
+          {txList.length > 0 && (
             <Link to="/money" className="btn btn--ghost btn--sm">
-              <span>Barchasi ({expenses.length})</span>
+              <span>Barchasi ({txList.length})</span>
               <ArrowRight size={14} />
             </Link>
           )}

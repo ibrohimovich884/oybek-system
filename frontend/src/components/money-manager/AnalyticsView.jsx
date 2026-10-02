@@ -19,8 +19,9 @@ import {
 } from "lucide-react";
 
 export default function AnalyticsView() {
-  const { expenses, currentBalances, rateInfo } = useExpenses();
+  const { regularExpenses, expenses, currentBalances, rateInfo } = useExpenses();
   const currentRate = rateInfo?.rate || 12850;
+  const items = regularExpenses || (expenses || []).filter((e) => !e.fromWallet?.includes("reserve") && !e.toWallet?.includes("reserve"));
 
   // Statistika hisoblash
   const stats = useMemo(() => {
@@ -31,7 +32,7 @@ export default function AnalyticsView() {
     const walletSpending = { hamyon: 0, naqd: 0, karta: 0, dollar: 0 };
     let maxExpense = null;
 
-    expenses.forEach((item) => {
+    items.forEach((item) => {
       const amt = Number(item.amount || 0);
       const isUsd = item.currency === "USD" || item.paymentMethod === "dollar" || item.wallet === "dollar";
       const effectiveRate = item.exchangeRateAtTime || currentRate;

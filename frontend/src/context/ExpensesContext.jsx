@@ -24,6 +24,43 @@ import {
   removeManualRate,
 } from "../services/exchangeRateService.js";
 
+// Helper: Zaxira hisoblari bilan bog'liq tranzaksiyalarni aniqlash
+export const isReserveTransaction = (item) => {
+  if (!item) return false;
+  const reserveWallets = [
+    "naqd_reserve",
+    "karta_reserve",
+    "dollar_reserve",
+    "naqd-asosiy",
+    "karta-asosiy",
+    "dollar-asosiy",
+  ];
+
+  const from = item.fromWallet || item.from;
+  const to = item.toWallet || item.to;
+  const method = item.paymentMethod || item.wallet;
+
+  if (
+    reserveWallets.includes(from) ||
+    reserveWallets.includes(to) ||
+    reserveWallets.includes(method)
+  ) {
+    return true;
+  }
+  if (item.isReserve === true) return true;
+  if (
+    item.category === "Zaxira" ||
+    item.category === "Zaxira o‘tkazmasi" ||
+    item.category === "Zaxira o'tkazmasi"
+  ) {
+    return true;
+  }
+  if (item.subcategory === "Zaxira") return true;
+  if (item.target === "asosiy" || item.target === "reserve") return true;
+
+  return false;
+};
+
 const ExpensesContext = createContext(null);
 
 export function ExpensesProvider({ children }) {
@@ -132,6 +169,9 @@ export function ExpensesProvider({ children }) {
     const currentUsdRate = rateInfo?.rate || 12850;
 
     for (const item of expenses) {
+      // Zaxira hisoblar bilan bog'liq tranzaksiyalar oddiy xarajat/daromad statistikasiga kirmaydi
+      if (isReserveTransaction(item)) continue;
+
       const amt = Number(item.amount || 0);
       const type = item.type || "expense";
       const method = item.paymentMethod || item.wallet || "hamyon";
@@ -247,6 +287,11 @@ export function ExpensesProvider({ children }) {
       totalIncome: totalIncomeUZS + totalIncomeUSD * currentUsdRate,
     };
   }, [initialWallets, expenses, reserves, rateInfo]);
+
+  // Faqat oddiy (zaxira bo'lmagan) tranzaksiyalar ro'yxati (Home va Money Manager uchun)
+  const regularExpenses = useMemo(() => {
+    return (expenses || []).filter((e) => !isReserveTransaction(e));
+  }, [expenses]);
 
   const addExpense = useCallback(
     async (payload) => {
@@ -635,6 +680,8 @@ export function ExpensesProvider({ children }) {
 
   const value = {
     expenses,
+    regularExpenses,
+    isReserveTransaction,
     initialWallets,
     reserves,
     dollarRateHistory,

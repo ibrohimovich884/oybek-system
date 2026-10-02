@@ -20,12 +20,15 @@ import {
 
 export default function MoneyManager() {
   const {
+    regularExpenses,
     expenses,
     isLoading,
     downloadBackup,
     downloadCSV,
     importBackup,
   } = useExpenses();
+
+  const displayExpenses = regularExpenses || (expenses || []).filter((e) => !e.fromWallet?.includes("reserve") && !e.toWallet?.includes("reserve"));
 
   const [activeTab, setActiveTab] = useState("form"); // "form" | "history" | "analytics"
   const [transferConfig, setTransferConfig] = useState(null);
@@ -149,8 +152,8 @@ export default function MoneyManager() {
           onClick={() => setActiveTab("history")}
         >
           <ListOrdered size={16} />
-          <span className="tab-label-full">Amallar tarixi ({expenses.length})</span>
-          <span className="tab-label-short">Tarix ({expenses.length})</span>
+          <span className="tab-label-full">Amallar tarixi ({displayExpenses.length})</span>
+          <span className="tab-label-short">Tarix ({displayExpenses.length})</span>
         </button>
         <button
           type="button"
@@ -172,11 +175,11 @@ export default function MoneyManager() {
           <div className="section-divider">
             <span>Oxirgi amallar</span>
           </div>
-          <ExpenseList expenses={expenses.slice(0, 5)} />
+          <ExpenseList expenses={displayExpenses.slice(0, 5)} />
         </div>
       ) : activeTab === "history" ? (
         <div className="tab-content-fade">
-          <ExpenseList expenses={expenses} />
+          <ExpenseList expenses={displayExpenses} />
         </div>
       ) : (
         <div className="tab-content-fade">
