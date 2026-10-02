@@ -2,7 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
 import { ExpensesProvider } from "./context/ExpensesContext.jsx";
+import { NotificationsProvider } from "./context/NotificationsContext.jsx";
 import { SecurityProvider } from "./context/SecurityContext.jsx";
 import "./index.css";
 import { registerSW } from "virtual:pwa-register";
@@ -13,11 +15,17 @@ registerSW({ immediate: true });
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ExpensesProvider>
-        <SecurityProvider>
-          <App />
-        </SecurityProvider>
-      </ExpensesProvider>
+      <AuthProvider>
+        <ExpensesProvider>
+          <NotificationsProvider>
+            <SecurityProvider>
+              <App />
+            </SecurityProvider>
+          </NotificationsProvider>
+        </ExpensesProvider>
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
+
+

@@ -1,18 +1,21 @@
 import jwt from "jsonwebtoken";
 
+const JWT_SECRET = process.env.JWT_SECRET || "oybek-system-jwt-secret-key-30d-auth-token";
+
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
 
   if (!token) {
-    return res.status(401).json({ error: "Token berilmagan" });
+    return res.status(401).json({ error: "Token berilmagan (Avtorizatsiya talab qilinadi)", code: "AUTH_REQUIRED" });
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Token yaroqsiz yoki muddati o'tgan" });
+    return res.status(401).json({ error: "Token yaroqsiz yoki muddati o'tgan", code: "TOKEN_EXPIRED" });
   }
 }
+

@@ -1,24 +1,30 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Menu, Home, Wallet, SlidersHorizontal, HandCoins, PlusCircle } from "lucide-react";
+import { Menu, Home, Wallet, SlidersHorizontal, HandCoins, PlusCircle, Bell } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
 import OfflineIndicator from "../OfflineIndicator.jsx";
+import { useNotifications } from "../../context/NotificationsContext.jsx";
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { unreadCount } = useNotifications();
 
   const isHome = location.pathname === "/";
   const isMoney = location.pathname === "/money";
+  const isHistory = location.pathname === "/history" || location.pathname === "/transactions";
   const isDebts = location.pathname === "/debts";
   const isControl = location.pathname === "/control";
   const isExercises = location.pathname === "/exercises";
+  const isNotifications = location.pathname === "/notifications";
   const isSettings = location.pathname === "/settings";
 
   const getPageTag = () => {
     if (isHome) return "Bosh sahifa";
     if (isMoney) return "Money manager";
+    if (isHistory) return "Tranzaksiyalar tarixi";
     if (isDebts) return "Qarz daftari";
+    if (isNotifications) return "Bildirishnomalar";
     if (isControl) return "Boshqaruv paneli";
     if (isExercises) return "Mashqlar";
     if (isSettings) return "Sozlamalar & DB";
@@ -43,6 +49,17 @@ export default function Layout({ children }) {
 
         <div className="mobile-header__actions">
           <NavLink
+            to="/notifications"
+            className="mobile-header__btn-quick mobile-header__btn-notif"
+            title="Bildirishnomalar"
+            aria-label="Bildirishnomalar"
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="mobile-header__notif-badge">{unreadCount}</span>
+            )}
+          </NavLink>
+          <NavLink
             to="/money"
             className="mobile-header__btn-quick"
             title="Yangi amal kiritish"
@@ -60,6 +77,7 @@ export default function Layout({ children }) {
           </button>
         </div>
       </header>
+
 
       {/* Sidebar / Drawer */}
       <Sidebar

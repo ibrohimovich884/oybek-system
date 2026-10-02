@@ -288,9 +288,14 @@ export function ExpensesProvider({ children }) {
     };
   }, [initialWallets, expenses, reserves, rateInfo]);
 
-  // Faqat oddiy (zaxira bo'lmagan) tranzaksiyalar ro'yxati (Home va Money Manager uchun)
+  // Faqat oddiy (zaxira bo'lmagan) tranzaksiyalar ro'yxati (Home, History va Money Manager uchun)
   const regularExpenses = useMemo(() => {
     return (expenses || []).filter((e) => !isReserveTransaction(e));
+  }, [expenses]);
+
+  // Faqat zaxira hisoblari bilan bog'liq maxfiy o'tkazmalar (Faqat Control Panel uchun)
+  const reserveTransactions = useMemo(() => {
+    return (expenses || []).filter((e) => isReserveTransaction(e));
   }, [expenses]);
 
   const addExpense = useCallback(
@@ -681,6 +686,7 @@ export function ExpensesProvider({ children }) {
   const value = {
     expenses,
     regularExpenses,
+    reserveTransactions,
     isReserveTransaction,
     initialWallets,
     reserves,

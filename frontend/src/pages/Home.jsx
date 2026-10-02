@@ -1,38 +1,30 @@
 import { Link } from "react-router-dom";
 import { useExpenses } from "../context/ExpensesContext.jsx";
-import { formatSum, formatDollar, formatDateTime } from "../utils/format.js";
+import { useNotifications } from "../context/NotificationsContext.jsx";
+import { formatSum, formatDollar } from "../utils/format.js";
 import {
-  Wallet,
-  CreditCard,
-  Banknote,
-  BadgeDollarSign,
-  ArrowRight,
   PlusCircle,
-  PieChart,
   HandCoins,
-  History,
-  ArrowRightLeft,
   SlidersHorizontal,
+  PieChart,
+  TrendingDown,
+  TrendingUp,
+  ArrowRight,
+  Activity,
+  Layers,
+  Bell,
+  AlertTriangle,
 } from "lucide-react";
-import {
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  WALLET_CONFIG,
-} from "../constants/money.js";
-import CategoryIcon from "../components/money-manager/CategoryIcon.jsx";
-
-const CATEGORY_MAP = {};
-[...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].forEach((c) => {
-  CATEGORY_MAP[c.id] = c;
-});
-if (CATEGORY_MAP["Qorin uchun"]) {
-  CATEGORY_MAP["Oziq-ovqat"] = CATEGORY_MAP["Qorin uchun"];
-}
 
 export default function Home() {
-  const { currentBalances, regularExpenses, expenses } = useExpenses();
-  const txList = regularExpenses || (expenses || []).filter((e) => !e.fromWallet?.includes("reserve") && !e.toWallet?.includes("reserve"));
-  const recentExpenses = txList.slice(0, 5);
+  const { currentBalances, debts } = useExpenses();
+  const { notifications, unreadCount } = useNotifications();
+
+  const pendingDebtsCount = (debts || []).filter((d) => d.status !== "settled").length;
+
+  const urgentNotification = notifications.find(
+    (n) => !n.isRead && n.priority === "high"
+  ) || notifications.find((n) => !n.isRead);
 
   const todayStr = new Date().toLocaleDateString("uz-UZ", {
     weekday: "long",
@@ -40,21 +32,64 @@ export default function Home() {
     month: "long",
   });
 
+  const netFlowUZS = (currentBalances.totalIncomeUZS || 0) - (currentBalances.totalExpenseUZS || 0);
+
   return (
-    <div className="home-page">
+    <div className="home-page home-page--minimal">
       {/* Sarlavha qismi */}
       <div className="home-header">
         <div className="home-header__top">
           <span className="home-header__date">{todayStr}</span>
-          <h1 className="page-title">Bosh sahifa</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="page-title">Bosh sahifa</h1>
+            <Link
+              to="/notifications"
+              className="home-header__notif-btn"
+              title="Bildirishnomalar markazi"
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="home-header__notif-pill">{unreadCount}</span>
+              )}
+            </Link>
+          </div>
           <p className="page-subtitle">
-            Shaxsiy moliyaviy hisob-kitoblar, hamyonlar va qarzlar holati
+            Shaxsiy moliyaviy hisob-kitoblar va tizim umumiy holati
           </p>
         </div>
       </div>
 
-      {/* Tezkor harakatlar (Quick actions) - 375px ga to'liq mos 2x2 grid */}
-      <div className="home-quick-actions">
+      {/* Muhim / yangi bildirishnoma mavjud bo'lsa yuqorida mini banner */}
+      {urgentNotification && (
+        <Link
+          to={urgentNotification.actionUrl || "/notifications"}
+          className={`home-notif-banner ${
+            urgentNotification.priority === "high"
+              ? "home-notif-banner--high"
+              : ""
+          }`}
+        >
+          <div className="home-notif-banner__icon">
+            {urgentNotification.priority === "high" ? (
+              <AlertTriangle size={17} />
+            ) : (
+              <Bell size={17} />
+            )}
+          </div>
+          <div className="home-notif-banner__content">
+            <span className="home-notif-banner__title">
+              {urgentNotification.title}
+            </span>
+            <span className="home-notif-banner__desc">
+              {urgentNotification.message}
+            </span>
+          </div>
+          <ArrowRight size={15} className="home-notif-banner__arrow" />
+        </Link>
+      )}
+
+      {/* Tezkor harakatlar (Quick actions) - 375px+ ekranlarga to'liq mos */}
+      <div className="home-quick-actions home-quick-actions--minimal">
         <Link to="/money" className="quick-action-card">
           <div className="quick-action-card__icon quick-action-card__icon--primary">
             <PlusCircle size={20} />
@@ -62,6 +97,30 @@ export default function Home() {
           <div className="quick-action-card__text">
             <span className="quick-action-card__title">Amal kiritish</span>
             <span className="quick-action-card__sub">Xarajat / kirim</span>
+          </div>
+        </Link>
+
+        <Link to="/debts" className="quick-action-card">
+          <div className="quick-action-card__icon quick-action-card__icon--debts">
+            <HandCoins size={20} />
+          </div>
+          <div className="quick-action-card__text">
+            <span className="quick-action-card__title">Qarz daftari</span>
+            <span className="quick-action-card__sub">
+              {pendingDebtsCount > 0 ? `${pendingDebtsCount} ta kutilayotgan` : "Barcha qarzlar"}
+            </span>
+          </div>
+        </Link>
+
+        <Link to="/notifications" className="quick-action-card">
+          <div className="quick-action-card__icon quick-action-card__icon--warning">
+            <Bell size={20} />
+          </div>
+          <div className="quick-action-card__text">
+            <span className="quick-action-card__title">Bildirishnomalar</span>
+            <span className="quick-action-card__sub">
+              {unreadCount > 0 ? `${unreadCount} ta yangi xabar` : "Barcha eslatmalar"}
+            </span>
           </div>
         </Link>
 
@@ -74,217 +133,79 @@ export default function Home() {
             <span className="quick-action-card__sub">Zaxiralar & Kurs</span>
           </div>
         </Link>
-
-        <Link to="/debts" className="quick-action-card">
-          <div className="quick-action-card__icon quick-action-card__icon--debts">
-            <HandCoins size={20} />
-          </div>
-          <div className="quick-action-card__text">
-            <span className="quick-action-card__title">Qarz daftari</span>
-            <span className="quick-action-card__sub">Kutilayotgan pullar</span>
-          </div>
-        </Link>
-
-        <Link to="/money" className="quick-action-card">
-          <div className="quick-action-card__icon quick-action-card__icon--info">
-            <PieChart size={20} />
-          </div>
-          <div className="quick-action-card__text">
-            <span className="quick-action-card__title">Tahlil</span>
-            <span className="quick-action-card__sub">Statistika & hisobot</span>
-          </div>
-        </Link>
       </div>
 
-      {/* Moliyaviy umumiy ko'rinish (Kundalik erkin) */}
+
+      {/* Umumiy kirim-chiqim oqimi (Yagona asosiy sarhisob) */}
       <section className="home-section">
-        <div className="section-header-row">
-          <div>
-            <h2 className="section-title">Moliya holati (Kundalik)</h2>
-            <span className="section-desc">Erkin foydalanishdagi qoldiqlar</span>
-          </div>
-          <Link to="/money" className="btn btn--subtle btn--sm">
-            <span>Money manager</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        <div className="wallet-grid wallet-grid--home">
-          {/* Hamyon */}
-          <div className="wallet-card wallet-card--hamyon">
-            <div className="wallet-card__header">
-              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--hamyon">
-                <Wallet size={17} />
-              </div>
-              <span className="wallet-card__label">Hamyon</span>
+        <div className="home-flow-card home-flow-card--hero">
+          <div className="home-flow-card__header">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className="text-accent" />
+              <span className="home-flow-card__title">Umumiy mablag' oqimi</span>
             </div>
-            <div className="wallet-card__amount mono">
-              {formatSum(currentBalances.hamyon)}
-            </div>
-            <div className="wallet-card__footer">
-              <span className="field-hint">Kundalik erkin</span>
-            </div>
-          </div>
-
-          {/* Naqd pul */}
-          <div className="wallet-card wallet-card--naqd">
-            <div className="wallet-card__header">
-              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--naqd">
-                <Banknote size={17} />
-              </div>
-              <span className="wallet-card__label">Naqd pul</span>
-            </div>
-            <div className="wallet-card__amount mono">
-              {formatSum(currentBalances.naqd)}
-            </div>
-            <div className="wallet-card__footer">
-              <span className="field-hint">Kundalik naqd</span>
-            </div>
-          </div>
-
-          {/* Plastik karta */}
-          <div className="wallet-card wallet-card--karta">
-            <div className="wallet-card__header">
-              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--karta">
-                <CreditCard size={17} />
-              </div>
-              <span className="wallet-card__label">Plastik karta</span>
-            </div>
-            <div className="wallet-card__amount mono">
-              {formatSum(currentBalances.karta)}
-            </div>
-            <div className="wallet-card__footer">
-              <span className="field-hint">Uzcard / Humo</span>
-            </div>
-          </div>
-
-          {/* Dollar */}
-          <div className="wallet-card wallet-card--dollar">
-            <div className="wallet-card__header">
-              <div className="wallet-card__icon-wrapper wallet-card__icon-wrapper--dollar">
-                <BadgeDollarSign size={17} />
-              </div>
-              <span className="wallet-card__label">AQSH Dollari</span>
-            </div>
-            <div className="wallet-card__amount mono">
-              {formatDollar(currentBalances.dollar)}
-            </div>
-            <div className="wallet-card__footer">
-              <span className="field-hint">Valyuta hisobi</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Oxirgi amallar (Mobil 375px ga to'liq mos ro'yxat) */}
-      <section className="home-section">
-        <div className="section-header-row">
-          <div className="flex items-center gap-2">
-            <History size={16} className="text-muted" />
-            <h2 className="section-title">So'nggi amallar</h2>
-          </div>
-          {txList.length > 0 && (
-            <Link to="/money" className="btn btn--ghost btn--sm">
-              <span>Barchasi ({txList.length})</span>
-              <ArrowRight size={14} />
-            </Link>
-          )}
-        </div>
-
-        {recentExpenses.length === 0 ? (
-          <div className="home-empty-card">
-            <p>Hozircha xarajat yoki daromadlar kiritilmagan.</p>
-            <Link to="/money" className="btn btn--primary">
-              <PlusCircle size={15} />
-              <span>Birinchi amalni kiritish</span>
+            <Link to="/money" className="btn btn--subtle btn--xs">
+              <span>Money manager</span>
+              <ArrowRight size={12} />
             </Link>
           </div>
-        ) : (
-          <div className="home-recent-feed">
-            {recentExpenses.map((expense) => {
-              const isIncome = expense.type === "income";
-              const isTransfer = expense.type === "transfer";
-              const catObj = CATEGORY_MAP[expense.category] || {
-                label: expense.category || "Boshqa",
-                icon: "Package",
-              };
-              const paymentMethod = expense.paymentMethod || expense.wallet || "naqd";
-              const walletInfo = WALLET_CONFIG[paymentMethod] || WALLET_CONFIG.naqd;
 
-              return (
-                <div key={expense.id} className="home-tx-item">
-                  <div className="home-tx-icon-col">
-                    {isTransfer ? (
-                      <div className="home-tx-icon home-tx-icon--transfer">
-                        <ArrowRightLeft size={16} />
-                      </div>
-                    ) : catObj.emoji ? (
-                      <div className="home-tx-icon home-tx-icon--emoji">
-                        <span>{catObj.emoji}</span>
-                      </div>
-                    ) : (
-                      <div className="home-tx-icon">
-                        <CategoryIcon iconName={catObj.icon} size={16} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="home-tx-info">
-                    <div className="home-tx-title-row">
-                      <span className="home-tx-title">
-                        {expense.reason || catObj.label}
-                      </span>
-                    </div>
-                    <div className="home-tx-meta">
-                      <span className="home-tx-date">{formatDateTime(expense.spentAt)}</span>
-                      <span className="home-tx-dot">·</span>
-                      {isTransfer ? (
-                        <span className="home-tx-badge home-tx-badge--transfer">
-                          {WALLET_CONFIG[expense.fromWallet]?.shortLabel || "Karta"} → {WALLET_CONFIG[expense.toWallet]?.shortLabel || "Naqd"}
-                        </span>
-                      ) : (
-                        <span className={`home-tx-badge home-tx-badge--${paymentMethod}`}>
-                          {walletInfo.shortLabel}
-                        </span>
-                      )}
-                      {expense.subcategory && (
-                        <>
-                          <span className="home-tx-dot">·</span>
-                          <span className="home-tx-subcat">{expense.subcategory}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div
-                    className={`home-tx-amount mono ${
-                      isIncome
-                        ? "home-tx-amount--income"
-                        : isTransfer
-                        ? "home-tx-amount--transfer"
-                        : "home-tx-amount--expense"
-                    }`}
-                  >
-                    <span>
-                      {isIncome ? "+" : isTransfer ? "⇄ " : "-"}
-                      {expense.currency === "USD" || paymentMethod === "dollar"
-                        ? formatDollar(expense.amount)
-                        : formatSum(expense.amount)}
-                    </span>
-                  </div>
+          <div className="home-flow-card__body home-flow-card__body--grid">
+            {/* Jami tushum */}
+            <div className="home-flow-stat home-flow-stat--income">
+              <div className="home-flow-stat__label">
+                <TrendingUp size={15} />
+                <span>Jami tushum (Kirim)</span>
+              </div>
+              <div className="home-flow-stat__value mono">
+                +{formatSum(currentBalances.totalIncomeUZS || 0)}
+              </div>
+              {currentBalances.totalIncomeUSD > 0 && (
+                <div className="home-flow-stat__sub mono">
+                  +{formatDollar(currentBalances.totalIncomeUSD)}
                 </div>
-              );
-            })}
+              )}
+            </div>
 
-            <div className="home-recent-feed__footer">
-              <Link to="/money" className="home-view-all-link">
-                <span>Money Managerda barcha amallarni ko'rish</span>
-                <ArrowRight size={14} />
-              </Link>
+            {/* Jami xarajat */}
+            <div className="home-flow-stat home-flow-stat--expense">
+              <div className="home-flow-stat__label">
+                <TrendingDown size={15} />
+                <span>Jami xarajat (Chiqim)</span>
+              </div>
+              <div className="home-flow-stat__value mono">
+                -{formatSum(currentBalances.totalExpenseUZS || 0)}
+              </div>
+              {currentBalances.totalExpenseUSD > 0 && (
+                <div className="home-flow-stat__sub mono">
+                  -{formatDollar(currentBalances.totalExpenseUSD)}
+                </div>
+              )}
+            </div>
+
+            {/* Sof farq / Balans oqimi */}
+            <div className="home-flow-stat home-flow-stat--net">
+              <div className="home-flow-stat__label">
+                <Layers size={15} />
+                <span>Sof farq (Qoldiq oqimi)</span>
+              </div>
+              <div className={`home-flow-stat__value mono ${netFlowUZS >= 0 ? "text-income" : "text-expense"}`}>
+                {netFlowUZS >= 0 ? "+" : ""}{formatSum(netFlowUZS)}
+              </div>
+              <div className="home-flow-stat__sub text-muted">
+                {netFlowUZS >= 0 ? "Ijobiy balans" : "Xarajat ustun"}
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </section>
+
+      {/* Pastki qism: Ilova versiyasi 1.1v */}
+      <footer className="home-footer-version">
+        <span className="home-version-pill">
+          OYBEK SysteM · versiya 1.1v
+        </span>
+      </footer>
     </div>
   );
 }

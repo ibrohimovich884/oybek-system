@@ -112,9 +112,11 @@ class ApiClient {
     const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
     try {
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("oybek_jwt_token") : null;
       const headers = {
         "Content-Type": "application/json",
         Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       };
 
@@ -127,6 +129,13 @@ class ApiClient {
       clearTimeout(timeout);
 
       if (!res.ok) {
+        // Agar 401 xatosi kelsa va auth/login bo'lmasa, sessiya tugaganini bildiramiz
+        if (res.status === 401 && !fullUrl.includes("/api/auth/login")) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("oybek-auth-expired"));
+          }
+        }
+
         const errorText = await res.text().catch(() => "");
         let message = errorText;
         try {

@@ -11,8 +11,12 @@ import {
   Sparkles,
   Info,
   Check,
+  Clock,
+  LogOut,
+  Key,
 } from "lucide-react";
 import { useSecurity } from "../../context/SecurityContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import SecurityGate from "./SecurityGate.jsx";
 
 export default function SecuritySettingsTab() {
@@ -25,6 +29,8 @@ export default function SecuritySettingsTab() {
     lockScope,
     isUnlocked,
   } = useSecurity();
+
+  const { logout, daysRemaining, expiresAt } = useAuth();
 
   // Parol o'zgartirish formasi
   const [currentPinInput, setCurrentPinInput] = useState("");
@@ -242,6 +248,95 @@ export default function SecuritySettingsTab() {
             </button>
           </div>
         )}
+
+        {/* 1 oylik JWT Sessiya Holati va Boshqaruvi */}
+        <div className="security-settings-card" style={{ border: "1px solid rgba(52, 211, 153, 0.35)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Clock size={18} color="#34d399" />
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#f5f3ec" }}>
+                  1 Oylik Xavfsiz JWT Sessiya
+                </h3>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                Tizim JWT Bearer token va shaxsiy maxfiy parol bilan toʻliq himoyalangan.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn--subtle btn--sm"
+              onClick={() => {
+                if (window.confirm("Tizimdan chiqishni tasdiqlaysizmi? Qaytadan kirish uchun parol so'raladi.")) {
+                  logout();
+                }
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                background: "rgba(239, 68, 68, 0.15)",
+                borderColor: "rgba(239, 68, 68, 0.35)",
+                color: "#fca5a5",
+              }}
+              title="Tizimdan chiqish"
+            >
+              <LogOut size={14} />
+              <span>Tizimdan chiqish</span>
+            </button>
+          </div>
+
+          <div className="settings-kpi-grid-4" style={{ marginTop: 14 }}>
+            <div className="settings-kpi-box">
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>
+                JWT Token:
+              </span>
+              <strong style={{ fontSize: "0.92rem", color: "#34d399", display: "block", marginTop: 3 }}>
+                Faol (Bearer)
+              </strong>
+              <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                Shifrlangan imzo
+              </span>
+            </div>
+
+            <div className="settings-kpi-box">
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>
+                Sessiya muddati:
+              </span>
+              <strong className="mono" style={{ fontSize: "0.92rem", color: "var(--text)", display: "block", marginTop: 3 }}>
+                30 kun (1 oy)
+              </strong>
+              <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                Avtomatik yangilanadi
+              </span>
+            </div>
+
+            <div className="settings-kpi-box">
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>
+                Qolgan vaqt:
+              </span>
+              <strong className="mono" style={{ fontSize: "0.92rem", color: "#34d399", display: "block", marginTop: 3 }}>
+                ~{daysRemaining} kun
+              </strong>
+              <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                Avto-logout gacha
+              </span>
+            </div>
+
+            <div className="settings-kpi-box">
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>
+                Himoya Kaliti:
+              </span>
+              <strong style={{ fontSize: "0.85rem", color: "var(--text)", display: "block", marginTop: 3 }}>
+                ••••••••
+              </strong>
+              <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                Maxfiy tizim paroli
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Asosiy forma: Parolni tahrirlash (Edit PIN) */}
         <div className="security-settings-card">

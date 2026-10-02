@@ -2,21 +2,29 @@ import { NavLink } from "react-router-dom";
 import {
   Home,
   Wallet,
+  History,
   SlidersHorizontal,
   HandCoins,
   Dumbbell,
   Settings,
+  Bell,
   X,
   Database,
   RefreshCw,
   Lock,
+  LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { useSecurity } from "../../context/SecurityContext.jsx";
+import { useNotifications } from "../../context/NotificationsContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { syncStatus, debts } = useExpenses();
+  const { syncStatus, debts, regularExpenses } = useExpenses();
   const { isUnlocked } = useSecurity();
+  const { unreadCount } = useNotifications();
+  const { logout, daysRemaining } = useAuth();
 
   const isControlUnlocked = isUnlocked("control_panel");
 
@@ -24,15 +32,30 @@ export default function Sidebar({ isOpen, onClose }) {
     (d) => d.status !== "settled"
   ).length;
 
+  const regularTxCount = (regularExpenses || []).length;
+
   const navItems = [
     { to: "/", label: "Bosh sahifa", icon: Home },
     { to: "/money", label: "Money manager", icon: Wallet },
+    {
+      to: "/history",
+      label: "Tranzaksiyalar tarixi",
+      icon: History,
+      badge: regularTxCount > 0 ? `${regularTxCount}` : null,
+    },
     {
       to: "/debts",
       label: "Qarz daftari",
       icon: HandCoins,
       badge: pendingDebtsCount > 0 ? `${pendingDebtsCount}` : null,
       badgeType: pendingDebtsCount > 0 ? "info" : null,
+    },
+    {
+      to: "/notifications",
+      label: "Bildirishnomalar",
+      icon: Bell,
+      badge: unreadCount > 0 ? `${unreadCount}` : null,
+      badgeType: unreadCount > 0 ? "warning" : null,
     },
     {
       to: "/control",
@@ -50,6 +73,7 @@ export default function Sidebar({ isOpen, onClose }) {
       badgeType: syncStatus?.pendingCount > 0 ? "warning" : null,
     },
   ];
+
 
   return (
     <>
@@ -173,6 +197,50 @@ export default function Sidebar({ isOpen, onClose }) {
               </span>
             </div>
           </NavLink>
+
+          {/* 1 oylik JWT Sessiya & Chiqish tugmasi */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "8px 10px",
+              marginTop: 6,
+              background: "rgba(16, 185, 129, 0.08)",
+              border: "1px solid rgba(52, 211, 153, 0.2)",
+              borderRadius: 8,
+              fontSize: "0.74rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#34d399" }}>
+              <ShieldCheck size={14} />
+              <span>Sessiya: {daysRemaining > 0 ? `${daysRemaining} kun` : "1 oy"}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Tizimdan chiqishni xohlaysizmi?")) {
+                  logout();
+                  if (onClose) onClose();
+                }
+              }}
+              className="btn btn--ghost btn--xs"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                color: "rgba(245, 243, 236, 0.65)",
+                padding: "3px 7px",
+                fontSize: "0.72rem",
+                cursor: "pointer",
+              }}
+              title="Tizimdan chiqish"
+            >
+              <LogOut size={13} />
+              <span>Chiqish</span>
+            </button>
+          </div>
         </div>
       </aside>
     </>

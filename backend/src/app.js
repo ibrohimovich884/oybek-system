@@ -13,6 +13,7 @@ import exercisesRouter from "./routes/exercises.js";
 import exchangeRateRouter from "./routes/exchangeRate.js";
 import backupRouter from "./routes/backup.js";
 import snapshotRouter from "./routes/snapshot.js";
+import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
 
@@ -20,21 +21,18 @@ app.use(cors());
 // Backup butun tranzaksiyalar tarixini yuboradi — default 100kb yetmaydi (413 xatosi)
 app.use(express.json({ limit: "10mb" }));
 
+// Ochiq yo'llar (Health va Login)
 app.use("/api/health", healthRouter);
-
-// Login tayyor turibdi (kelajakda frontendga auth qo'shilganda
-// requireAuth middleware'ni pastdagi route'larga qo'shish kifoya).
 app.use("/api/auth", authRouter);
 
-// ESLATMA: hozirgi frontend (1.zip) Authorization header umuman
-// yubormaydi — shuning uchun bu route'lar hozircha OCHIQ.
-app.use("/api/expenses", expensesRouter);
-app.use("/api/wallets", walletsRouter);
-app.use("/api/debts", debtsRouter);
-app.use("/api/exercises", exercisesRouter);
-app.use("/api/exchange-rate", exchangeRateRouter);
-app.use("/api/backup", backupRouter);
-app.use("/api/snapshot", snapshotRouter);
+// JWT bilan himoyalangan API yo'llari (30 kunlik sessiya)
+app.use("/api/expenses", requireAuth, expensesRouter);
+app.use("/api/wallets", requireAuth, walletsRouter);
+app.use("/api/debts", requireAuth, debtsRouter);
+app.use("/api/exercises", requireAuth, exercisesRouter);
+app.use("/api/exchange-rate", requireAuth, exchangeRateRouter);
+app.use("/api/backup", requireAuth, backupRouter);
+app.use("/api/snapshot", requireAuth, snapshotRouter);
 
 // /api/... dagi noma'lum yo'llar — JSON 404 (frontend HTML bilan aralashmasin)
 app.use("/api", (req, res) => {
