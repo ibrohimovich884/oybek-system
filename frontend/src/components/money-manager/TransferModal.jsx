@@ -248,22 +248,61 @@ export default function TransferModal({ initialFrom = "hamyon", initialTo = "naq
               </div>
             )}
 
-            {/* Tezkor summa tugmalari */}
-            <div className="quick-amount-chips" style={{ marginTop: 8 }}>
-              {(isFromDollar ? [10, 20, 50, 100] : [10000, 50000, 100000, 200000]).map((val) => (
+            {/* Tezkor summa tugmalari (Kichik chiplar) */}
+            <div className="quick-amount-chips" style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(isFromDollar
+                ? [
+                    { val: 5, label: "$5" },
+                    { val: 10, label: "$10" },
+                    { val: 15, label: "$15" },
+                    { val: 20, label: "$20" },
+                    { val: 50, label: "$50" },
+                    { val: 100, label: "$100" },
+                  ]
+                : [
+                    { val: 5000, label: "5 000" },
+                    { val: 10000, label: "10 000" },
+                    { val: 15000, label: "15 000" },
+                    { val: 20000, label: "20 000" },
+                    { val: 50000, label: "50 000" },
+                    { val: 100000, label: "100 000" },
+                  ]
+              ).map((item) => (
                 <button
-                  key={val}
+                  key={item.val}
                   type="button"
-                  className="quick-amount-chip mono"
-                  onClick={() => addQuickAmount(val)}
+                  className={`quick-chip-btn ${Number(amount) === item.val ? "is-active" : ""}`}
+                  onClick={() => setAmount(String(item.val))}
                 >
-                  +{isFromDollar ? `$${val}` : formatSum(val).replace(" so'm", "")}
+                  {item.label}
                 </button>
               ))}
+
+              {amount && (
+                <>
+                  <button
+                    type="button"
+                    className="quick-chip-btn quick-chip-btn--add"
+                    onClick={() => addQuickAmount(isFromDollar ? 5 : 5000)}
+                    title={isFromDollar ? "+$5 qo'shish" : "+5 000 so'm qo'shish"}
+                  >
+                    +{isFromDollar ? "$5" : "5k"}
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip-btn quick-chip-btn--clear"
+                    onClick={() => setAmount("")}
+                    title="Summani tozalash"
+                  >
+                    Tozalash ✕
+                  </button>
+                </>
+              )}
+
               {fromBalance > 0 && (
                 <button
                   type="button"
-                  className="quick-amount-chip quick-amount-chip--all mono"
+                  className="quick-chip-btn quick-chip-btn--all"
                   onClick={() => setAmount(String(fromBalance))}
                 >
                   Barchasi ({isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance).replace(" so'm", "")})

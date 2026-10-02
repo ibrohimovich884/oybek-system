@@ -76,6 +76,16 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
     });
   };
 
+  const handleQuickAmountClick = (val) => {
+    if (!amount || Number(amount) === 0) {
+      setAmount(String(val));
+    } else if (Number(amount) === val) {
+      setAmount(String(val * 2));
+    } else {
+      setAmount(String(val));
+    }
+  };
+
   const handleCategorySelect = (catId) => {
     setCategory(catId);
     const catObj = categories.find((c) => c.id === catId);
@@ -157,24 +167,47 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
     }
   };
 
+  const isDollarCurrency = type === "transfer" ? fromWallet === "dollar" : paymentMethod === "dollar";
+
+  const quickChips = isDollarCurrency
+    ? [
+        { val: 5, label: "$5" },
+        { val: 10, label: "$10" },
+        { val: 15, label: "$15" },
+        { val: 20, label: "$20" },
+        { val: 50, label: "$50" },
+        { val: 100, label: "$100" },
+      ]
+    : [
+        { val: 5000, label: "5 000" },
+        { val: 10000, label: "10 000" },
+        { val: 15000, label: "15 000" },
+        { val: 20000, label: "20 000" },
+        { val: 50000, label: "50 000" },
+        { val: 100000, label: "100 000" },
+      ];
+
   return (
     <div className="expense-panel">
-      {/* Tezkor shablonlar (Quick chips) */}
-      <div className="quick-templates">
-        <div className="quick-templates__title">
-          <Sparkles size={14} />
-          <span>Tezkor shablonlar:</span>
+      {/* Tezkor shablonlar (Ixcham mini-chiplar) */}
+      <div className="quick-templates-bar">
+        <div className="quick-templates-bar__header">
+          <div className="quick-templates-bar__title">
+            <Sparkles size={13} />
+            <span>Tezkor shablonlar:</span>
+          </div>
         </div>
-        <div className="quick-templates__list">
+        <div className="quick-templates-bar__list">
           {QUICK_TEMPLATES.map((tmpl, idx) => (
             <button
               key={idx}
               type="button"
-              className="quick-chip"
+              className="quick-template-chip-mini"
               onClick={() => handleApplyTemplate(tmpl)}
+              title={`${tmpl.name || tmpl.label} (${tmpl.amount.toLocaleString()} so'm)`}
             >
               <span>{tmpl.label}</span>
-              <span className="quick-chip__wallet">
+              <span className="quick-template-chip-mini__method">
                 {(tmpl.paymentMethod || tmpl.wallet) === "naqd" ? "Naqd" : "Karta"}
               </span>
             </button>
@@ -427,32 +460,65 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
           </div>
         )}
 
-        {/* Tezkor summa qo'shish qatori */}
+        {/* Tezkor summa tanlash (Telefon uchun qulay, kichik chiplar) */}
         <div className="quick-amount-row">
-          <span className="quick-amount-label">Tezkor summa:</span>
-          <div className="quick-amount-chips">
-            {(type === "income"
-              ? [50000, 100000, 500000, 1000000, 2000000]
-              : type === "transfer"
-              ? [10000, 50000, 100000, 200000, 500000]
-              : [5000, 10000, 20000, 50000, 100000]
-            ).map((val) => (
+          <div className="quick-amount-row__header">
+            <span className="quick-amount-label">Tezkor summa:</span>
+            {amount && (
               <button
-                key={val}
                 type="button"
-                className="quick-amount-chip mono"
-                onClick={() => addQuickAmount(val)}
+                className="quick-clear-btn"
+                onClick={() => setAmount("")}
+                title="Summani tozalash"
               >
-                +{formatSum(val).replace(" so'm", "")}
+                Tozalash ✕
               </button>
-            ))}
+            )}
+          </div>
+          <div className="quick-amount-chips">
+            {quickChips.map((chip) => {
+              const isSelected = Number(amount) === chip.val;
+              return (
+                <button
+                  key={chip.val}
+                  type="button"
+                  className={`quick-chip-btn ${isSelected ? "is-active" : ""}`}
+                  onClick={() => handleQuickAmountClick(chip.val)}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+
+            {/* Agar summa kiritilgan bo'lsa, tezkor qo'shish tugmalari */}
+            {amount && (
+              <>
+                <button
+                  type="button"
+                  className="quick-chip-btn quick-chip-btn--add"
+                  onClick={() => addQuickAmount(isDollarCurrency ? 5 : 5000)}
+                  title={isDollarCurrency ? "+$5 qo'shish" : "+5 000 so'm qo'shish"}
+                >
+                  +{isDollarCurrency ? "$5" : "5k"}
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip-btn quick-chip-btn--add"
+                  onClick={() => addQuickAmount(isDollarCurrency ? 10 : 10000)}
+                  title={isDollarCurrency ? "+$10 qo'shish" : "+10 000 so'm qo'shish"}
+                >
+                  +{isDollarCurrency ? "$10" : "10k"}
+                </button>
+              </>
+            )}
+
             {type === "transfer" && currentBalances[fromWallet] > 0 && (
               <button
                 type="button"
-                className="quick-amount-chip quick-amount-chip--all mono"
+                className="quick-chip-btn quick-chip-btn--all"
                 onClick={() => setAmount(String(currentBalances[fromWallet]))}
               >
-                Barchasi ({formatSum(currentBalances[fromWallet]).replace(" so'm", "")})
+                Barchasi ({isDollarCurrency ? formatDollar(currentBalances[fromWallet]) : formatSum(currentBalances[fromWallet]).replace(" so'm", "")})
               </button>
             )}
           </div>
@@ -462,22 +528,24 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
         <div className="form-fields-grid">
           <div className="expense-form__field">
             <label htmlFor={amountId} className="expense-form__label">
-              Miqdor (amount) <span className="field-required">*</span>
+              Miqdor ({isDollarCurrency ? "USD $" : "so'm"}) <span className="field-required">*</span>
             </label>
             <div className="input-with-preview">
               <input
                 id={amountId}
                 type="number"
-                min="1"
+                min={isDollarCurrency ? "0.01" : "1"}
                 step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Masalan: 10000"
+                placeholder={isDollarCurrency ? "Masalan: 15" : "Masalan: 10000"}
                 className="expense-form__input mono expense-form__input--amount"
                 required
               />
               {amount ? (
-                <span className="amount-preview mono">{formatSum(Number(amount))}</span>
+                <span className="amount-preview mono">
+                  {isDollarCurrency ? formatDollar(Number(amount)) : formatSum(Number(amount))}
+                </span>
               ) : null}
             </div>
           </div>

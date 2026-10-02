@@ -335,7 +335,9 @@ export const INCOME_CATEGORIES = [
 
 export const QUICK_TEMPLATES = [
   {
-    label: "Flesh (10 000)",
+    label: "⚡ Flesh 10k",
+    emoji: "⚡",
+    name: "Flesh",
     type: "expense",
     amount: 10000,
     quantity: 1,
@@ -347,7 +349,9 @@ export const QUICK_TEMPLATES = [
     location: "Gulbahordagi Havas",
   },
   {
-    label: "Tushlik (25 000)",
+    label: "🍲 Tushlik 25k",
+    emoji: "🍲",
+    name: "Tushlik",
     type: "expense",
     amount: 25000,
     quantity: 1,
@@ -359,7 +363,9 @@ export const QUICK_TEMPLATES = [
     location: "Oshxona",
   },
   {
-    label: "Yo'l kira (3 000)",
+    label: "🚌 Yo'l 3k",
+    emoji: "🚌",
+    name: "Yo'l",
     type: "expense",
     amount: 3000,
     quantity: 1,
@@ -371,7 +377,9 @@ export const QUICK_TEMPLATES = [
     location: "Transport",
   },
   {
-    label: "Qahva (15 000)",
+    label: "☕ Qahva 15k",
+    emoji: "☕",
+    name: "Qahva",
     type: "expense",
     amount: 15000,
     quantity: 1,
@@ -383,7 +391,9 @@ export const QUICK_TEMPLATES = [
     location: "Kofe bar",
   },
   {
-    label: "Keshbek (5 000)",
+    label: "✨ Keshbek 5k",
+    emoji: "✨",
+    name: "Keshbek",
     type: "income",
     amount: 5000,
     quantity: 1,

@@ -4507,7 +4507,7 @@ textarea.field-input {
   color: var(--text);
 }
 
-/* Quick chip buttons in modals */
+/* Quick chip buttons in modals and forms */
 .quick-chip-btn {
   font-size: 0.74rem;
   font-weight: 600;
@@ -4519,6 +4519,8 @@ textarea.field-input {
   border-radius: 9999px;
   cursor: pointer;
   transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
 }
 
 .quick-chip-btn:hover,
@@ -4526,6 +4528,160 @@ textarea.field-input {
   background: var(--accent-soft);
   color: var(--accent);
   border-color: var(--accent-border);
+}
+
+.quick-chip-btn.is-active {
+  background: var(--accent);
+  color: #fff !important;
+  border-color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(78, 184, 150, 0.35);
+}
+
+.quick-chip-btn--add {
+  background: var(--surface);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.quick-chip-btn--add:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.quick-chip-btn--clear {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--expense);
+}
+
+.quick-chip-btn--clear:hover {
+  background: var(--expense);
+  color: #fff;
+}
+
+.quick-chip-btn--all {
+  background: var(--transfer-soft);
+  border-color: var(--transfer-border);
+  color: var(--transfer);
+  font-weight: 700;
+}
+
+.quick-chip-btn--all:hover {
+  background: var(--transfer);
+  color: #fff;
+}
+
+/* Quick templates bar in Money Manager */
+.quick-templates-bar {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  margin-bottom: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.quick-templates-bar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quick-templates-bar__title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quick-templates-bar__list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quick-templates-bar__list::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-template-chip-mini {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 9999px;
+  padding: 3px 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.quick-template-chip-mini:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.quick-template-chip-mini:active {
+  transform: translateY(0);
+}
+
+.quick-template-chip-mini__method {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* Quick amount row in form */
+.quick-amount-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: var(--sp-3);
+}
+
+.quick-amount-row__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quick-clear-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.72rem;
+  color: var(--expense);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: all 0.12s ease;
+}
+
+.quick-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  text-decoration: underline;
 }
 
 /* ============================================================
