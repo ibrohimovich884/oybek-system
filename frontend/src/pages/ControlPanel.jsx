@@ -203,8 +203,8 @@ export default function ControlPanel() {
       <div className="cp-header-section">
         <div className="cp-header-top">
           <div className="flex items-center gap-2">
-            <Shield size={20} className="text-accent" />
-            <h1 className="cp-title">Boshqaruv & Zaxiralar Paneli</h1>
+            <Shield size={18} className="text-accent" />
+            <h1 className="cp-title">Boshqaruv</h1>
           </div>
 
           <button
@@ -562,8 +562,8 @@ export default function ControlPanel() {
 
         {/* Qidiruv va Filtrlar */}
         <div className="cp-reserve-filter-bar" style={{ marginTop: 12, marginBottom: 12 }}>
-          <div className="history-search-row">
-            <div className="search-box" style={{ flex: 1 }}>
+          <div className="history-search-row cp-reserve-filter-row">
+            <div className="search-box" style={{ flex: 1, minWidth: 160 }}>
               <Search size={15} className="search-box__icon" />
               <input
                 type="text"
@@ -583,29 +583,29 @@ export default function ControlPanel() {
               )}
             </div>
 
-            <select
-              value={directionFilter}
-              onChange={(e) => setDirectionFilter(e.target.value)}
-              className="filter-select"
-              style={{ minWidth: 140 }}
-            >
-              <option value="all">Barcha yo'nalish</option>
-              <option value="in">Zaxiraga kirim (+)</option>
-              <option value="out">Zaxiradan yechish (-)</option>
-              <option value="cross">Zaxiralararo (⇄)</option>
-            </select>
+            <div className="cp-reserve-selects-wrap">
+              <select
+                value={directionFilter}
+                onChange={(e) => setDirectionFilter(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">Barcha yo'nalish</option>
+                <option value="in">Zaxiraga kirim (+)</option>
+                <option value="out">Zaxiradan yechish (-)</option>
+                <option value="cross">Zaxiralararo (⇄)</option>
+              </select>
 
-            <select
-              value={reserveTypeFilter}
-              onChange={(e) => setReserveTypeFilter(e.target.value)}
-              className="filter-select"
-              style={{ minWidth: 130 }}
-            >
-              <option value="all">Barcha zaxiralar</option>
-              <option value="naqd">Naqd zaxira</option>
-              <option value="karta">Karta zaxira</option>
-              <option value="dollar">Dollar zaxira</option>
-            </select>
+              <select
+                value={reserveTypeFilter}
+                onChange={(e) => setReserveTypeFilter(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">Barcha zaxiralar</option>
+                <option value="naqd">Naqd zaxira</option>
+                <option value="karta">Karta zaxira</option>
+                <option value="dollar">Dollar zaxira</option>
+              </select>
+            </div>
           </div>
         </div>
 

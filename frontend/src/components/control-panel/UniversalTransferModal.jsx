@@ -276,17 +276,17 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
 
           {/* Summa */}
           <div className="form-group transfer-amount-group">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
               <label className="field-label" style={{ margin: 0 }}>
                 O'tkazma summasi ({isFromDollar ? "$" : "so'm"}) <span style={{ color: "var(--expense)" }}>*</span>
               </label>
               {fromBalance > 0 && (
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                   <button
                     type="button"
                     className="btn btn--subtle btn--xs"
                     onClick={() => setAmount(String(isFromDollar ? Number((fromBalance / 2).toFixed(2)) : Math.round(fromBalance / 2)))}
-                    style={{ fontSize: "0.7rem", padding: "2px 7px" }}
+                    style={{ fontSize: "0.72rem", padding: "2px 6px" }}
                   >
                     50%
                   </button>
@@ -294,9 +294,10 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
                     type="button"
                     className="btn btn--subtle btn--xs"
                     onClick={() => setAmount(String(fromBalance))}
-                    style={{ fontSize: "0.7rem", padding: "2px 7px" }}
+                    style={{ fontSize: "0.72rem", padding: "2px 6px" }}
+                    title={`Barchasi: ${isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance)}`}
                   >
-                    Hammasi ({isFromDollar ? formatDollar(fromBalance) : formatSum(fromBalance)})
+                    Barchasi
                   </button>
                 </div>
               )}
@@ -313,6 +314,49 @@ export default function UniversalTransferModal({ initialFrom = "naqd", initialTo
                 required
               />
               <span className="currency-suffix mono">{isFromDollar ? "$" : "so'm"}</span>
+            </div>
+
+            {/* Tezkor summa tanlash chiplari (Telefon uchun juda qulay) */}
+            <div className="quick-amount-chips" style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
+              {(isFromDollar
+                ? [
+                    { val: 5, label: "$5" },
+                    { val: 10, label: "$10" },
+                    { val: 20, label: "$20" },
+                    { val: 50, label: "$50" },
+                    { val: 100, label: "$100" },
+                  ]
+                : [
+                    { val: 5000, label: "5 000" },
+                    { val: 10000, label: "10 000" },
+                    { val: 15000, label: "15 000" },
+                    { val: 20000, label: "20 000" },
+                    { val: 50000, label: "50 000" },
+                    { val: 100000, label: "100 000" },
+                  ]
+              ).map((chip) => {
+                const isActive = Number(amount) === chip.val;
+                return (
+                  <button
+                    key={chip.val}
+                    type="button"
+                    className={`quick-chip-btn ${isActive ? "is-active" : ""}`}
+                    onClick={() => setAmount(String(chip.val))}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+              {amount && (
+                <button
+                  type="button"
+                  className="quick-chip-btn quick-chip-btn--clear"
+                  onClick={() => setAmount("")}
+                  title="Summani tozalash"
+                >
+                  Tozalash
+                </button>
+              )}
             </div>
 
             {amount && numAmount > 0 && (
