@@ -47,11 +47,11 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content"
+        className="modal-content debt-repay-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 460 }}
       >
-        <div className="modal-header">
+        <div className="modal-mobile-handle" />
+        <div className="modal-header debt-modal-header">
           <div>
             <h3 className="modal-title">
               {isGiven ? "Qarz qaytishini yozish" : "Qarzni to'lash"}
@@ -63,13 +63,18 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
               </strong>
             </p>
           </div>
-          <button className="btn-close" onClick={onClose}>
-            <X size={18} />
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Yopish"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-form">
-          {error && <div className="form-error-banner">{error}</div>}
+        <form onSubmit={handleSubmit} className="modal-body debt-modal-form">
+          {error && <div className="feedback-alert feedback-alert--error">{error}</div>}
 
           {/* Summa & Tezkor tugmalar */}
           <div className="form-group">
@@ -78,14 +83,14 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
               <div style={{ display: "flex", gap: 6 }}>
                 <button
                   type="button"
-                  className="btn btn--ghost btn--xs"
+                  className="quick-chip-btn"
                   onClick={() => setAmount(Math.round(remaining / 2))}
                 >
                   50%
                 </button>
                 <button
                   type="button"
-                  className="btn btn--subtle btn--xs"
+                  className="quick-chip-btn quick-chip-btn--all"
                   onClick={() => setAmount(remaining)}
                 >
                   100% (To'liq)
@@ -104,9 +109,10 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 autoFocus
+                required
               />
             </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 4 }}>
+            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 4 }}>
               Jami qarz: <span className="mono">{formatFn(debt.amount)}</span> • To'langan: <span className="mono">{formatFn(totalPaid)}</span>
             </div>
           </div>
@@ -115,7 +121,8 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
           <div className="form-row form-row--2col">
             <div className="form-group">
               <label className="field-label">
-                {isGiven ? "Qaysi hisobga tushdi" : "Qaysi hisobdan to'landi"}
+                <Wallet size={14} style={{ marginRight: 4, display: "inline" }} />
+                <span>{isGiven ? "Qaysi hisobga tushdi" : "Qaysi hisobdan to'landi"}</span>
               </label>
               <select
                 className="field-input"
@@ -150,41 +157,43 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
 
           {/* Sana */}
           <div className="form-group">
-            <label className="field-label">To'lov sanasi</label>
-            <div className="input-with-icon">
-              <Calendar size={16} className="input-icon" />
-              <input
-                type="datetime-local"
-                className="field-input mono"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
+            <label className="field-label">
+              <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
+              <span>To'lov sanasi</span>
+            </label>
+            <input
+              type="datetime-local"
+              className="field-input mono"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
 
           {/* Izoh */}
           <div className="form-group">
-            <label className="field-label">To'lov izohi</label>
-            <div className="input-with-icon">
-              <FileText size={16} className="input-icon" />
-              <input
-                type="text"
-                className="field-input"
-                placeholder="Masalan: Kartaga tashlab berdi, naqd keltirib berdi"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </div>
+            <label className="field-label">
+              <FileText size={14} style={{ marginRight: 4, display: "inline" }} />
+              <span>To'lov izohi</span>
+            </label>
+            <input
+              type="text"
+              className="field-input"
+              placeholder="Masalan: Kartaga tashlab berdi, naqd keltirdi"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
 
-          <div className="modal-actions" style={{ marginTop: 14 }}>
-            <button type="button" className="btn btn--subtle" onClick={onClose}>
-              Bekor qilish
-            </button>
-            <button type="submit" className="btn btn--primary">
-              <CheckCircle2 size={16} />
-              <span>To'lovni tasdiqlash</span>
-            </button>
+          <div className="modal-actions debt-modal-actions">
+            <div className="modal-actions-right debt-modal-actions-right">
+              <button type="button" className="btn btn--ghost debt-action-cancel" onClick={onClose}>
+                Bekor qilish
+              </button>
+              <button type="submit" className="btn btn--primary debt-action-save">
+                <CheckCircle2 size={16} />
+                <span>To'lovni tasdiqlash</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

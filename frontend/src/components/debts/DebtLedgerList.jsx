@@ -23,7 +23,7 @@ export default function DebtLedgerList({
 }) {
   return (
     <div className="debt-ledger-container">
-      {/* Daftar sarlavhasi (Notebook Header) */}
+      {/* Daftar sarlavhasi (Notebook Header - Desktop only) */}
       <div className="debt-ledger-header">
         <div className="debt-ledger-col debt-ledger-col--num">#</div>
         <div className="debt-ledger-col debt-ledger-col--person">Qarzdor shaxs</div>
@@ -99,7 +99,7 @@ export default function DebtLedgerList({
                     <div className="debt-person-sub">
                       {debt.contact && (
                         <span className="debt-person-contact">
-                          <Phone size={11} /> {debt.contact}
+                          <Phone size={10} /> {debt.contact}
                         </span>
                       )}
                       {debt.location && (
@@ -120,7 +120,7 @@ export default function DebtLedgerList({
                     isGiven ? "debt-type-pill--given" : "debt-type-pill--taken"
                   }`}
                 >
-                  {isGiven ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}
+                  {isGiven ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
                   <span>{isGiven ? "Berganman (+)" : "Olganman (-)"}</span>
                 </span>
               </div>

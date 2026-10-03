@@ -81,72 +81,66 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content modal-content--wide"
+        className="modal-content modal-content--wide debt-add-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 540 }}
       >
         <div className="modal-mobile-handle" />
-        <div className="modal-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="modal-header debt-modal-header">
+          <div className="debt-modal-header__info">
             <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: type === DEBT_TYPES.GIVEN ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                color: type === DEBT_TYPES.GIVEN ? "var(--accent)" : "var(--warning)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              className={`debt-modal-header__icon ${
+                type === DEBT_TYPES.GIVEN ? "is-given" : "is-taken"
+              }`}
             >
               {type === DEBT_TYPES.GIVEN ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
             </div>
             <div>
-              <h3 className="modal-title">Yangi qarz qaydnomasi</h3>
+              <h3 className="modal-title">Yangi qarz yozish</h3>
               <p className="modal-subtitle">
                 {type === DEBT_TYPES.GIVEN
-                  ? "Men birovga qarz berdim (Kutilayotgan pul)"
-                  : "Men birovdan qarz oldim (Qaytarishim kerak)"}
+                  ? "Men birovga qarz berdim (Kutilmoqda)"
+                  : "Men birovdan qarz oldim (Majburiyat)"}
               </p>
             </div>
           </div>
-          <button className="btn-close" onClick={onClose}>
-            <X size={18} />
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Yopish"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-form">
-          {error && <div className="form-error-banner">{error}</div>}
+        <form onSubmit={handleSubmit} className="modal-body debt-modal-form">
+          {error && <div className="feedback-alert feedback-alert--error">{error}</div>}
 
           {/* Qarz yo'nalishi (Switcher) */}
-          <div className="form-group">
-            <label className="field-label">Qarz turi</label>
-            <div className="debt-switcher">
-              <button
-                type="button"
-                className={`debt-switcher__btn ${type === DEBT_TYPES.GIVEN ? "is-given" : ""}`}
-                onClick={() => {
-                  setType(DEBT_TYPES.GIVEN);
-                  if (currency === "USD") setWallet("dollar");
-                }}
-              >
-                <ArrowUpRight size={16} />
-                <span>Men qarz berdim</span>
-              </button>
+          <div className="debt-switcher">
+            <button
+              type="button"
+              className={`debt-switcher__btn ${type === DEBT_TYPES.GIVEN ? "is-given" : ""}`}
+              onClick={() => {
+                setType(DEBT_TYPES.GIVEN);
+                if (currency === "USD") setWallet("dollar");
+              }}
+            >
+              <ArrowUpRight size={16} />
+              <span>Men qarz berdim (+)</span>
+            </button>
 
-              <button
-                type="button"
-                className={`debt-switcher__btn ${type === DEBT_TYPES.TAKEN ? "is-taken" : ""}`}
-                onClick={() => {
-                  setType(DEBT_TYPES.TAKEN);
-                  if (currency === "USD") setWallet("dollar");
-                }}
-              >
-                <ArrowDownLeft size={16} />
-                <span>Men qarz oldim</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              className={`debt-switcher__btn ${type === DEBT_TYPES.TAKEN ? "is-taken" : ""}`}
+              onClick={() => {
+                setType(DEBT_TYPES.TAKEN);
+                if (currency === "USD") setWallet("dollar");
+              }}
+            >
+              <ArrowDownLeft size={16} />
+              <span>Men qarz oldim (-)</span>
+            </button>
           </div>
 
           {/* Shaxs ismi va Aloqa */}
@@ -160,16 +154,17 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
                 <input
                   type="text"
                   className="field-input"
-                  placeholder={type === DEBT_TYPES.GIVEN ? "Masalan: Alisher Valiyev" : "Masalan: Otabek aka"}
+                  placeholder={type === DEBT_TYPES.GIVEN ? "Masalan: Rustam aka" : "Masalan: Otabek aka"}
                   value={personName}
                   onChange={(e) => setPersonName(e.target.value)}
                   autoFocus
+                  required
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label className="field-label">Telefon / Telegram</label>
+              <label className="field-label">Telefon / Aloqa</label>
               <div className="input-with-icon">
                 <Phone size={16} className="input-icon" />
                 <input
@@ -199,6 +194,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
                   placeholder="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -221,8 +217,8 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
             </div>
           </div>
 
-          {/* Tezkor summalar (Kichik qarzlar: 5 000, 10 000, 15 000, 20 000, 50 000) */}
-          <div className="quick-amount-chips" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: -6, marginBottom: 12 }}>
+          {/* Tezkor summalar */}
+          <div className="quick-amount-chips-row">
             {(currency === "USD"
               ? [
                   { val: 5, label: "$5" },
@@ -245,7 +241,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
                 key={item.val}
                 type="button"
                 className={`quick-chip-btn ${Number(amount) === item.val ? "is-active" : ""}`}
-                onClick={() => setAmount(item.val)}
+                onClick={() => setAmount(String(item.val))}
               >
                 {item.label}
               </button>
@@ -255,7 +251,10 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           {/* Qaysi hisobdan / Qaysi hisobga & Balansga ta'sir */}
           <div className="form-row form-row--2col">
             <div className="form-group">
-              <label className="field-label">{labels.walletLabel}</label>
+              <label className="field-label">
+                <Wallet size={14} style={{ marginRight: 4, display: "inline" }} />
+                <span>{labels.walletLabel}</span>
+              </label>
               <select
                 className="field-input"
                 value={wallet}
@@ -290,50 +289,50 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           {/* Vaqt & Joy */}
           <div className="form-row form-row--2col">
             <div className="form-group">
-              <label className="field-label">Olingan / berilgan vaqti</label>
-              <div className="input-with-icon">
-                <Calendar size={16} className="input-icon" />
-                <input
-                  type="datetime-local"
-                  className="field-input mono"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
+              <label className="field-label">
+                <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
+                <span>Sana va vaqt</span>
+              </label>
+              <input
+                type="datetime-local"
+                className="field-input mono"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
             </div>
 
             <div className="form-group">
-              <label className="field-label">Olingan joy (Manzil)</label>
-              <div className="input-with-icon">
-                <MapPin size={16} className="input-icon" />
-                <input
-                  type="text"
-                  className="field-input"
-                  placeholder="Masalan: Chilonzor, Choyxona"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-              </div>
+              <label className="field-label">
+                <MapPin size={14} style={{ marginRight: 4, display: "inline" }} />
+                <span>Joylashuv (Manzil)</span>
+              </label>
+              <input
+                type="text"
+                className="field-input"
+                placeholder="Chorsu, ofis yoki choyxona..."
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
             </div>
           </div>
 
           {/* Sababi / Maqsadi */}
           <div className="form-group">
-            <label className="field-label">{labels.targetReasonLabel}</label>
-            <div className="input-with-icon">
-              <HelpCircle size={16} className="input-icon" />
-              <input
-                type="text"
-                className="field-input"
-                placeholder={
-                  type === DEBT_TYPES.GIVEN
-                    ? "U nima uchun oldi? Masalan: To'y xarajatlari, tovar olishga"
-                    : "Men nima maqsadda oldim? Masalan: Ta'mir uchun, texnika xaridi"
-                }
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              />
-            </div>
+            <label className="field-label">
+              <HelpCircle size={14} style={{ marginRight: 4, display: "inline" }} />
+              <span>{labels.targetReasonLabel}</span>
+            </label>
+            <input
+              type="text"
+              className="field-input"
+              placeholder={
+                type === DEBT_TYPES.GIVEN
+                  ? "U nima uchun oldi? Masalan: To'y xarajatlari, savdo"
+                  : "Men nima maqsadda oldim? Masalan: Ta'mir, xarid"
+              }
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
           </div>
 
           {/* Qachon qaytarishi (Default: Noma'lum) */}
@@ -342,49 +341,36 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
               <label className="field-label" style={{ marginBottom: 0 }}>
                 {labels.dueDateLabel}
               </label>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                  color: isDueDateUnknown ? "var(--accent)" : "var(--text-muted)",
-                }}
-              >
+              <label className="muddatsiz-toggle-label">
                 <input
                   type="checkbox"
                   checked={isDueDateUnknown}
                   onChange={(e) => setIsDueDateUnknown(e.target.checked)}
                   style={{ accentColor: "var(--accent)" }}
                 />
-                <span>Muddati noma'lum (default)</span>
+                <span>Muddati noma'lum</span>
               </label>
             </div>
 
             {!isDueDateUnknown ? (
-              <div className="input-with-icon">
-                <Calendar size={16} className="input-icon" />
-                <input
-                  type="date"
-                  className="field-input mono"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
-              </div>
+              <input
+                type="date"
+                className="field-input mono"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
             ) : (
               <div
                 style={{
-                  padding: "10px 14px",
+                  padding: "8px 12px",
                   borderRadius: "var(--radius-sm)",
                   background: "var(--surface-sunken)",
                   border: "1px dashed var(--border)",
-                  fontSize: "0.82rem",
+                  fontSize: "0.8rem",
                   color: "var(--text-muted)",
-                  fontStyle: "italic",
                 }}
               >
-                Aniq sana belgilanmagan (qaytarish vaqti kelishilmagan)
+                Aniq sana belgilanmagan (Muddatsiz)
               </div>
             )}
           </div>
@@ -392,32 +378,32 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           {/* O'zim uchun eslatma (Izoh) */}
           <div className="form-group">
             <label className="field-label">
-              Izoh (O'zim uchun eslatma)
+              <FileText size={14} style={{ marginRight: 4, display: "inline" }} />
+              <span>Izoh (O'zim uchun eslatma)</span>
             </label>
-            <div className="input-with-icon input-with-icon--textarea">
-              <FileText size={16} className="input-icon" />
-              <textarea
-                className="field-input"
-                rows={2}
-                placeholder="O'zingiz uchun maxsus eslatma, shartlar yoki xotiralar..."
-                value={personalNote}
-                onChange={(e) => setPersonalNote(e.target.value)}
-                style={{ resize: "vertical" }}
-              />
-            </div>
+            <textarea
+              className="field-input"
+              rows={2}
+              placeholder="O'zingiz uchun maxsus eslatma yoki shartlar..."
+              value={personalNote}
+              onChange={(e) => setPersonalNote(e.target.value)}
+              style={{ resize: "vertical" }}
+            />
           </div>
 
-          <div className="modal-actions" style={{ marginTop: 16 }}>
-            <button type="button" className="btn btn--subtle" onClick={onClose}>
-              Bekor qilish
-            </button>
-            <button
-              type="submit"
-              className="btn btn--primary"
-            >
-              <CheckCircle2 size={16} />
-              <span>Qarzni saqlash</span>
-            </button>
+          <div className="modal-actions debt-modal-actions">
+            <div className="modal-actions-right debt-modal-actions-right">
+              <button type="button" className="btn btn--ghost debt-action-cancel" onClick={onClose}>
+                Bekor qilish
+              </button>
+              <button
+                type="submit"
+                className="btn btn--primary debt-action-save"
+              >
+                <CheckCircle2 size={16} />
+                <span>Qarzni saqlash</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

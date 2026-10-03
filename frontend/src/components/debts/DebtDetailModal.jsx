@@ -19,7 +19,6 @@ import {
   PlusCircle,
   Copy,
   Check,
-  ExternalLink,
 } from "lucide-react";
 import { formatSum, formatDollar } from "../../utils/format.js";
 import { DEBT_TYPES, DEBT_TYPE_LABELS, DEBT_STATUS_LABELS } from "../../constants/debts.js";
@@ -72,7 +71,7 @@ export default function DebtDetailModal({
   const createdDateText = debt.date || debt.createdAt
     ? new Date(debt.date || debt.createdAt).toLocaleDateString("uz-UZ", {
         year: "numeric",
-        month: "long",
+        month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
@@ -95,12 +94,12 @@ export default function DebtDetailModal({
       <div
         className="modal-content modal-content--wide debt-detail-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 600, maxHeight: "90vh", display: "flex", flexDirection: "column" }}
       >
         <div className="modal-mobile-handle" />
+
         {/* Modal Header */}
-        <div className="modal-header" style={{ paddingBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="modal-header debt-detail-header">
+          <div className="debt-detail-header__user">
             <div
               className={`debt-detail-avatar ${
                 isGiven ? "debt-detail-avatar--given" : "debt-detail-avatar--taken"
@@ -108,53 +107,40 @@ export default function DebtDetailModal({
             >
               {debt.personName ? debt.personName.charAt(0).toUpperCase() : "?"}
             </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "var(--text)" }}>
-                  {debt.personName}
-                </h3>
+            <div className="debt-detail-header__text">
+              <div className="debt-detail-header__name-row">
+                <h3 className="debt-detail-name">{debt.personName}</h3>
                 {debt.synced ? (
-                  <span className="badge badge--db-synced" title="Server bazasida (DB) saqlangan">
-                    <Database size={10} />
+                  <span className="badge badge--db-synced debt-db-badge" title="Server bazasida saqlangan">
+                    <Database size={9} />
                     <span>DB</span>
                   </span>
                 ) : (
                   <span
-                    className="badge badge--db-pending"
-                    title="Faqat xotirada, internet ulanganda serverga yuboriladi"
+                    className="badge badge--db-pending debt-db-badge"
+                    title="Xotirada saqlangan"
                   >
-                    <Clock size={10} />
-                    <span>Xotirada</span>
+                    <Clock size={9} />
+                    <span>Xotira</span>
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <div className="debt-detail-header__badges">
                 <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontSize: "0.78rem",
-                    fontWeight: 600,
-                    color: isGiven ? "var(--accent)" : "var(--warning)",
-                    background: isGiven ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                  }}
+                  className={`debt-type-pill ${
+                    isGiven ? "debt-type-pill--given" : "debt-type-pill--taken"
+                  }`}
                 >
-                  {isGiven ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}
-                  {typeCfg.label}
+                  {isGiven ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
+                  <span>{typeCfg.label}</span>
                 </span>
 
                 <span
+                  className="debt-status-pill"
                   style={{
-                    fontSize: "0.78rem",
-                    fontWeight: 600,
                     color: statusCfg.color,
-                    background: statusCfg.bg,
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    border: `1px solid ${statusCfg.border}`,
+                    backgroundColor: statusCfg.bg,
+                    borderColor: statusCfg.border,
                   }}
                 >
                   {statusCfg.label}
@@ -174,54 +160,39 @@ export default function DebtDetailModal({
         </div>
 
         {/* Modal Body (Scrollable) */}
-        <div
-          className="modal-body"
-          style={{
-            overflowY: "auto",
-            padding: "16px 20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-          }}
-        >
+        <div className="modal-body debt-detail-body">
           {/* 1. Moliya Ko'rsatkichlari (Katta karta) */}
           <div
-            style={{
-              background: "var(--surface-2)",
-              borderRadius: "var(--radius-md)",
-              border: isOverdue ? "1px solid var(--expense)" : "1px solid var(--border)",
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
+            className={`debt-detail-sum-card ${
+              isOverdue ? "debt-detail-sum-card--overdue" : ""
+            }`}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+            <div className="debt-detail-sum-row">
               <div>
-                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                <span className="debt-detail-sum-label">
                   {isGiven ? "Menga qaytishi kerak" : "Qaytarishim kerak bo'lgan qoldiq"}
                 </span>
                 <div
-                  className="mono"
-                  style={{
-                    fontSize: "1.75rem",
-                    fontWeight: 800,
-                    color: isSettled ? "var(--income)" : isGiven ? "var(--accent)" : "var(--expense)",
-                    marginTop: 2,
-                  }}
+                  className={`debt-detail-sum-val mono ${
+                    isSettled
+                      ? "debt-detail-sum-val--settled"
+                      : isGiven
+                      ? "debt-detail-sum-val--given"
+                      : "debt-detail-sum-val--taken"
+                  }`}
                 >
                   {isSettled ? "To'liq yopilgan" : formatFn(remainingAmount)}
                 </div>
               </div>
 
-              <div style={{ textAlign: "right" }}>
-                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Boshlang'ich qarz</span>
-                <div className="mono" style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text)" }}>
+              <div className="debt-detail-initial-block">
+                <span className="debt-detail-initial-label">Boshlang'ich qarz</span>
+                <div className="debt-detail-initial-val mono">
                   {formatFn(totalAmount)}
                 </div>
                 {paidAmount > 0 && (
-                  <span style={{ fontSize: "0.78rem", color: "var(--income)", fontWeight: 600 }}>
-                    To'langan: {formatFn(paidAmount)} ({percentPaid}%)
+                  <span className="debt-detail-paid-tag mono">
+                    To'landi: {formatFn(paidAmount)} ({percentPaid}%)
                   </span>
                 )}
               </div>
@@ -229,28 +200,18 @@ export default function DebtDetailModal({
 
             {/* Progress bar */}
             {!isSettled && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <div
-                  style={{
-                    width: "100%",
-                    height: 8,
-                    background: "var(--surface-3)",
-                    borderRadius: 4,
-                    overflow: "hidden",
-                  }}
-                >
+              <div className="debt-detail-progress-wrap">
+                <div className="debt-detail-progress-track">
                   <div
+                    className="debt-detail-progress-fill"
                     style={{
                       width: `${percentPaid}%`,
-                      height: "100%",
                       background: isGiven ? "var(--accent)" : "var(--income)",
-                      borderRadius: 4,
-                      transition: "width 0.3s ease",
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  <span>To'langan: <strong className="mono">{formatFn(paidAmount)}</strong> ({percentPaid}%)</span>
+                <div className="debt-detail-progress-meta">
+                  <span>To'landi: <strong className="mono">{formatFn(paidAmount)}</strong> ({percentPaid}%)</span>
                   <span>Qoldiq: <strong className="mono">{formatFn(remainingAmount)}</strong></span>
                 </div>
               </div>
@@ -259,48 +220,25 @@ export default function DebtDetailModal({
 
           {/* 2. Aloqa va Tezkor harakatlar (agar telefon bo'lsa) */}
           {debt.contact && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 14px",
-                background: "var(--surface-sunken)",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 6,
-                    background: "rgba(78, 184, 150, 0.15)",
-                    color: "var(--accent)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Phone size={16} />
+            <div className="debt-detail-contact-card">
+              <div className="debt-detail-contact-left">
+                <div className="debt-detail-contact-icon">
+                  <Phone size={15} />
                 </div>
-                <div>
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Telefon / Aloqa:</span>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text)" }}>
-                    {debt.contact}
-                  </div>
+                <div className="debt-detail-contact-info">
+                  <span className="debt-detail-contact-lbl">Telefon / Aloqa</span>
+                  <div className="debt-detail-contact-val">{debt.contact}</div>
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="debt-detail-contact-actions">
                 <button
                   type="button"
                   className="btn btn--xs btn--ghost"
                   onClick={handleCopyPhone}
-                  title="Raqamdan nusxa olish"
+                  title="Nusxa olish"
                 >
-                  {copiedPhone ? <Check size={14} color="var(--income)" /> : <Copy size={14} />}
+                  {copiedPhone ? <Check size={13} color="var(--income)" /> : <Copy size={13} />}
                   <span>{copiedPhone ? "Nusxalandi" : "Nusxa"}</span>
                 </button>
 
@@ -317,19 +255,13 @@ export default function DebtDetailModal({
           )}
 
           {/* 3. Tafsilotlar jadvali (Grid) */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 10,
-            }}
-          >
+          <div className="debt-detail-grid">
             {/* Berilgan/Olingan vaqt */}
             <div className="debt-detail-info-card">
-              <div className="debt-detail-info-icon" style={{ color: "var(--text-muted)" }}>
+              <div className="debt-detail-info-icon">
                 <Calendar size={15} />
               </div>
-              <div>
+              <div className="debt-detail-info-content">
                 <span className="debt-detail-info-lbl">Sana va vaqt</span>
                 <div className="debt-detail-info-val">{createdDateText}</div>
               </div>
@@ -340,7 +272,7 @@ export default function DebtDetailModal({
               <div className="debt-detail-info-icon" style={{ color: isOverdue ? "var(--expense)" : "var(--accent)" }}>
                 {isOverdue ? <AlertCircle size={15} /> : <Clock size={15} />}
               </div>
-              <div>
+              <div className="debt-detail-info-content">
                 <span className="debt-detail-info-lbl">
                   {isOverdue ? "Kechikkan muddat" : "Qaytarish muddati"}
                 </span>
@@ -348,12 +280,12 @@ export default function DebtDetailModal({
                   {dueDateText}
                 </div>
                 {isOverdue && daysLeft !== null && (
-                  <span style={{ fontSize: "0.72rem", color: "var(--expense)", fontWeight: 600 }}>
+                  <span className="debt-detail-overdue-tag">
                     ⚠️ {Math.abs(daysLeft)} kun kechikmoqda!
                   </span>
                 )}
                 {!isOverdue && daysLeft !== null && daysLeft >= 0 && !isSettled && (
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                  <span className="debt-detail-due-hint">
                     ({daysLeft === 0 ? "Bugun qaytarish kerak" : `${daysLeft} kun qoldi`})
                   </span>
                 )}
@@ -365,11 +297,11 @@ export default function DebtDetailModal({
               <div className="debt-detail-info-icon" style={{ color: walletCfg?.color || "var(--text-muted)" }}>
                 <Wallet size={15} />
               </div>
-              <div>
+              <div className="debt-detail-info-content">
                 <span className="debt-detail-info-lbl">Hamyon / Hisob</span>
                 <div className="debt-detail-info-val">
                   {walletCfg ? walletCfg.label : "Naqd pul"}
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginLeft: 4 }}>
+                  <span className="debt-detail-curr-hint">
                     ({debt.currency || "UZS"})
                   </span>
                 </div>
@@ -382,8 +314,8 @@ export default function DebtDetailModal({
                 <div className="debt-detail-info-icon" style={{ color: "var(--accent)" }}>
                   <MapPin size={15} />
                 </div>
-                <div>
-                  <span className="debt-detail-info-lbl">Joy / Manzil</span>
+                <div className="debt-detail-info-content">
+                  <span className="debt-detail-info-lbl">Joylashuv</span>
                   <div className="debt-detail-info-val">{debt.location}</div>
                 </div>
               </div>
@@ -392,19 +324,12 @@ export default function DebtDetailModal({
 
           {/* 4. Sababi / Maqsadi */}
           {debt.reason && (
-            <div
-              style={{
-                padding: "10px 14px",
-                background: "var(--surface-sunken)",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-muted)", fontSize: "0.75rem", marginBottom: 3 }}>
+            <div className="debt-detail-reason-card">
+              <div className="debt-detail-reason-header">
                 <HelpCircle size={14} />
                 <span>Qarz sababi / maqsadi:</span>
               </div>
-              <div style={{ fontSize: "0.9rem", color: "var(--text)" }}>
+              <div className="debt-detail-reason-body">
                 {debt.reason}
               </div>
             </div>
@@ -412,32 +337,23 @@ export default function DebtDetailModal({
 
           {/* 5. Shaxsiy eslatma (O'zim uchun izoh) */}
           {debt.personalNote && (
-            <div
-              style={{
-                padding: "10px 14px",
-                background: "rgba(234, 179, 8, 0.08)",
-                borderRadius: "var(--radius-sm)",
-                borderLeft: "3px solid var(--warning)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--warning)", fontSize: "0.75rem", marginBottom: 3 }}>
+            <div className="debt-detail-note-card">
+              <div className="debt-detail-note-header">
                 <FileText size={14} />
-                <span style={{ fontWeight: 600 }}>O'zim uchun eslatma:</span>
+                <span>O'zim uchun eslatma:</span>
               </div>
-              <div style={{ fontSize: "0.88rem", color: "var(--text)" }}>
+              <div className="debt-detail-note-body">
                 {debt.personalNote}
               </div>
             </div>
           )}
 
           {/* 6. To'lovlar Tarixi */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="debt-detail-payments-wrap">
+            <div className="debt-detail-payments-header">
+              <div className="debt-detail-payments-title">
                 <CheckCircle2 size={16} color="var(--accent)" />
-                <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "var(--text)" }}>
-                  To'lovlar tarixi ({payments.length})
-                </h4>
+                <h4>To'lovlar tarixi ({payments.length})</h4>
               </div>
 
               {!isSettled && (
@@ -448,32 +364,20 @@ export default function DebtDetailModal({
                     onClose();
                     onOpenRepay(debt);
                   }}
-                  style={{ display: "flex", alignItems: "center", gap: 4 }}
                 >
                   <PlusCircle size={13} />
-                  <span>+ Yangi to'lov</span>
+                  <span>+ To'lov qo'shish</span>
                 </button>
               )}
             </div>
 
             {payments.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="debt-detail-payments-list">
                 {payments.map((p, idx) => (
-                  <div
-                    key={p.id || idx}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "8px 12px",
-                      background: "var(--surface-sunken)",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border-subtle)",
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text)" }}>
+                  <div key={p.id || idx} className="debt-detail-payment-item">
+                    <div className="debt-detail-payment-left">
+                      <div className="debt-detail-payment-date">
+                        <span>
                           {new Date(p.date).toLocaleDateString("uz-UZ", {
                             day: "numeric",
                             month: "short",
@@ -481,35 +385,26 @@ export default function DebtDetailModal({
                           })}
                         </span>
                         {p.wallet && (
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          <span className="debt-detail-payment-wallet">
                             ({WALLET_CONFIG[p.wallet]?.shortLabel || p.wallet})
                           </span>
                         )}
                       </div>
                       {p.note && (
-                        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                        <span className="debt-detail-payment-note">
                           {p.note}
                         </span>
                       )}
                     </div>
 
-                    <span className="mono font-semibold" style={{ fontSize: "0.95rem", color: "var(--income)" }}>
+                    <span className="debt-detail-payment-amount mono">
                       +{formatFn(p.amount)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div
-                style={{
-                  padding: "16px",
-                  textAlign: "center",
-                  background: "var(--surface-sunken)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-muted)",
-                  fontSize: "0.82rem",
-                }}
-              >
+              <div className="debt-detail-payments-empty">
                 Hozircha hech qanday to'lov qayd etilmagan.
               </div>
             )}
@@ -517,25 +412,11 @@ export default function DebtDetailModal({
         </div>
 
         {/* Modal Footer (Amallar) */}
-        <div
-          className="modal-footer"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 10,
-            padding: "14px 20px",
-            borderTop: "1px solid var(--border)",
-            background: "var(--surface)",
-          }}
-        >
-          {/* Chap amallar: O'chirish va Tahrirlash */}
-          <div style={{ display: "flex", gap: 8 }}>
+        <div className="modal-footer debt-detail-footer">
+          <div className="debt-detail-footer-left">
             <button
               type="button"
-              className="btn btn--sm btn--ghost"
-              style={{ color: "var(--expense)" }}
+              className="btn btn--sm btn--ghost debt-detail-btn-delete"
               onClick={() => {
                 if (window.confirm(`${debt.personName}ga tegishli qarz yozuvini butunlay o'chirishni xohlaysizmi?`)) {
                   onDeleteDebt(debt.id);
@@ -562,13 +443,12 @@ export default function DebtDetailModal({
             </button>
           </div>
 
-          {/* O'ng amallar: To'lov yoki To'liq yopish */}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="debt-detail-footer-right">
             {!isSettled ? (
               <>
                 <button
                   type="button"
-                  className="btn btn--sm btn--ghost"
+                  className="btn btn--sm btn--ghost debt-detail-btn-settle"
                   onClick={() => {
                     onSettleDebt(debt.id, {
                       amount: remainingAmount,
@@ -580,12 +460,12 @@ export default function DebtDetailModal({
                   title="Qarzni to'liq yopildi deb hisoblash"
                 >
                   <CheckCircle2 size={15} />
-                  <span>Yopildi deb belgilash</span>
+                  <span>Yopildi</span>
                 </button>
 
                 <button
                   type="button"
-                  className="btn btn--sm btn--primary"
+                  className="btn btn--sm btn--primary debt-detail-btn-pay"
                   onClick={() => {
                     onClose();
                     onOpenRepay(debt);

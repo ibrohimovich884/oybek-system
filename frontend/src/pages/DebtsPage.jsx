@@ -10,9 +10,9 @@ import {
   DollarSign,
   AlertCircle,
   BookOpen,
-  LayoutList,
   LayoutGrid,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
 import { formatSum, formatDollar } from "../utils/format.js";
@@ -162,49 +162,31 @@ export default function DebtsPage() {
   };
 
   return (
-    <div className="debts-page" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Sarlavha qismi */}
-      <div
-        className="page-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                background: "rgba(78, 184, 150, 0.15)",
-                color: "var(--accent)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <HandCoins size={19} />
+    <div className="debts-page">
+      {/* 1. Sarlavha qismi (Page Header) */}
+      <div className="debts-page__header">
+        <div className="debts-page__title-block">
+          <div className="debts-page__title-row">
+            <div className="debts-page__logo-badge">
+              <HandCoins size={20} />
             </div>
-            <h1 className="page-title" style={{ margin: 0 }}>Qarz daftari</h1>
+            <div>
+              <h1 className="debts-page__title">Qarz daftari</h1>
+              <p className="debts-page__subtitle">
+                Kutilayotgan va berilgan qarzlar roʻyxati
+              </p>
+            </div>
           </div>
-          <p className="page-subtitle" style={{ margin: "4px 0 0" }}>
-            Kutilayotgan pullar, berilgan va olingan qarzlar ro'yxati. Shaxs ustiga bosib barcha informatsiyalarini ko'rishingiz mumkin.
-          </p>
         </div>
 
-        <div className="debts-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div className="debts-header-actions">
           {/* Ko'rinish rejimi: Daftar (Notebook) yoki Karta (Cards) */}
           <div className="debt-view-toggle">
             <button
               type="button"
               className={`debt-view-toggle__btn ${viewMode === "ledger" ? "is-active" : ""}`}
               onClick={() => handleViewModeChange("ledger")}
-              title="Daftar ko'rinishi (Hammasi bir ro'yxatda)"
+              title="Daftar ko'rinishi (Ro'yxat)"
             >
               <BookOpen size={14} />
               <span>Daftar</span>
@@ -224,136 +206,94 @@ export default function DebtsPage() {
             type="button"
             className="btn btn--primary debts-add-btn"
             onClick={() => setIsAddModalOpen(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6 }}
           >
             <PlusCircle size={16} />
-            <span>Yangi qarz yozish</span>
+            <span>Yangi qarz</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Ko'rsatkichlari */}
-      <div
-        className="debts-stats-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 14,
-        }}
-      >
+      {/* 2. KPI Ko'rsatkichlari (Responsive stat cards) */}
+      <div className="debts-stats-grid">
         {/* Men bergan qarzlar */}
-        <div
-          className="stat-card"
-          style={{
-            background: "var(--surface)",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border)",
-            padding: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--accent)", fontWeight: 600, fontSize: "0.85rem" }}>
-              <ArrowUpRight size={16} />
-              <span>Men bergan qarzlar (Kutilmoqda)</span>
+        <div className="debts-stat-card debts-stat-card--given">
+          <div className="debts-stat-card__top">
+            <div className="debts-stat-card__label">
+              <ArrowUpRight size={15} />
+              <span>Berilgan (Kutilmoqda)</span>
             </div>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Qoldiq</span>
+            <span className="debts-stat-card__badge">Qoldiq</span>
           </div>
 
-          <div className="mono" style={{ fontSize: "1.35rem", fontWeight: 700, color: "var(--text)" }}>
+          <div className="debts-stat-card__val mono">
             {formatSum(stats.givenUzs)}
           </div>
 
           {stats.givenUsd > 0 && (
-            <div style={{ fontSize: "0.85rem", color: "var(--dollar)", fontWeight: 600 }}>
+            <div className="debts-stat-card__usd-val mono">
               + {formatDollar(stats.givenUsd)}
             </div>
           )}
 
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 2 }}>
+          <div className="debts-stat-card__meta">
             Qaytarilishi kerak bo'lgan mablag'
           </div>
         </div>
 
         {/* Men olgan qarzlar */}
-        <div
-          className="stat-card"
-          style={{
-            background: "var(--surface)",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border)",
-            padding: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b", fontWeight: 600, fontSize: "0.85rem" }}>
-              <ArrowDownLeft size={16} />
-              <span>Men olgan qarzlar (Majburiyat)</span>
+        <div className="debts-stat-card debts-stat-card--taken">
+          <div className="debts-stat-card__top">
+            <div className="debts-stat-card__label">
+              <ArrowDownLeft size={15} />
+              <span>Olgan (Majburiyat)</span>
             </div>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Qoldiq</span>
+            <span className="debts-stat-card__badge">Qoldiq</span>
           </div>
 
-          <div className="mono" style={{ fontSize: "1.35rem", fontWeight: 700, color: "var(--expense)" }}>
+          <div className="debts-stat-card__val debts-stat-card__val--taken mono">
             {formatSum(stats.takenUzs)}
           </div>
 
           {stats.takenUsd > 0 && (
-            <div style={{ fontSize: "0.85rem", color: "var(--expense)", fontWeight: 600 }}>
+            <div className="debts-stat-card__usd-val debts-stat-card__usd-val--taken mono">
               + {formatDollar(stats.takenUsd)}
             </div>
           )}
 
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 2 }}>
+          <div className="debts-stat-card__meta">
             To'lashim kerak bo'lgan summa
           </div>
         </div>
 
         {/* Sof kutilayotgan saldo */}
-        <div
-          className="stat-card"
-          style={{
-            background: "var(--surface)",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border)",
-            padding: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--accent)", fontWeight: 600, fontSize: "0.85rem" }}>
-              <CheckCircle2 size={16} />
+        <div className="debts-stat-card debts-stat-card--net">
+          <div className="debts-stat-card__top">
+            <div className="debts-stat-card__label">
+              <CheckCircle2 size={15} />
               <span>Sof kutilayotgan saldo</span>
             </div>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Farq</span>
+            <span className="debts-stat-card__badge">Farq</span>
           </div>
 
           <div
-            className="mono"
-            style={{
-              fontSize: "1.35rem",
-              fontWeight: 700,
-              color: stats.grandNetUzs >= 0 ? "var(--income)" : "var(--expense)",
-            }}
+            className={`debts-stat-card__val mono ${
+              stats.grandNetUzs >= 0
+                ? "debts-stat-card__val--net-pos"
+                : "debts-stat-card__val--net-neg"
+            }`}
           >
             {stats.grandNetUzs >= 0 ? "+" : ""}{formatSum(stats.grandNetUzs)}
           </div>
 
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 2 }}>
-            Faol qarzlar: <strong>{stats.pendingCount} ta</strong> • Yopilgan: <strong>{stats.settledCount} ta</strong>
+          <div className="debts-stat-card__meta">
+            Faol: <strong>{stats.pendingCount} ta</strong> • Yopilgan: <strong>{stats.settledCount} ta</strong>
           </div>
         </div>
       </div>
 
-      {/* Qidiruv va filtr tugmalari */}
+      {/* 3. Qidiruv va filtr tugmalari (Fluid scrollable tabs) */}
       <div className="debts-filter-card">
-        {/* Filtr tabs (Scrollable on mobile) */}
+        {/* Filtr tabs */}
         <div className="debts-filter-scroll">
           {[
             { id: "all", label: `Barchasi (${debts.length})` },
@@ -365,7 +305,9 @@ export default function DebtsPage() {
             <button
               key={tab.id}
               type="button"
-              className={`btn btn--xs ${filterType === tab.id ? "btn--primary" : "btn--ghost"}`}
+              className={`debts-filter-tab ${
+                filterType === tab.id ? "is-active" : ""
+              }`}
               onClick={() => setFilterType(tab.id)}
             >
               {tab.label}
@@ -378,8 +320,8 @@ export default function DebtsPage() {
           <Search size={15} className="input-icon" />
           <input
             type="text"
-            className="field-input field-input--sm"
-            placeholder="Ism, joy, sabab yoki izoh..."
+            className="field-input field-input--sm debts-search-input"
+            placeholder="Ism, telefon, joy, sabab..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -396,7 +338,7 @@ export default function DebtsPage() {
         </div>
       </div>
 
-      {/* Qarzlar ro'yxati: Daftar yoki Kartalar */}
+      {/* 4. Qarzlar ro'yxati: Daftar yoki Kartalar */}
       {filteredDebts.length > 0 ? (
         viewMode === "ledger" ? (
           <DebtLedgerList
@@ -406,7 +348,7 @@ export default function DebtsPage() {
             onSettleDebt={handleSettle}
           />
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+          <div className="debts-cards-grid">
             {filteredDebts.map((debt) => (
               <DebtCard
                 key={debt.id}
@@ -420,28 +362,16 @@ export default function DebtsPage() {
           </div>
         )
       ) : (
-        <div
-          style={{
-            background: "var(--surface)",
-            padding: "40px 20px",
-            borderRadius: "var(--radius-md)",
-            border: "1px dashed var(--border)",
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
+        <div className="debts-empty-state">
           <HandCoins size={36} color="var(--text-muted)" />
           <div>
-            <h4 style={{ margin: 0, fontSize: "1.05rem", color: "var(--text)" }}>
+            <h4 className="debts-empty-title">
               {searchQuery ? "Hech qanday qarz topilmadi" : "Qarz daftari bo'sh"}
             </h4>
-            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p className="debts-empty-subtitle">
               {searchQuery
                 ? "Qidiruv so'zini o'zgartirib ko'ring yoki filtrlarni tozalang."
-                : "Berilgan yoki olingan qarzlar bo'lsa, 'Yangi qarz yozish' tugmasi orqali kiriting."}
+                : "Berilgan yoki olingan qarzlar bo'lsa, 'Yangi qarz' tugmasi orqali kiriting."}
             </p>
           </div>
           {!searchQuery && (
@@ -457,7 +387,7 @@ export default function DebtsPage() {
         </div>
       )}
 
-      {/* Mobil telefonlar uchun tezkor qarz qo'shish suzuvchi (FAB) tugmasi */}
+      {/* Mobil telefonlar uchun qulay suzuvchi (FAB) tugma */}
       <button
         type="button"
         className="debt-fab-btn"
@@ -465,7 +395,7 @@ export default function DebtsPage() {
         aria-label="Yangi qarz yozish"
         title="Yangi qarz yozish"
       >
-        <PlusCircle size={22} />
+        <PlusCircle size={20} />
         <span>Qarz yozish</span>
       </button>
 

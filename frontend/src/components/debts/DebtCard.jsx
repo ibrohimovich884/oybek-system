@@ -16,6 +16,7 @@ import {
   ChevronUp,
   PlusCircle,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import { formatSum, formatDollar } from "../../utils/format.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
@@ -49,8 +50,9 @@ export default function DebtCard({
   const typeLabels = DEBT_TYPE_LABELS[debt.type] || DEBT_TYPE_LABELS.given;
 
   // Qaytish muddati tekshiruvi
-  let dueDateText = "Muddati noma'lum";
+  let dueDateText = "Muddatsiz";
   let isOverdue = false;
+  let daysLeft = null;
   if (!debt.isDueDateUnknown && debt.dueDate) {
     const due = new Date(debt.dueDate);
     const now = new Date();
@@ -59,7 +61,9 @@ export default function DebtCard({
       month: "short",
       day: "numeric",
     });
-    if (!isSettled && due < now) {
+    const diffTime = due.getTime() - now.getTime();
+    daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (!isSettled && daysLeft < 0) {
       isOverdue = true;
     }
   }
@@ -68,180 +72,128 @@ export default function DebtCard({
 
   return (
     <div
-      className={`debt-card ${isSettled ? "debt-card--settled" : ""}`}
-      style={{
-        background: "var(--surface)",
-        borderRadius: "var(--radius-md)",
-        border: isSettled ? "1px solid var(--border)" : isOverdue ? "1px solid var(--expense)" : "1px solid var(--border)",
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        transition: "border-color 0.15s ease",
-      }}
+      className={`debt-card ${isSettled ? "debt-card--settled" : ""} ${
+        isOverdue ? "debt-card--overdue" : ""
+      }`}
     >
-      {/* Header: Shaxs, Turi & Status */}
+      {/* 1. Header: Shaxs, Aloqa & Summa */}
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 8,
-          cursor: onSelectDebt ? "pointer" : "default",
-        }}
+        className="debt-card__header"
         onClick={() => onSelectDebt && onSelectDebt(debt)}
-        title={onSelectDebt ? "Informatsiyalarni ko'rish uchun bosing" : ""}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="debt-card__person-wrap">
           <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: isGiven ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
-              color: isGiven ? "var(--accent)" : "var(--warning)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: "1.1rem",
-              flexShrink: 0,
-            }}
+            className={`debt-card__avatar ${
+              isGiven ? "debt-card__avatar--given" : "debt-card__avatar--taken"
+            }`}
           >
             {debt.personName ? debt.personName.charAt(0).toUpperCase() : "?"}
           </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <h4
-                style={{
-                  margin: 0,
-                  fontSize: "1.05rem",
-                  fontWeight: 700,
-                  color: "var(--text)",
-                  textDecoration: onSelectDebt ? "underline dotted rgba(255,255,255,0.3)" : "none",
-                }}
-              >
-                {debt.personName}
-              </h4>
-              {debt.contact && (
-                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                  • {debt.contact}
-                </span>
-              )}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3,
-                  fontSize: "0.72rem",
-                  fontWeight: 600,
-                  color: isGiven ? "var(--accent)" : "var(--warning)",
-                  background: isGiven ? "rgba(78, 184, 150, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                }}
-              >
-                {isGiven ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
-                {typeLabels.shortLabel}
+          <div className="debt-card__person-details">
+            <h4 className="debt-card__name">{debt.personName}</h4>
+            {debt.contact ? (
+              <span className="debt-card__contact">
+                <Phone size={11} />
+                <span>{debt.contact}</span>
               </span>
-
-              <span
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 600,
-                  color: statusInfo.color,
-                  background: statusInfo.bg,
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  border: `1px solid ${statusInfo.border}`,
-                }}
-              >
-                {statusInfo.label}
-              </span>
-
-              {debt.synced ? (
-                <span
-                  className="badge badge--db-synced"
-                  style={{ fontSize: "0.68rem", padding: "1px 5px", display: "inline-flex", alignItems: "center", gap: 3 }}
-                  title="Server bazasida (DB) saqlangan"
-                >
-                  <Database size={10} />
-                  <span>DB</span>
-                </span>
-              ) : (
-                <span
-                  className="badge badge--db-pending"
-                  style={{ fontSize: "0.68rem", padding: "1px 5px", display: "inline-flex", alignItems: "center", gap: 3 }}
-                  title="Faqat xotirada saqlangan, internet ulanganda serverga yuboriladi"
-                >
-                  <Clock size={10} />
-                  <span>Xotirada</span>
-                </span>
-              )}
-            </div>
+            ) : (
+              <span className="debt-card__sub-hint">Ma'lumotlarni ko'rish</span>
+            )}
           </div>
         </div>
 
-        {/* Summa va qoldiq */}
-        <div style={{ textAlign: "right" }}>
-          <div className="mono" style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>
-            {formatFn(totalAmount)}
+        {/* Summa va Qoldiq */}
+        <div className="debt-card__amount-block">
+          <div
+            className={`debt-card__total mono ${
+              isGiven ? "debt-card__total--given" : "debt-card__total--taken"
+            }`}
+          >
+            {isGiven ? "+" : "-"}{formatFn(totalAmount)}
           </div>
-          {!isSettled && paidAmount > 0 && (
-            <div style={{ fontSize: "0.78rem", color: "var(--accent)" }}>
-              Qoldiq: <span className="mono font-semibold">{formatFn(remainingAmount)}</span>
+          {!isSettled && paidAmount > 0 ? (
+            <div className="debt-card__remaining mono">
+              Qoldiq: <strong>{formatFn(remainingAmount)}</strong>
             </div>
+          ) : !isSettled ? (
+            <div className="debt-card__remaining-sub">
+              {walletCfg?.shortLabel || (isUsd ? "USD" : "UZS")}
+            </div>
+          ) : (
+            <div className="debt-card__settled-label mono">Yopilgan</div>
           )}
         </div>
       </div>
 
-      {/* Progress Bar (agar qisman to'langan bo'lsa) */}
-      {!isSettled && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div
-            style={{
-              width: "100%",
-              height: 6,
-              background: "var(--surface-sunken)",
-              borderRadius: 3,
-              overflow: "hidden",
-            }}
-          >
+      {/* 2. Nishonlar (Badges) qatori */}
+      <div className="debt-card__badges-row">
+        <span
+          className={`debt-type-pill ${
+            isGiven ? "debt-type-pill--given" : "debt-type-pill--taken"
+          }`}
+        >
+          {isGiven ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
+          <span>{isGiven ? "Berganman" : "Olganman"}</span>
+        </span>
+
+        <span
+          className="debt-status-pill"
+          style={{
+            color: statusInfo.color,
+            backgroundColor: statusInfo.bg,
+            borderColor: statusInfo.border,
+          }}
+        >
+          {statusInfo.label}
+        </span>
+
+        {isOverdue ? (
+          <span className="debt-due-pill debt-due-pill--overdue">
+            <AlertCircle size={11} />
+            <span>{Math.abs(daysLeft)} kun o'tdi</span>
+          </span>
+        ) : daysLeft !== null && daysLeft <= 3 && !isSettled ? (
+          <span className="debt-due-pill debt-due-pill--urgent">
+            <Clock size={11} />
+            <span>{daysLeft === 0 ? "Bugun" : `${daysLeft} kun qoldi`}</span>
+          </span>
+        ) : null}
+
+        {debt.synced ? (
+          <span className="badge badge--db-synced debt-db-badge" title="Server bazasida saqlangan">
+            <Database size={9} />
+            <span>DB</span>
+          </span>
+        ) : (
+          <span className="badge badge--db-pending debt-db-badge" title="Xotirada saqlangan">
+            <Clock size={9} />
+            <span>Xotirada</span>
+          </span>
+        )}
+      </div>
+
+      {/* 3. Progress Bar (agar qisman to'langan bo'lsa) */}
+      {!isSettled && paidAmount > 0 && (
+        <div className="debt-card__progress-wrap">
+          <div className="debt-card__progress-track">
             <div
-              style={{
-                width: `${percentPaid}%`,
-                height: "100%",
-                background: "var(--accent)",
-                borderRadius: 3,
-                transition: "width 0.3s ease",
-              }}
+              className="debt-card__progress-bar"
+              style={{ width: `${percentPaid}%` }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+          <div className="debt-card__progress-meta">
             <span>To'landi: <strong className="mono">{formatFn(paidAmount)}</strong> ({percentPaid}%)</span>
             <span>Qoldiq: <strong className="mono">{formatFn(remainingAmount)}</strong></span>
           </div>
         </div>
       )}
 
-      {/* Tafsilotlar paneli */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 8,
-          fontSize: "0.82rem",
-          background: "var(--surface-sunken)",
-          padding: "8px 12px",
-          borderRadius: "var(--radius-sm)",
-        }}
-      >
-        {/* Berilgan/Olingan vaqt & hisob */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-muted)" }}>
-          <Calendar size={14} style={{ flexShrink: 0 }} />
-          <span>
+      {/* 4. Tafsilotlar paneli (Sana, muddat, joy, sabab) */}
+      <div className="debt-card__details">
+        {/* Berilgan/Olingan sana va hisob */}
+        <div className="debt-card__detail-item">
+          <Calendar size={13} className="debt-card__detail-icon" />
+          <span className="debt-card__detail-text">
             {new Date(debt.date || debt.createdAt).toLocaleDateString("uz-UZ", {
               day: "numeric",
               month: "short",
@@ -253,97 +205,76 @@ export default function DebtCard({
 
         {/* Qaytarish vaqti */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            color: isOverdue ? "var(--expense)" : "var(--text-muted)",
-            fontWeight: isOverdue ? 600 : 400,
-          }}
+          className={`debt-card__detail-item ${
+            isOverdue ? "debt-card__detail-item--overdue" : ""
+          }`}
         >
-          {isOverdue ? <AlertCircle size={14} style={{ flexShrink: 0 }} /> : <Clock size={14} style={{ flexShrink: 0 }} />}
-          <span>
-            {isOverdue ? "Muddati o'tgan: " : "Qaytarish: "}
+          {isOverdue ? (
+            <AlertCircle size={13} className="debt-card__detail-icon" />
+          ) : (
+            <Clock size={13} className="debt-card__detail-icon" />
+          )}
+          <span className="debt-card__detail-text">
+            {isOverdue ? "Kechikkan: " : "Muddati: "}
             {dueDateText}
           </span>
         </div>
 
-        {/* Joy */}
+        {/* Joylashuv */}
         {debt.location && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-muted)" }}>
-            <MapPin size={14} style={{ flexShrink: 0 }} />
-            <span>{debt.location}</span>
+          <div className="debt-card__detail-item debt-card__detail-item--wide">
+            <MapPin size={13} className="debt-card__detail-icon" />
+            <span className="debt-card__detail-text">{debt.location}</span>
           </div>
         )}
 
-        {/* Sabab/Maqsad */}
+        {/* Sabab / Maqsad */}
         {debt.reason && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-muted)" }}>
-            <HelpCircle size={14} style={{ flexShrink: 0 }} />
-            <span>{debt.reason}</span>
+          <div className="debt-card__detail-item debt-card__detail-item--wide">
+            <HelpCircle size={13} className="debt-card__detail-icon" />
+            <span className="debt-card__detail-text">{debt.reason}</span>
           </div>
         )}
       </div>
 
-      {/* O'zim uchun eslatma (Izoh) */}
+      {/* 5. Shaxsiy eslatma (Izoh) */}
       {debt.personalNote && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 6,
-            fontSize: "0.8rem",
-            color: "var(--text-muted)",
-            background: "rgba(234, 179, 8, 0.08)",
-            borderLeft: "3px solid var(--warning)",
-            padding: "6px 10px",
-            borderRadius: "0 4px 4px 0",
-          }}
-        >
-          <FileText size={13} style={{ marginTop: 2, flexShrink: 0, color: "var(--warning)" }} />
-          <div>
-            <strong style={{ color: "var(--text)" }}>Izoh (O'zim uchun): </strong>
+        <div className="debt-card__note">
+          <FileText size={13} className="debt-card__note-icon" />
+          <div className="debt-card__note-body">
+            <strong>Izoh: </strong>
             <span>{debt.personalNote}</span>
           </div>
         </div>
       )}
 
-      {/* To'lovlar tarixi akkordioni */}
+      {/* 6. To'lovlar tarixi akkordioni */}
       {payments.length > 0 && (
-        <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 8 }}>
+        <div className="debt-card__payments-section">
           <button
             type="button"
-            className="btn btn--ghost btn--xs"
+            className="debt-card__payments-toggle"
             onClick={() => setShowPayments(!showPayments)}
-            style={{ width: "100%", justifyContent: "space-between", padding: "4px 0", color: "var(--accent)" }}
           >
             <span>To'lovlar tarixi ({payments.length} ta)</span>
-            {showPayments ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showPayments ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
 
           {showPayments && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            <div className="debt-card__payments-list">
               {payments.map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: "0.78rem",
-                    padding: "4px 8px",
-                    background: "var(--surface-sunken)",
-                    borderRadius: 4,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <CheckCircle2 size={13} color="var(--accent)" />
+                <div key={p.id} className="debt-card__payment-item">
+                  <div className="debt-card__payment-meta">
+                    <CheckCircle2 size={12} color="var(--accent)" />
                     <span>
-                      {new Date(p.date).toLocaleDateString("uz-UZ", { month: "short", day: "numeric" })}
+                      {new Date(p.date).toLocaleDateString("uz-UZ", {
+                        month: "short",
+                        day: "numeric",
+                      })}
                       {p.note && ` — ${p.note}`}
                     </span>
                   </div>
-                  <span className="mono font-semibold" style={{ color: "var(--accent)" }}>
+                  <span className="debt-card__payment-val mono">
                     +{formatFn(p.amount)}
                   </span>
                 </div>
@@ -353,31 +284,41 @@ export default function DebtCard({
         </div>
       )}
 
-      {/* Pastki boshqaruv tugmalari */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+      {/* 7. Pastki boshqaruv tugmalari */}
+      <div className="debt-card__actions-footer">
         <button
           type="button"
-          className="btn btn--ghost btn--xs text-muted"
+          className="debt-card__btn-delete"
           onClick={() => {
-            if (window.confirm(`${debt.personName}ga tegishli qarz qaydini o'chirishni tasdiqlaysizmi?`)) {
+            if (
+              window.confirm(
+                `${debt.personName}ga tegishli qarz qaydini o'chirishni tasdiqlaysizmi?`
+              )
+            ) {
               onDeleteDebt(debt.id);
             }
           }}
           title="O'chirish"
-          style={{ color: "var(--text-muted)" }}
+          aria-label="O'chirish"
         >
           <Trash2 size={14} />
           <span>O'chirish</span>
         </button>
 
-        <div style={{ display: "flex", gap: 6 }}>
-          {!isSettled && (
+        <div className="debt-card__action-group">
+          {!isSettled ? (
             <>
               <button
                 type="button"
-                className="btn btn--ghost btn--xs"
-                onClick={() => onSettleDebt(debt.id, { amount: remainingAmount, wallet: debt.wallet, affectBalance: false })}
-                title="Qolgan qismini to'liq yopish deb belgilash"
+                className="debt-card__btn-settle"
+                onClick={() =>
+                  onSettleDebt(debt.id, {
+                    amount: remainingAmount,
+                    wallet: debt.wallet,
+                    affectBalance: false,
+                  })
+                }
+                title="To'liq yopildi deb belgilash"
               >
                 <CheckCircle2 size={14} />
                 <span>Yopildi</span>
@@ -385,21 +326,29 @@ export default function DebtCard({
 
               <button
                 type="button"
-                className="btn btn--primary btn--xs"
+                className="debt-card__btn-pay"
                 onClick={() => onOpenRepay(debt)}
               >
                 <PlusCircle size={14} />
-                <span>{isGiven ? "To'lov qabul qilish" : "To'lov qilish"}</span>
+                <span>To'lov</span>
               </button>
             </>
-          )}
-
-          {isSettled && (
-            <span style={{ fontSize: "0.8rem", color: "var(--income)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+          ) : (
+            <span className="debt-card__settled-badge">
               <CheckCircle2 size={14} />
-              To'liq yopilgan
+              <span>To'liq yopilgan</span>
             </span>
           )}
+
+          <button
+            type="button"
+            className="debt-card__btn-detail"
+            onClick={() => onSelectDebt && onSelectDebt(debt)}
+            title="Batafsil ma'lumotlar"
+          >
+            <Info size={14} />
+            <span>Batafsil</span>
+          </button>
         </div>
       </div>
     </div>
