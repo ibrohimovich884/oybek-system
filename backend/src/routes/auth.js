@@ -1,25 +1,17 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { pool } from "../../db/pool.js";
+import { JWT_SECRET, requireAuth } from "../middleware/auth.js";
 
 const router = Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || "oybek-system-jwt-secret-key-30d-auth-token";
 const DEFAULT_PASSWORD = "Oybek-SysteM";
 
 // =========================================================================
 // Xavfsizlik & Rate Limiting (Progressiv bloklash tizimi)
-// Qoidalar:
-// - 1 daqiqalik (60 soniya) vaqt oynasi
-// - 1 daqiqada maksimal 3 ta xato urinish
-// - Bloklash davomiyligi:
-//   1-bosqich: 30 sekund
-//   2-bosqich: 60 sekund (1 daqiqa)
-//   3-bosqich: 120 sekund (2 daqiqa)
-//   4+-bosqich: 300 sekund (5 daqiqa)
 // =========================================================================
 const WINDOW_MS = 60 * 1000; // 1 daqiqalik oyna
-const MAX_ATTEMPTS_PER_WINDOW = 3; // 1 daqiqada maksimal xatolar
+const MAX_ATTEMPTS_PER_WINDOW = 5; // 1 daqiqada maksimal xatolar
 const LOCKOUT_DURATIONS_MS = [
   30 * 1000,   // 1-marta: 30s
   60 * 1000,   // 2-marta: 60s
@@ -27,7 +19,6 @@ const LOCKOUT_DURATIONS_MS = [
   300 * 1000,  // 4+-marta: 300s
 ];
 
-// IP / Client bo'yicha urinishlarni xotirada saqlash
 const clientAttemptStore = new Map();
 
 function getClientIdentifier(req) {
@@ -41,9 +32,190 @@ function getLockoutDuration(stage) {
   return LOCKOUT_DURATIONS_MS[idx];
 }
 
-// POST /api/auth/login — 30 kunlik (1 oylik) JWT sessiya berish
+// =========================================================================
+// Yordamchi: Yangi foydalanuvchi uchun 7 ta standart hamyon ochish
+// =========================================================================
+export async function createDefaultWalletsForUser(userId, client = pool) {
+  // Wallets jadvalida user_id ustuni borligini tekshiramiz yoki qo'shib olamiz
+  await client.query(`
+    ALTER TABLE wallets ADD COLUMN IF NOT EXISTS user_id TEXT;
+  `).catch(() => {});
+
+  const standardWallets = [
+    { key: "hamyon", name: "Hamyon", currency: "UZS", balance: 0, parentKey: null },
+    { key: "naqd", name: "Naqd pul", currency: "UZS", balance: 0, parentKey: null },
+    { key: "karta", name: "Plastik karta", currency: "UZS", balance: 0, parentKey: null },
+    { key: "dollar", name: "AQSH Dollari", currency: "USD", balance: 0, parentKey: null },
+    { key: "naqd_reserve", name: "Naqd zaxira", currency: "UZS", balance: 0, parentKey: "naqd" },
+    { key: "karta_reserve", name: "Karta zaxira", currency: "UZS", balance: 0, parentKey: "karta" },
+    { key: "dollar_reserve", name: "Dollar zaxira", currency: "USD", balance: 0, parentKey: "dollar" },
+  ];
+
+  for (const w of standardWallets) {
+    const walletId = `${userId}_${w.key}`;
+    const parentId = w.parentKey ? `${userId}_${w.parentKey}` : null;
+
+    await client.query(
+      `INSERT INTO wallets (id, user_id, name, currency, balance, parent_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO NOTHING`,
+      [walletId, userId, w.name, w.currency, w.balance, parentId]
+    ).catch(async () => {
+      // Agar user_id siz eski wallets sxemasi bo'lsa:
+      await client.query(
+        `INSERT INTO wallets (id, name, currency, balance, parent_id)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO NOTHING`,
+        [walletId, w.name, w.currency, w.balance, parentId]
+      ).catch(() => {});
+    });
+  }
+}
+
+// =========================================================================
+// POST /api/auth/register — Yangi foydalanuvchini roʻyxatdan oʻtkazish
+// =========================================================================
+router.post("/register", async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      username,
+      phoneNumber,
+      phone_number,
+      fullName,
+      full_name,
+      defaultCurrency,
+      default_currency,
+      language,
+      theme,
+    } = req.body;
+
+    const cleanEmail = (email || "").trim().toLowerCase();
+    const cleanPassword = (password || "").trim();
+    let cleanUsername = (username || "").trim().toLowerCase();
+    const cleanPhone = (phoneNumber || phone_number || "").trim() || null;
+    let cleanFullName = (fullName || full_name || "").trim();
+
+    // 1. Validatsiyalar
+    if (!cleanEmail) {
+      return res.status(400).json({ error: "Gmail (Email) kiritilishi shart" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ error: "Email formati noto'g'ri (masalan: misol@gmail.com)" });
+    }
+
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return res.status(400).json({ error: "Parol kamida 6 ta belgidan iborat bo'lishi kerak" });
+    }
+
+    // Agar username berilmagan bo'lsa email prefixidan avtomatik olamiz
+    if (!cleanUsername) {
+      cleanUsername = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "_");
+    }
+
+    if (!cleanFullName) {
+      cleanFullName = cleanUsername;
+    }
+
+    // 2. Email yoki Username takrorlanmasligini tekshirish
+    const existing = await pool.query(
+      `SELECT id, email, username FROM users WHERE LOWER(email) = $1 OR (username IS NOT NULL AND LOWER(username) = $2) LIMIT 1`,
+      [cleanEmail, cleanUsername]
+    );
+
+    if (existing.rows.length > 0) {
+      const match = existing.rows[0];
+      if (match.email?.toLowerCase() === cleanEmail) {
+        return res.status(409).json({ error: "Ushbu Gmail bilan allaqachon roʻyxatdan oʻtilgan" });
+      }
+      return res.status(409).json({ error: "Ushbu username allaqachon band qilingan" });
+    }
+
+    // 3. Parolni xeshlash
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(cleanPassword, saltRounds);
+
+    // 4. Yangi foydalanuvchi ID si
+    const userId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // 5. Bazaga foydalanuvchini yozish
+    const insertResult = await pool.query(
+      `INSERT INTO users (
+        id, email, username, phone_number, password_hash, full_name,
+        role, is_active, default_currency, language, theme, last_login_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+      RETURNING id, email, username, phone_number, full_name, role, is_active, default_currency, language, theme, created_at`,
+      [
+        userId,
+        cleanEmail,
+        cleanUsername,
+        cleanPhone,
+        passwordHash,
+        cleanFullName,
+        "user",
+        true,
+        defaultCurrency || default_currency || "UZS",
+        language || "uz",
+        theme || "dark",
+      ]
+    );
+
+    const newUser = insertResult.rows[0];
+
+    // 6. Foydalanuvchi uchun avtomatik 7 ta standart hamyon ochish
+    await createDefaultWalletsForUser(userId);
+
+    // 7. 30 kunlik JWT sessiya token yaratish
+    const token = jwt.sign(
+      {
+        userId: newUser.id,
+        id: newUser.id,
+        sub: newUser.id,
+        email: newUser.email,
+        username: newUser.username,
+        role: newUser.role,
+        fullName: newUser.full_name,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    return res.status(201).json({
+      ok: true,
+      message: "Muvaffaqiyatli roʻyxatdan oʻtildi!",
+      token,
+      expiresIn: "30d",
+      user: {
+        id: newUser.id,
+        userId: newUser.id,
+        email: newUser.email,
+        username: newUser.username,
+        phoneNumber: newUser.phone_number,
+        fullName: newUser.full_name,
+        role: newUser.role,
+        defaultCurrency: newUser.default_currency,
+        language: newUser.language,
+        theme: newUser.theme,
+        createdAt: newUser.created_at,
+      },
+    });
+  } catch (err) {
+    console.error("[register error]", err);
+    return res.status(500).json({ error: "Roʻyxatdan oʻtishda server xatosi: " + err.message });
+  }
+});
+
+// =========================================================================
+// POST /api/auth/login — Email yoki username orqali tizimga kirish
+// =========================================================================
 router.post("/login", async (req, res) => {
-  const { password, username } = req.body;
+  const { password, login, username, email } = req.body;
+  const loginIdentifier = ((login || email || username || "") + "").trim().toLowerCase();
+  const rawPassword = (password || "").trim();
+
   const clientId = getClientIdentifier(req);
   const now = Date.now();
 
@@ -57,7 +229,7 @@ router.post("/login", async (req, res) => {
     clientAttemptStore.set(clientId, clientData);
   }
 
-  // 1. Agar mijoz hozirda bloklangan bo'lsa
+  // 1. Agar mijoz bloklangan bo'lsa
   if (clientData.lockUntil > now) {
     const remainingMs = clientData.lockUntil - now;
     const retryAfterSec = Math.ceil(remainingMs / 1000);
@@ -71,102 +243,233 @@ router.post("/login", async (req, res) => {
     });
   }
 
-  // Blok muddati tugagan bo'lsa, lockUntil ni 0 ga o'tkazish
   if (clientData.lockUntil > 0 && clientData.lockUntil <= now) {
     clientData.lockUntil = 0;
-    // O'tgan xatolar tarixini tozalash (yangi oyna boshlanadi)
     clientData.attempts = [];
   }
 
-  // Eski (1 daqiqadan oshgan) urinishlarni tozalash
   clientData.attempts = clientData.attempts.filter((ts) => now - ts < WINDOW_MS);
 
-  if (!password) {
+  if (!rawPassword) {
     return res.status(400).json({ error: "Parol kiritilishi shart" });
   }
 
-  // Parol tekshiruvi:
-  let isValid = false;
-  const expectedPassword = process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
-  
-  if (password === expectedPassword || password === DEFAULT_PASSWORD) {
-    isValid = true;
-  } else if (process.env.ADMIN_PASSWORD_HASH) {
-    try {
-      isValid = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
-    } catch {
-      isValid = false;
+  try {
+    let user = null;
+    let isPasswordValid = false;
+
+    // 2. Foydalanuvchini bazadan qidirish (email, username yoki phone_number bo'yicha)
+    if (loginIdentifier) {
+      const { rows } = await pool.query(
+        `SELECT * FROM users 
+         WHERE LOWER(email) = $1 
+            OR (username IS NOT NULL AND LOWER(username) = $1)
+            OR (phone_number IS NOT NULL AND phone_number = $1)
+         LIMIT 1`,
+        [loginIdentifier]
+      );
+      if (rows.length > 0) {
+        user = rows[0];
+      }
     }
-  }
 
-  if (!isValid) {
-    // Xato urinishni yozish
-    clientData.attempts.push(now);
+    // 3. Parolni tekshirish
+    if (user && user.password_hash) {
+      isPasswordValid = await bcrypt.compare(rawPassword, user.password_hash);
+    } else {
+      // Orqaga moslik / Legacy Admin tekshiruvi:
+      const expectedPassword = process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
+      if (rawPassword === expectedPassword || rawPassword === DEFAULT_PASSWORD) {
+        isPasswordValid = true;
+        user = {
+          id: "usr_admin",
+          email: "admin@system.local",
+          username: "admin",
+          phone_number: null,
+          full_name: "Oybek (Admin)",
+          role: "admin",
+          is_active: true,
+          default_currency: "UZS",
+          language: "uz",
+          theme: "dark",
+        };
+      }
+    }
 
-    const attemptsInWindow = clientData.attempts.length;
-    const remainingAttempts = Math.max(0, MAX_ATTEMPTS_PER_WINDOW - attemptsInWindow);
+    // 4. Agar parol xato bo'lsa
+    if (!isPasswordValid || !user) {
+      clientData.attempts.push(now);
+      const attemptsInWindow = clientData.attempts.length;
+      const remainingAttempts = Math.max(0, MAX_ATTEMPTS_PER_WINDOW - attemptsInWindow);
 
-    // Agar 1 daqiqada belgilangan sondan oshsa -> Bloklash
-    if (attemptsInWindow >= MAX_ATTEMPTS_PER_WINDOW) {
-      clientData.lockoutStage += 1;
-      const lockDuration = getLockoutDuration(clientData.lockoutStage);
-      clientData.lockUntil = now + lockDuration;
-      clientData.attempts = []; // Bloklangan vaqtda hisoblagichni yangilaymiz
+      if (attemptsInWindow >= MAX_ATTEMPTS_PER_WINDOW) {
+        clientData.lockoutStage += 1;
+        const lockDuration = getLockoutDuration(clientData.lockoutStage);
+        clientData.lockUntil = now + lockDuration;
+        clientData.attempts = [];
 
-      const lockSeconds = Math.ceil(lockDuration / 1000);
-      return res.status(429).json({
-        error: `1 daqiqa ichida ${MAX_ATTEMPTS_PER_WINDOW} marta xato parol kiritildi! Tizim ${lockSeconds} soniyaga bloklandi.`,
-        retryAfter: lockSeconds,
-        lockUntil: clientData.lockUntil,
-        isLocked: true,
-        lockoutStage: clientData.lockoutStage,
-        code: "AUTH_LOCKED",
+        const lockSeconds = Math.ceil(lockDuration / 1000);
+        return res.status(429).json({
+          error: `1 daqiqa ichida ${MAX_ATTEMPTS_PER_WINDOW} marta xato parol kiritildi! Tizim ${lockSeconds} soniyaga bloklandi.`,
+          retryAfter: lockSeconds,
+          lockUntil: clientData.lockUntil,
+          isLocked: true,
+          lockoutStage: clientData.lockoutStage,
+          code: "AUTH_LOCKED",
+        });
+      }
+
+      return res.status(401).json({
+        error: "Noto'g'ri email/login yoki parol! Iltimos, qayta tekshirib urinib ko'ring.",
+        remainingAttempts,
+        maxAttempts: MAX_ATTEMPTS_PER_WINDOW,
       });
     }
 
-    return res.status(401).json({
-      error: "Noto'g'ri parol! Iltimos, qayta urinib ko'ring.",
-      remainingAttempts,
-      maxAttempts: MAX_ATTEMPTS_PER_WINDOW,
-      windowSeconds: 60,
-      nextLockoutDuration: Math.ceil(getLockoutDuration(clientData.lockoutStage + 1) / 1000),
+    // 5. Hisob faolligini tekshirish
+    if (user.is_active === false) {
+      return res.status(403).json({ error: "Foydalanuvchi hisobi faol emas yoki bloklangan." });
+    }
+
+    // Muvaffaqiyatli kirish: hisoblagichlarni tozalash
+    clientAttemptStore.delete(clientId);
+
+    // Bazada last_login_at ni yangilash
+    if (user.id !== "usr_admin") {
+      await pool.query("UPDATE users SET last_login_at = now() WHERE id = $1", [user.id]).catch(() => {});
+    }
+
+    // 6. JWT token berish (30 kunlik)
+    const expiresIn = "30d";
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        id: user.id,
+        sub: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role || "user",
+        fullName: user.full_name || user.name || "User",
+      },
+      JWT_SECRET,
+      { expiresIn }
+    );
+
+    return res.json({
+      ok: true,
+      message: "Tizimga muvaffaqiyatli kirildi.",
+      token,
+      expiresIn,
+      user: {
+        id: user.id,
+        userId: user.id,
+        email: user.email,
+        username: user.username,
+        phoneNumber: user.phone_number,
+        fullName: user.full_name || user.name || "User",
+        role: user.role || "user",
+        defaultCurrency: user.default_currency || "UZS",
+        language: user.language || "uz",
+        theme: user.theme || "dark",
+      },
     });
+  } catch (err) {
+    console.error("[login error]", err);
+    return res.status(500).json({ error: "Tizimga kirishda server xatosi: " + err.message });
   }
-
-  // Muvaffaqiyatli kirilganda xavfsizlik hisoblagichlarini tozalash
-  clientAttemptStore.delete(clientId);
-
-  // 1 oylik (30 kun) JWT sessiya yaratish
-  const expiresIn = "30d";
-  const durationMs = 30 * 24 * 60 * 60 * 1000; // 30 kun millisekundda
-  const expiresAt = Date.now() + durationMs;
-
-  const token = jwt.sign(
-    {
-      sub: username || "admin",
-      role: "admin",
-      system: "Oybek-SysteM",
-      createdAt: Date.now(),
-    },
-    JWT_SECRET,
-    { expiresIn }
-  );
-
-  return res.json({
-    ok: true,
-    token,
-    expiresIn,
-    expiresAt,
-    user: {
-      name: "Oybek",
-      role: "admin",
-      system: "OYBEK SysteM",
-    },
-    message: "Tizimga muvaffaqiyatli kirildi. Sessiya 1 oy amal qiladi.",
-  });
 });
 
-// GET /api/auth/status — Hozirgi login holati va cheklovlarni tekshirish
+// =========================================================================
+// GET /api/auth/me — Joriy autentifikatsiya qilingan foydalanuvchi profili
+// =========================================================================
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { rows } = await pool.query(
+      `SELECT id, email, username, phone_number, full_name, avatar_url, role, 
+              is_active, default_currency, language, theme, timezone, created_at, last_login_at
+       FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      // Legacy admin uchun fallback
+      return res.json({
+        ok: true,
+        user: {
+          id: userId,
+          userId,
+          email: req.user.email || "admin@system.local",
+          username: req.user.username || "admin",
+          fullName: req.user.fullName || "Oybek (Admin)",
+          role: req.user.role || "admin",
+          defaultCurrency: "UZS",
+          language: "uz",
+          theme: "dark",
+        },
+      });
+    }
+
+    const u = rows[0];
+    return res.json({
+      ok: true,
+      user: {
+        id: u.id,
+        userId: u.id,
+        email: u.email,
+        username: u.username,
+        phoneNumber: u.phone_number,
+        fullName: u.full_name,
+        avatarUrl: u.avatar_url,
+        role: u.role,
+        isActive: u.is_active,
+        defaultCurrency: u.default_currency,
+        language: u.language,
+        theme: u.theme,
+        timezone: u.timezone,
+        createdAt: u.created_at,
+        lastLoginAt: u.last_login_at,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Profilni yuklashda xatolik: " + err.message });
+  }
+});
+
+// =========================================================================
+// GET /api/auth/verify — Tokenni tekshirish
+// =========================================================================
+router.get("/verify", (req, res) => {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ valid: false, error: "Token berilmagan" });
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const userId = payload.userId || payload.sub || payload.id;
+    return res.json({
+      valid: true,
+      user: {
+        ...payload,
+        userId,
+        id: userId,
+      },
+      expiresAt: payload.exp ? payload.exp * 1000 : null,
+    });
+  } catch (err) {
+    return res.status(401).json({
+      valid: false,
+      error: "Token yaroqsiz yoki muddati o'tgan",
+    });
+  }
+});
+
+// =========================================================================
+// GET /api/auth/status — Rate limit holati
+// =========================================================================
 router.get("/status", (req, res) => {
   const clientId = getClientIdentifier(req);
   const now = Date.now();
@@ -197,29 +500,4 @@ router.get("/status", (req, res) => {
   });
 });
 
-// GET /api/auth/verify — Tokenni tekshirish
-router.get("/verify", (req, res) => {
-  const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-
-  if (!token) {
-    return res.status(401).json({ valid: false, error: "Token berilmagan" });
-  }
-
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    return res.json({
-      valid: true,
-      user: payload,
-      expiresAt: payload.exp ? payload.exp * 1000 : null,
-    });
-  } catch (err) {
-    return res.status(401).json({
-      valid: false,
-      error: "Token yaroqsiz yoki muddati o'tgan",
-    });
-  }
-});
-
 export default router;
-

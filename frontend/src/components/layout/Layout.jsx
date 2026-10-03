@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Menu, Home, Wallet, SlidersHorizontal, HandCoins, PlusCircle, Bell } from "lucide-react";
+import { Menu, Home, Wallet, HandCoins, PlusCircle, Bell, User } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
 import OfflineIndicator from "../OfflineIndicator.jsx";
 import { useNotifications } from "../../context/NotificationsContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { unreadCount } = useNotifications();
+  const { user } = useAuth();
 
   const isHome = location.pathname === "/";
   const isMoney = location.pathname === "/money";
@@ -31,6 +33,8 @@ export default function Layout({ children }) {
     return "Shaxsiy panel";
   };
 
+  const displayName = user?.fullName || user?.name || "Oybek";
+
   return (
     <div className="layout">
       {/* Mobile Top Header (only on <= 768px) */}
@@ -40,9 +44,11 @@ export default function Layout({ children }) {
           className="mobile-header__brand"
           title="Bosh sahifaga qaytish"
         >
-          <div className="mobile-header__logo">OS</div>
+          <div className="mobile-header__logo">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
           <div className="mobile-header__titles">
-            <span className="mobile-header__name">OYBEK SysteM</span>
+            <span className="mobile-header__name">{displayName}</span>
             <span className="mobile-header__tag">{getPageTag()}</span>
           </div>
         </NavLink>
@@ -77,7 +83,6 @@ export default function Layout({ children }) {
           </button>
         </div>
       </header>
-
 
       {/* Sidebar / Drawer */}
       <Sidebar

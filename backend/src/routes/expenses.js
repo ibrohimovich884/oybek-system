@@ -5,7 +5,8 @@ const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const expenses = await expensesService.getAllExpenses();
+    const userId = req.user.userId;
+    const expenses = await expensesService.getAllExpenses(userId);
     res.json(expenses);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -14,7 +15,8 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const created = await expensesService.createExpense(req.body);
+    const userId = req.user.userId;
+    const created = await expensesService.createExpense(req.body, userId);
     res.status(201).json(created);
   } catch (err) {
     console.error("Expense create error:", err);
@@ -24,7 +26,8 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const updated = await expensesService.updateExpense(req.params.id, req.body);
+    const userId = req.user.userId;
+    const updated = await expensesService.updateExpense(req.params.id, req.body, userId);
     res.json(updated);
   } catch (err) {
     console.error("Expense update error:", err);
@@ -34,7 +37,8 @@ router.put("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
-    await expensesService.deleteExpense(req.params.id);
+    const userId = req.user.userId;
+    await expensesService.deleteExpense(req.params.id, userId);
     res.json({ success: true });
   } catch (err) {
     console.error("Expense delete error:", err);

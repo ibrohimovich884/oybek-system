@@ -20,16 +20,21 @@ function mapLog(row) {
     date: row.date,
     completed: row.completed,
     completedAt: row.completed_at,
-    ...row.details,
+    ...(typeof row.details === "object" && row.details !== null ? row.details : {}),
   };
 }
 
-export async function getAllExercises() {
-  const { rows } = await pool.query("SELECT * FROM exercises ORDER BY created_at");
+export async function getAllExercises(userId) {
+  const query = userId
+    ? "SELECT * FROM exercises WHERE user_id = $1 ORDER BY created_at"
+    : "SELECT * FROM exercises ORDER BY created_at";
+  const params = userId ? [userId] : [];
+
+  const { rows } = await pool.query(query, params);
   return rows.map(mapExercise);
 }
 
-export async function createExercise(payload) {
+export async function createExercise(payload, userId) {
   const {
     id,
     name,
@@ -42,45 +47,65 @@ export async function createExercise(payload) {
   } = payload;
 
   const { rows } = await pool.query(
-    `INSERT INTO exercises (id, name, category, target, duration_minutes, calories, icon, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7, COALESCE($8, to_char(now(), 'YYYY-MM-DD')))
-     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+    `INSERT INTO exercises (id, user_id, name, category, target, duration_minutes, calories, icon, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, COALESCE($9, to_char(now(), 'YYYY-MM-DD')))
+     ON CONFLICT (id) DO UPDATE SET 
+       name = EXCLUDED.name,
+       category = EXCLUDED.category,
+       target = EXCLUDED.target,
+       duration_minutes = EXCLUDED.duration_minutes,
+       calories = EXCLUDED.calories,
+       icon = EXCLUDED.icon
      RETURNING *`,
-    [id, name, category, target, durationMinutes, calories, icon, createdAt]
+    [id, userId || null, name, category, target, durationMinutes, calories, icon, createdAt]
   );
   return mapExercise(rows[0]);
 }
 
-export async function deleteExercise(id) {
-  await pool.query("DELETE FROM exercises WHERE id = $1", [id]);
+export async function deleteExercise(id, userId) {
+  if (userId) {
+    await pool.query("DELETE FROM exercises WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", [id, userId]);
+  } else {
+    await pool.query("DELETE FROM exercises WHERE id = $1", [id]);
+  }
 }
 
-export async function getAllLogs() {
-  const { rows } = await pool.query("SELECT * FROM exercise_logs");
+export async function getAllLogs(userId) {
+  const query = userId
+    ? "SELECT * FROM exercise_logs WHERE user_id = $1"
+    : "SELECT * FROM exercise_logs";
+  const params = userId ? [userId] : [];
+
+  const { rows } = await pool.query(query, params);
   return rows.map(mapLog);
 }
 
-// completed=true bo'lsa yozuvni qo'shadi/yangilaydi, false bo'lsa o'chiradi
-// — frontenddagi logExercise() bilan bir xil mantiq.
-export async function logExercise({ exerciseId, date, completed, details = {} }) {
+export async function logExercise({ exerciseId, date, completed, details = {} }, userId) {
   if (!completed) {
-    await pool.query(
-      "DELETE FROM exercise_logs WHERE exercise_id = $1 AND date = $2",
-      [exerciseId, date]
-    );
+    if (userId) {
+      await pool.query(
+        "DELETE FROM exercise_logs WHERE exercise_id = $1 AND date = $2 AND (user_id = $3 OR user_id IS NULL)",
+        [exerciseId, date, userId]
+      );
+    } else {
+      await pool.query(
+        "DELETE FROM exercise_logs WHERE exercise_id = $1 AND date = $2",
+        [exerciseId, date]
+      );
+    }
     return { exerciseId, date, completed: false };
   }
 
   const nowTime = new Date().toTimeString().slice(0, 5);
-  const id = `log_${date}_${exerciseId}`;
+  const id = `log_${userId ? userId + "_" : ""}${date}_${exerciseId}`;
 
   const { rows } = await pool.query(
-    `INSERT INTO exercise_logs (id, exercise_id, date, completed, completed_at, details)
-     VALUES ($1, $2, $3, true, $4, $5)
-     ON CONFLICT (exercise_id, date)
-     DO UPDATE SET completed = true, details = $5
+    `INSERT INTO exercise_logs (id, exercise_id, user_id, date, completed, completed_at, details)
+     VALUES ($1, $2, $3, $4, true, $5, $6)
+     ON CONFLICT (id)
+     DO UPDATE SET completed = true, details = $6
      RETURNING *`,
-    [id, exerciseId, date, nowTime, JSON.stringify(details)]
+    [id, exerciseId, userId || null, date, nowTime, JSON.stringify(details)]
   );
   return mapLog(rows[0]);
 }

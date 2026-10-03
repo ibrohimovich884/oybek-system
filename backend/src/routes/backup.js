@@ -5,8 +5,9 @@ import * as walletsService from "../services/walletsService.js";
 
 const router = Router();
 
-// Frontenddagi "backup import" / "forcePushAllToDB" shu yerga POST qiladi.
+// Backup import
 router.post("/", async (req, res) => {
+  const userId = req.user.userId;
   const { wallets, expenses, reserves, dollarRateHistory, pendingDebts, confirmWipe } = req.body;
   const client = await pool.connect();
   try {
@@ -15,48 +16,21 @@ router.post("/", async (req, res) => {
     if (wallets) {
       for (const rawId of walletsService.WALLET_IDS) {
         if (wallets[rawId] !== undefined) {
-          await client.query("UPDATE wallets SET balance = $1 WHERE id = $2", [
-            Number(wallets[rawId]),
-            rawId,
-          ]);
+          const dbWalletId = walletsService.canonicalWalletId(rawId, userId);
+          await client.query(
+            "UPDATE wallets SET balance = $1 WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
+            [Number(wallets[rawId]), dbWalletId, userId || null, `%_${rawId}`]
+          );
         }
-      }
-      // Eski nomlar bo'lsa
-      if (wallets["naqd-asosiy"] !== undefined) {
-        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'naqd_reserve'", [
-          Number(wallets["naqd-asosiy"]),
-        ]);
-      }
-      if (wallets["karta-asosiy"] !== undefined) {
-        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'karta_reserve'", [
-          Number(wallets["karta-asosiy"]),
-        ]);
-      }
-      if (wallets["dollar-asosiy"] !== undefined) {
-        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'dollar_reserve'", [
-          Number(wallets["dollar-asosiy"]),
-        ]);
-      }
-    }
-
-    if (reserves && typeof reserves === "object") {
-      if (reserves["naqd_reserve"]?.amount !== undefined || reserves["naqd-asosiy"]?.amount !== undefined) {
-        const amt = Number(reserves["naqd_reserve"]?.amount ?? reserves["naqd-asosiy"]?.amount ?? 0);
-        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'naqd_reserve'", [amt]);
-      }
-      if (reserves["karta_reserve"]?.amount !== undefined || reserves["karta-asosiy"]?.amount !== undefined) {
-        const amt = Number(reserves["karta_reserve"]?.amount ?? reserves["karta-asosiy"]?.amount ?? 0);
-        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'karta_reserve'", [amt]);
-      }
-      if (reserves["dollar_reserve"]?.amount !== undefined || reserves["dollar-asosiy"]?.amount !== undefined) {
-        const amt = Number(reserves["dollar_reserve"]?.amount ?? reserves["dollar-asosiy"]?.amount ?? 0);
-        await client.query("UPDATE wallets SET balance = $1 WHERE id = 'dollar_reserve'", [amt]);
       }
     }
 
     if (Array.isArray(expenses)) {
       if (expenses.length === 0 && !confirmWipe) {
-        const { rows } = await client.query("SELECT COUNT(*)::int AS n FROM transactions");
+        const { rows } = await client.query(
+          "SELECT COUNT(*)::int AS n FROM transactions WHERE user_id = $1 OR user_id IS NULL",
+          [userId || null]
+        );
         if (rows[0].n > 0) {
           await client.query("ROLLBACK");
           return res.status(409).json({
@@ -64,22 +38,27 @@ router.post("/", async (req, res) => {
           });
         }
       }
-      await client.query("DELETE FROM transaction_edits");
-      await client.query("DELETE FROM transactions");
+
+      if (userId) {
+        await client.query("DELETE FROM transactions WHERE user_id = $1", [userId]);
+      } else {
+        await client.query("DELETE FROM transactions");
+      }
 
       for (const item of expenses) {
-        const resolvedWallet = walletsService.canonicalWalletId(item.wallet || item.paymentMethod);
-        const resolvedFrom = item.fromWallet ? walletsService.canonicalWalletId(item.fromWallet) : null;
-        const resolvedTo = item.toWallet ? walletsService.canonicalWalletId(item.toWallet) : null;
-        const resolvedPaymentMethod = item.paymentMethod ? walletsService.canonicalWalletId(item.paymentMethod) : resolvedWallet;
+        const cleanWallet = walletsService.cleanWalletKey(item.wallet || item.paymentMethod);
+        const cleanFrom = item.fromWallet ? walletsService.cleanWalletKey(item.fromWallet) : null;
+        const cleanTo = item.toWallet ? walletsService.cleanWalletKey(item.toWallet) : null;
+        const cleanPaymentMethod = item.paymentMethod ? walletsService.cleanWalletKey(item.paymentMethod) : cleanWallet;
 
         await client.query(
           `INSERT INTO transactions
-            (id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, COALESCE($16, now()))
+            (id, user_id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, COALESCE($17, now()))
            ON CONFLICT (id) DO NOTHING`,
           [
             item.id,
+            userId || null,
             item.type || "expense",
             item.amount,
             item.currency || "UZS",
@@ -87,10 +66,10 @@ router.post("/", async (req, res) => {
             item.subcategory,
             item.reason,
             item.location,
-            resolvedPaymentMethod,
-            resolvedWallet,
-            resolvedFrom,
-            resolvedTo,
+            cleanPaymentMethod,
+            cleanWallet,
+            cleanFrom,
+            cleanTo,
             item.quantity || 1,
             item.exchangeRateAtTime || null,
             item.spentAt,
@@ -101,9 +80,9 @@ router.post("/", async (req, res) => {
         if (Array.isArray(item.edits)) {
           for (const edit of item.edits) {
             await client.query(
-              `INSERT INTO transaction_edits (transaction_id, field, from_value, to_value, edited_at)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [item.id, edit.field, edit.from, edit.to, edit.editedAt]
+              `INSERT INTO transaction_edits (transaction_id, user_id, field, from_value, to_value, edited_at)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [item.id, userId || null, edit.field, edit.from, edit.to, edit.editedAt]
             );
           }
         }
@@ -111,6 +90,7 @@ router.post("/", async (req, res) => {
     }
 
     if (reserves !== undefined || dollarRateHistory !== undefined || pendingDebts !== undefined) {
+      const snapshotId = userId ? `snap_${userId}` : "1";
       const sets = [];
       const values = [];
       let i = 1;
@@ -127,8 +107,10 @@ router.post("/", async (req, res) => {
         values.push(JSON.stringify(pendingDebts));
       }
       sets.push(`updated_at = now()`);
+      values.push(snapshotId);
+
       await client.query(
-        `UPDATE app_snapshot SET ${sets.join(", ")} WHERE id = 1`,
+        `UPDATE app_snapshot SET ${sets.join(", ")} WHERE id = $${i}`,
         values
       );
     }
@@ -143,13 +125,19 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Joriy holatni frontend kutgan aynan shu JSON shaklida qaytaradi.
+// Backup export
 router.get("/", async (req, res) => {
   try {
+    const userId = req.user.userId;
+    const snapshotId = userId ? `snap_${userId}` : "1";
+
     const [expenses, wallets, snapshotResult] = await Promise.all([
-      expensesService.getAllExpenses(),
-      walletsService.getWallets(),
-      pool.query("SELECT * FROM app_snapshot WHERE id = 1"),
+      expensesService.getAllExpenses(userId),
+      walletsService.getWallets(userId),
+      pool.query("SELECT * FROM app_snapshot WHERE id = $1 OR (user_id = $2 AND user_id IS NOT NULL)", [
+        snapshotId,
+        userId || null,
+      ]),
     ]);
     const snapshot = snapshotResult.rows[0] || {};
 

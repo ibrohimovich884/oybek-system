@@ -10,10 +10,10 @@ import {
   Bell,
   X,
   Database,
-  RefreshCw,
   Lock,
   LogOut,
   ShieldCheck,
+  User,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { useSecurity } from "../../context/SecurityContext.jsx";
@@ -24,7 +24,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const { syncStatus, debts, regularExpenses } = useExpenses();
   const { isUnlocked } = useSecurity();
   const { unreadCount } = useNotifications();
-  const { logout, daysRemaining } = useAuth();
+  const { user, logout, daysRemaining } = useAuth();
 
   const isControlUnlocked = isUnlocked("control_panel");
 
@@ -33,6 +33,10 @@ export default function Sidebar({ isOpen, onClose }) {
   ).length;
 
   const regularTxCount = (regularExpenses || []).length;
+
+  const displayName = user?.fullName || user?.name || "Foydalanuvchi";
+  const displayEmail = user?.email || (user?.username ? `@${user.username}` : "");
+  const roleLabel = user?.role === "admin" ? "Admin" : "Aʼzo";
 
   const navItems = [
     { to: "/", label: "Bosh sahifa", icon: Home },
@@ -74,7 +78,6 @@ export default function Sidebar({ isOpen, onClose }) {
     },
   ];
 
-
   return (
     <>
       {/* Mobile backdrop */}
@@ -98,7 +101,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <div className="sidebar__logo-badge">OS</div>
             <div className="sidebar__brand-text">
               <span className="sidebar__brand-name">OYBEK SysteM</span>
-              <span className="sidebar__brand-tag">Shaxsiy panel</span>
+              <span className="sidebar__brand-tag">Multi-User Panel</span>
             </div>
           </NavLink>
 
@@ -110,6 +113,90 @@ export default function Sidebar({ isOpen, onClose }) {
           >
             <X size={20} />
           </button>
+        </div>
+
+        {/* Foydalanuvchi profili kartochkasi */}
+        <div
+          style={{
+            margin: "0 12px 14px 12px",
+            padding: "10px 12px",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.5) 100%)",
+              border: "1px solid rgba(52, 211, 153, 0.4)",
+              color: "#34d399",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: "0.95rem",
+              flexShrink: 0,
+            }}
+          >
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  color: "#f5f3ec",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {displayName}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.62rem",
+                  padding: "1px 5px",
+                  borderRadius: 6,
+                  background: user?.role === "admin" ? "rgba(245, 158, 11, 0.18)" : "rgba(16, 185, 129, 0.15)",
+                  color: user?.role === "admin" ? "#fbbf24" : "#34d399",
+                  border: user?.role === "admin" ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid rgba(52, 211, 153, 0.25)",
+                  fontWeight: 600,
+                }}
+              >
+                {roleLabel}
+              </span>
+            </div>
+
+            {displayEmail && (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.72rem",
+                  color: "rgba(245, 243, 236, 0.55)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {displayEmail}
+              </p>
+            )}
+          </div>
         </div>
 
         <nav className="sidebar__nav">
@@ -198,7 +285,7 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
           </NavLink>
 
-          {/* 1 oylik JWT Sessiya & Chiqish tugmasi */}
+          {/* 30 kunlik JWT Sessiya & Chiqish tugmasi */}
           <div
             style={{
               display: "flex",
@@ -214,13 +301,13 @@ export default function Sidebar({ isOpen, onClose }) {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#34d399" }}>
               <ShieldCheck size={14} />
-              <span>Sessiya: {daysRemaining > 0 ? `${daysRemaining} kun` : "1 oy"}</span>
+              <span>Sessiya: {daysRemaining > 0 ? `${daysRemaining} kun` : "30 kun"}</span>
             </div>
 
             <button
               type="button"
               onClick={() => {
-                if (window.confirm("Tizimdan chiqishni xohlaysizmi?")) {
+                if (window.confirm("Haqiqatan ham hisobdan chiqmoqchimisiz?")) {
                   logout();
                   if (onClose) onClose();
                 }
@@ -230,12 +317,12 @@ export default function Sidebar({ isOpen, onClose }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
-                color: "rgba(245, 243, 236, 0.65)",
+                color: "#f87171",
                 padding: "3px 7px",
                 fontSize: "0.72rem",
                 cursor: "pointer",
               }}
-              title="Tizimdan chiqish"
+              title="Hisobdan chiqish"
             >
               <LogOut size={13} />
               <span>Chiqish</span>
@@ -246,4 +333,3 @@ export default function Sidebar({ isOpen, onClose }) {
     </>
   );
 }
-

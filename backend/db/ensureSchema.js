@@ -7,8 +7,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Backend kutadigan ustunlar (information_schema.data_type qiymatlari bilan)
 export const EXPECTED = {
+  users: {
+    id: "text",
+    email: "text",
+    username: "text",
+    phone_number: "text",
+    password_hash: "text",
+    full_name: "text",
+    avatar_url: "text",
+    role: "text",
+    is_active: "boolean",
+    default_currency: "text",
+    language: "text",
+    theme: "text",
+    timezone: "text",
+    last_login_at: "timestamp with time zone",
+    created_at: "timestamp with time zone",
+    updated_at: "timestamp with time zone",
+  },
   wallets: {
     id: "text",
+    user_id: "text",
     name: "text",
     currency: "text",
     balance: "numeric",
@@ -17,12 +36,14 @@ export const EXPECTED = {
   wallet_notes: {
     id: "integer",
     wallet_id: "text",
+    user_id: "text",
     text: "text",
     amount_at_time: "numeric",
     edited_at: "timestamp with time zone",
   },
   transactions: {
     id: "text",
+    user_id: "text",
     type: "text",
     amount: "numeric",
     currency: "text",
@@ -42,6 +63,7 @@ export const EXPECTED = {
   transaction_edits: {
     id: "integer",
     transaction_id: "text",
+    user_id: "text",
     field: "text",
     from_value: "text",
     to_value: "text",
@@ -49,6 +71,7 @@ export const EXPECTED = {
   },
   debts: {
     id: "text",
+    user_id: "text",
     type: "text",
     person_name: "text",
     contact: "text",
@@ -70,12 +93,14 @@ export const EXPECTED = {
   debt_payments: {
     id: "text",
     debt_id: "text",
+    user_id: "text",
     amount: "numeric",
     note: "text",
     paid_at: "timestamp with time zone",
   },
   app_snapshot: {
-    id: "integer",
+    id: "text",
+    user_id: "text",
     reserves: "jsonb",
     dollar_rate_history: "jsonb",
     pending_debts: "jsonb",
@@ -88,6 +113,7 @@ export const EXPECTED = {
   },
   exercises: {
     id: "text",
+    user_id: "text",
     name: "text",
     category: "text",
     target: "text",
@@ -99,6 +125,7 @@ export const EXPECTED = {
   exercise_logs: {
     id: "text",
     exercise_id: "text",
+    user_id: "text",
     date: "text",
     completed: "boolean",
     completed_at: "text",
@@ -107,6 +134,14 @@ export const EXPECTED = {
 };
 
 const DEFAULTS = {
+  "users.role": "'user'",
+  "users.is_active": "true",
+  "users.default_currency": "'UZS'",
+  "users.language": "'uz'",
+  "users.theme": "'dark'",
+  "users.timezone": "'Asia/Tashkent'",
+  "users.created_at": "now()",
+  "users.updated_at": "now()",
   "wallets.name": "''",
   "wallets.currency": "'UZS'",
   "wallets.balance": "0",

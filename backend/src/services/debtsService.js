@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool.js";
-import { canonicalWalletId } from "./walletsService.js";
+import { cleanWalletKey } from "./walletsService.js";
 
 function mapDebtRow(row, payments = []) {
   return {
@@ -12,7 +12,7 @@ function mapDebtRow(row, payments = []) {
     reason: row.reason,
     location: row.location,
     personalNote: row.personal_note,
-    wallet: row.wallet,
+    wallet: cleanWalletKey(row.wallet),
     status: row.status, // 'pending' | 'partial' | 'settled'
     dueDate: row.due_date,
     isDueDateUnknown: Boolean(row.is_due_date_unknown),
@@ -33,13 +33,24 @@ function mapDebtRow(row, payments = []) {
   };
 }
 
-export async function getAllDebts() {
-  const { rows: debts } = await pool.query(
-    "SELECT * FROM debts ORDER BY created_at DESC"
-  );
-  const { rows: payments } = await pool.query(
-    "SELECT * FROM debt_payments ORDER BY paid_at DESC"
-  );
+export async function getAllDebts(userId) {
+  const debtQuery = userId
+    ? "SELECT * FROM debts WHERE user_id = $1 ORDER BY created_at DESC"
+    : "SELECT * FROM debts ORDER BY created_at DESC";
+  const debtParams = userId ? [userId] : [];
+
+  const paymentQuery = userId
+    ? `SELECT dp.* FROM debt_payments dp 
+       JOIN debts d ON dp.debt_id = d.id 
+       WHERE d.user_id = $1 
+       ORDER BY dp.paid_at DESC`
+    : "SELECT * FROM debt_payments ORDER BY paid_at DESC";
+  const paymentParams = userId ? [userId] : [];
+
+  const [{ rows: debts }, { rows: payments }] = await Promise.all([
+    pool.query(debtQuery, debtParams),
+    pool.query(paymentQuery, paymentParams),
+  ]);
 
   const paymentsByDebt = new Map();
   for (const p of payments) {
@@ -52,12 +63,15 @@ export async function getAllDebts() {
   return debts.map((row) => mapDebtRow(row, paymentsByDebt.get(row.id) || []));
 }
 
-export async function getDebtById(id) {
-  const { rows: debts } = await pool.query(
-    "SELECT * FROM debts WHERE id = $1",
-    [id]
-  );
+export async function getDebtById(id, userId) {
+  const query = userId
+    ? "SELECT * FROM debts WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)"
+    : "SELECT * FROM debts WHERE id = $1";
+  const params = userId ? [id, userId] : [id];
+
+  const { rows: debts } = await pool.query(query, params);
   if (debts.length === 0) return null;
+
   const { rows: payments } = await pool.query(
     "SELECT * FROM debt_payments WHERE debt_id = $1 ORDER BY paid_at DESC",
     [id]
@@ -65,7 +79,7 @@ export async function getDebtById(id) {
   return mapDebtRow(debts[0], payments);
 }
 
-export async function createDebt(payload) {
+export async function createDebt(payload, userId) {
   const {
     id,
     type = "given",
@@ -87,13 +101,13 @@ export async function createDebt(payload) {
     createdAt,
   } = payload;
 
-  const resolvedWallet = canonicalWalletId(wallet);
+  const resolvedWallet = cleanWalletKey(wallet);
 
   const { rows } = await pool.query(
     `INSERT INTO debts
-      (id, type, person_name, contact, amount, currency, reason, location, personal_note,
+      (id, user_id, type, person_name, contact, amount, currency, reason, location, personal_note,
        wallet, status, due_date, is_due_date_unknown, affect_balance, synced, debt_date, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, COALESCE($17, now()), now())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18, now()), now())
      ON CONFLICT (id) DO UPDATE SET
        person_name = EXCLUDED.person_name,
        amount = EXCLUDED.amount,
@@ -102,6 +116,7 @@ export async function createDebt(payload) {
      RETURNING *`,
     [
       id,
+      userId || null,
       type,
       personName,
       contact,
@@ -124,16 +139,15 @@ export async function createDebt(payload) {
   return mapDebtRow(rows[0], []);
 }
 
-export async function updateDebt(id, updates) {
-  const current = await getDebtById(id);
+export async function updateDebt(id, updates, userId) {
+  const current = await getDebtById(id, userId);
   if (!current) {
-    return await createDebt({ id, ...updates });
+    return await createDebt({ id, ...updates }, userId);
   }
 
-  const resolvedWallet = updates.wallet ? canonicalWalletId(updates.wallet) : current.wallet;
+  const resolvedWallet = updates.wallet ? cleanWalletKey(updates.wallet) : current.wallet;
 
-  const { rows } = await pool.query(
-    `UPDATE debts SET
+  let updateSql = `UPDATE debts SET
       type = COALESCE($1, type),
       person_name = COALESCE($2, person_name),
       contact = COALESCE($3, contact),
@@ -149,26 +163,33 @@ export async function updateDebt(id, updates) {
       affect_balance = COALESCE($13, affect_balance),
       synced = COALESCE($14, synced),
       updated_at = now()
-     WHERE id = $15
-     RETURNING *`,
-    [
-      updates.type ?? null,
-      updates.personName ?? null,
-      updates.contact ?? null,
-      updates.amount !== undefined ? Number(updates.amount) : null,
-      updates.currency ?? null,
-      updates.reason ?? null,
-      updates.location ?? null,
-      updates.personalNote ?? null,
-      resolvedWallet,
-      updates.status ?? null,
-      updates.isDueDateUnknown !== undefined ? Boolean(updates.isDueDateUnknown) : null,
-      updates.dueDate ?? null,
-      updates.affectBalance !== undefined ? Boolean(updates.affectBalance) : null,
-      updates.synced !== undefined ? Boolean(updates.synced) : null,
-      id,
-    ]
-  );
+     WHERE id = $15`;
+
+  const params = [
+    updates.type ?? null,
+    updates.personName ?? null,
+    updates.contact ?? null,
+    updates.amount !== undefined ? Number(updates.amount) : null,
+    updates.currency ?? null,
+    updates.reason ?? null,
+    updates.location ?? null,
+    updates.personalNote ?? null,
+    resolvedWallet,
+    updates.status ?? null,
+    updates.isDueDateUnknown !== undefined ? Boolean(updates.isDueDateUnknown) : null,
+    updates.dueDate ?? null,
+    updates.affectBalance !== undefined ? Boolean(updates.affectBalance) : null,
+    updates.synced !== undefined ? Boolean(updates.synced) : null,
+    id,
+  ];
+
+  if (userId) {
+    updateSql += ` AND (user_id = $16 OR user_id IS NULL)`;
+    params.push(userId);
+  }
+  updateSql += ` RETURNING *`;
+
+  const { rows } = await pool.query(updateSql, params);
 
   const { rows: payments } = await pool.query(
     "SELECT * FROM debt_payments WHERE debt_id = $1 ORDER BY paid_at DESC",
@@ -178,24 +199,29 @@ export async function updateDebt(id, updates) {
   return mapDebtRow(rows[0], payments);
 }
 
-export async function addDebtPayment(debtId, payment) {
+export async function addDebtPayment(debtId, payment, userId) {
+  const debt = await getDebtById(debtId, userId);
+  if (!debt) {
+    throw new Error("Qarz topilmadi yoki ruxsat yo'q");
+  }
+
   const { id, amount, note = "", date, paidAt } = payment;
   const { rows } = await pool.query(
-    `INSERT INTO debt_payments (id, debt_id, amount, note, paid_at)
-     VALUES ($1, $2, $3, $4, COALESCE($5, now()))
+    `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
+     VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
      RETURNING *`,
-    [id, debtId, Number(amount), note, paidAt || date || null]
+    [id, debtId, userId || null, Number(amount), note, paidAt || date || null]
   );
 
   // Statusni tekshirib yangilaymiz
-  const debt = await getDebtById(debtId);
-  if (debt) {
-    const totalPaid = (debt.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const updatedDebt = await getDebtById(debtId, userId);
+  if (updatedDebt) {
+    const totalPaid = (updatedDebt.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
     let newStatus = "partial";
-    if (totalPaid >= debt.amount) newStatus = "settled";
+    if (totalPaid >= updatedDebt.amount) newStatus = "settled";
     else if (totalPaid <= 0) newStatus = "pending";
 
-    if (newStatus !== debt.status) {
+    if (newStatus !== updatedDebt.status) {
       await pool.query("UPDATE debts SET status = $1, updated_at = now() WHERE id = $2", [
         newStatus,
         debtId,
@@ -206,6 +232,10 @@ export async function addDebtPayment(debtId, payment) {
   return rows[0];
 }
 
-export async function deleteDebt(id) {
-  await pool.query("DELETE FROM debts WHERE id = $1", [id]);
+export async function deleteDebt(id, userId) {
+  if (userId) {
+    await pool.query("DELETE FROM debts WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", [id, userId]);
+  } else {
+    await pool.query("DELETE FROM debts WHERE id = $1", [id]);
+  }
 }

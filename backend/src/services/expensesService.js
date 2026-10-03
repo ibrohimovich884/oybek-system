@@ -1,8 +1,7 @@
 import { pool } from "../../db/pool.js";
 import { mapExpenseRow } from "../utils/mapExpense.js";
-import { canonicalWalletId } from "./walletsService.js";
+import { canonicalWalletId, cleanWalletKey, ensureUserWallets } from "./walletsService.js";
 
-// Tahrirlanganda kuzatiladigan maydonlar — frontenddagi ro'yxat bilan bir xil.
 const TRACKED_FIELDS = [
   "reason",
   "amount",
@@ -43,35 +42,33 @@ function sameValue(field, a, b) {
   return String(a ?? "") === String(b ?? "");
 }
 
-/**
- * Tranzaksiya ta'sirini wallets jadvaliga qo'llash yoki qaytarish
- * multiplier = 1 (qo'llash), multiplier = -1 (bekor qilish/qaytarish)
- * Diqqat: SQL ichida ($1 * $2) yozilmaydi, chunki PostgreSQL 'operator is not unique: unknown * unknown' xatosini beradi.
- * Hisob-kitob JS da aniq qilinadi va SQL ga $1::numeric ko'rinishida beriladi.
- */
-async function applyWalletBalanceChange(client, tx, multiplier = 1) {
+async function applyWalletBalanceChange(client, tx, multiplier = 1, userId) {
   const type = tx.type || "expense";
   const amount = Number(tx.amount || 0);
   if (!amount || isNaN(amount)) return;
 
-  const wallet = canonicalWalletId(tx.wallet || tx.payment_method || tx.paymentMethod);
-  const fromWallet = canonicalWalletId(tx.from_wallet || tx.fromWallet);
-  const toWallet = canonicalWalletId(tx.to_wallet || tx.toWallet);
+  const rawWallet = cleanWalletKey(tx.wallet || tx.payment_method || tx.paymentMethod);
+  const rawFromWallet = cleanWalletKey(tx.from_wallet || tx.fromWallet);
+  const rawToWallet = cleanWalletKey(tx.to_wallet || tx.toWallet);
+
+  const wallet = canonicalWalletId(rawWallet, userId);
+  const fromWallet = canonicalWalletId(rawFromWallet, userId);
+  const toWallet = canonicalWalletId(rawToWallet, userId);
 
   const delta = amount * Number(multiplier);
 
   if (type === "expense") {
     if (wallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2",
-        [delta, wallet]
+        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
+        [delta, wallet, userId || null, `%_${rawWallet}`]
       );
     }
   } else if (type === "income") {
     if (wallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2",
-        [delta, wallet]
+        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
+        [delta, wallet, userId || null, `%_${rawWallet}`]
       );
     }
   } else if (type === "transfer") {
@@ -80,26 +77,37 @@ async function applyWalletBalanceChange(client, tx, multiplier = 1) {
 
     if (fromWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2",
-        [delta, fromWallet]
+        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
+        [delta, fromWallet, userId || null, `%_${rawFromWallet}`]
       );
     }
     if (toWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2",
-        [targetDelta, toWallet]
+        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
+        [targetDelta, toWallet, userId || null, `%_${rawToWallet}`]
       );
     }
   }
 }
 
-export async function getAllExpenses() {
-  const { rows: transactions } = await pool.query(
-    "SELECT * FROM transactions ORDER BY spent_at DESC"
-  );
-  const { rows: edits } = await pool.query(
-    "SELECT * FROM transaction_edits ORDER BY edited_at ASC"
-  );
+export async function getAllExpenses(userId) {
+  const txQuery = userId
+    ? "SELECT * FROM transactions WHERE user_id = $1 ORDER BY spent_at DESC"
+    : "SELECT * FROM transactions ORDER BY spent_at DESC";
+  const txParams = userId ? [userId] : [];
+
+  const editsQuery = userId
+    ? `SELECT te.* FROM transaction_edits te 
+       JOIN transactions t ON te.transaction_id = t.id 
+       WHERE t.user_id = $1 
+       ORDER BY te.edited_at ASC`
+    : "SELECT * FROM transaction_edits ORDER BY edited_at ASC";
+  const editsParams = userId ? [userId] : [];
+
+  const [{ rows: transactions }, { rows: edits }] = await Promise.all([
+    pool.query(txQuery, txParams),
+    pool.query(editsQuery, editsParams),
+  ]);
 
   const editsByTransaction = new Map();
   for (const edit of edits) {
@@ -114,7 +122,11 @@ export async function getAllExpenses() {
   );
 }
 
-export async function createExpense(payload) {
+export async function createExpense(payload, userId) {
+  if (userId) {
+    await ensureUserWallets(userId);
+  }
+
   const {
     id,
     type = "expense",
@@ -134,10 +146,15 @@ export async function createExpense(payload) {
     createdAt,
   } = payload;
 
-  const resolvedWallet = canonicalWalletId(wallet || paymentMethod);
-  const resolvedFromWallet = fromWallet ? canonicalWalletId(fromWallet) : null;
-  const resolvedToWallet = toWallet ? canonicalWalletId(toWallet) : null;
-  const resolvedPaymentMethod = paymentMethod ? canonicalWalletId(paymentMethod) : resolvedWallet;
+  const cleanWallet = cleanWalletKey(wallet || paymentMethod);
+  const cleanFromWallet = fromWallet ? cleanWalletKey(fromWallet) : null;
+  const cleanToWallet = toWallet ? cleanWalletKey(toWallet) : null;
+  const cleanPaymentMethod = paymentMethod ? cleanWalletKey(paymentMethod) : cleanWallet;
+
+  const resolvedWallet = cleanWallet;
+  const resolvedFromWallet = cleanFromWallet;
+  const resolvedToWallet = cleanToWallet;
+  const resolvedPaymentMethod = cleanPaymentMethod;
 
   const client = await pool.connect();
   try {
@@ -145,12 +162,13 @@ export async function createExpense(payload) {
 
     const { rows } = await client.query(
       `INSERT INTO transactions
-        (id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, COALESCE($16, now()))
+        (id, user_id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, COALESCE($17, now()))
        ON CONFLICT (id) DO NOTHING
        RETURNING *`,
       [
         id,
+        userId || null,
         type,
         amount,
         currency,
@@ -170,30 +188,28 @@ export async function createExpense(payload) {
     );
 
     if (rows.length > 0) {
-      // 1. Yangi tranzaksiya kiritildi -> wallets jadvalidagi balansni o'zgartiramiz
-      await applyWalletBalanceChange(client, rows[0], 1);
-
-      // 2. DARHOL COMMIT qilamiz — tranzaksiya va balans DBga 100% muvaffaqiyatli yozildi
+      await applyWalletBalanceChange(client, rows[0], 1, userId);
       await client.query("COMMIT");
 
-      // 3. Agar transfer bo'lsa va zaxira hisob qatnashgan bo'lsa, wallet_notes ga alohida xavfsiz yozib qo'yamiz (tranzaksiyaga ta'sir qilmaydi)
       if (type === "transfer") {
         const transferNote = reason?.trim() || `${resolvedFromWallet} dan ${resolvedToWallet} ga o'tkazma`;
         const isReserveWallet = (w) => w && (w.endsWith("_reserve") || w.endsWith("-asosiy"));
 
         if (isReserveWallet(resolvedToWallet)) {
+          const dbToWallet = canonicalWalletId(resolvedToWallet, userId);
           pool.query(
-            `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
-             VALUES ($1, $2, (SELECT balance FROM wallets WHERE id = $1), now())`,
-            [resolvedToWallet, `O'tkazma: +${amount} (${transferNote})`]
+            `INSERT INTO wallet_notes (wallet_id, user_id, text, amount_at_time, edited_at)
+             VALUES ($1, $2, $3, (SELECT balance FROM wallets WHERE id = $1 LIMIT 1), now())`,
+            [dbToWallet, userId || null, `O'tkazma: +${amount} (${transferNote})`]
           ).catch((e) => console.warn("To-reserve note error:", e.message));
         }
 
         if (isReserveWallet(resolvedFromWallet)) {
+          const dbFromWallet = canonicalWalletId(resolvedFromWallet, userId);
           pool.query(
-            `INSERT INTO wallet_notes (wallet_id, text, amount_at_time, edited_at)
-             VALUES ($1, $2, (SELECT balance FROM wallets WHERE id = $1), now())`,
-            [resolvedFromWallet, `O'tkazma: -${amount} (${transferNote})`]
+            `INSERT INTO wallet_notes (wallet_id, user_id, text, amount_at_time, edited_at)
+             VALUES ($1, $2, $3, (SELECT balance FROM wallets WHERE id = $1 LIMIT 1), now())`,
+            [dbFromWallet, userId || null, `O'tkazma: -${amount} (${transferNote})`]
           ).catch((e) => console.warn("From-reserve note error:", e.message));
         }
       }
@@ -201,7 +217,6 @@ export async function createExpense(payload) {
       return mapExpenseRow(rows[0], []);
     }
 
-    // Agar id allaqachon mavjud bo'lsa
     await client.query("COMMIT");
     const { rows: existing } = await pool.query(
       "SELECT * FROM transactions WHERE id = $1",
@@ -216,23 +231,25 @@ export async function createExpense(payload) {
   }
 }
 
-export async function updateExpense(id, updates) {
+export async function updateExpense(id, updates, userId) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const { rows: currentRows } = await client.query(
-      "SELECT * FROM transactions WHERE id = $1 FOR UPDATE",
-      [id]
-    );
+    const selectQuery = userId
+      ? "SELECT * FROM transactions WHERE id = $1 AND (user_id = $2 OR user_id IS NULL) FOR UPDATE"
+      : "SELECT * FROM transactions WHERE id = $1 FOR UPDATE";
+    const selectParams = userId ? [id, userId] : [id];
+
+    const { rows: currentRows } = await client.query(selectQuery, selectParams);
     if (currentRows.length === 0) {
       await client.query("COMMIT");
-      return await createExpense({ id, ...updates });
+      return await createExpense({ id, ...updates }, userId);
     }
     const current = currentRows[0];
 
-    // 1. Eski tranzaksiyaning hamyondagi ta'sirini bekor qilamiz (-1)
-    await applyWalletBalanceChange(client, current, -1);
+    // Eski holatning ta'sirini bekor qilamiz (-1)
+    await applyWalletBalanceChange(client, current, -1, userId);
 
     const editsToInsert = [];
     for (const field of TRACKED_FIELDS) {
@@ -255,7 +272,7 @@ export async function updateExpense(id, updates) {
       if (!column) continue;
       let val = updates[field];
       if (field === "wallet" || field === "fromWallet" || field === "toWallet" || field === "paymentMethod") {
-        val = canonicalWalletId(val);
+        val = cleanWalletKey(val);
       }
       setClauses.push(`${column} = $${i}`);
       values.push(val);
@@ -264,17 +281,20 @@ export async function updateExpense(id, updates) {
 
     if (setClauses.length > 0) {
       values.push(id);
-      await client.query(
-        `UPDATE transactions SET ${setClauses.join(", ")} WHERE id = $${i}`,
-        values
-      );
+      let updateSql = `UPDATE transactions SET ${setClauses.join(", ")} WHERE id = $${i}`;
+      if (userId) {
+        i++;
+        values.push(userId);
+        updateSql += ` AND (user_id = $${i} OR user_id IS NULL)`;
+      }
+      await client.query(updateSql, values);
     }
 
     for (const edit of editsToInsert) {
       await client.query(
-        `INSERT INTO transaction_edits (transaction_id, field, from_value, to_value)
-         VALUES ($1, $2, $3, $4)`,
-        [id, edit.field, String(edit.from ?? ""), String(edit.to ?? "")]
+        `INSERT INTO transaction_edits (transaction_id, user_id, field, from_value, to_value)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, userId || null, edit.field, String(edit.from ?? ""), String(edit.to ?? "")]
       );
     }
 
@@ -283,8 +303,8 @@ export async function updateExpense(id, updates) {
       [id]
     );
 
-    // 2. Yangi yangilangan tranzaksiyaning hamyondagi ta'sirini qo'llaymiz (+1)
-    await applyWalletBalanceChange(client, updatedRows[0], 1);
+    // Yangi holat ta'sirini qo'llaymiz (+1)
+    await applyWalletBalanceChange(client, updatedRows[0], 1, userId);
 
     await client.query("COMMIT");
 
@@ -302,20 +322,25 @@ export async function updateExpense(id, updates) {
   }
 }
 
-export async function deleteExpense(id) {
+export async function deleteExpense(id, userId) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const { rows: currentRows } = await client.query(
-      "SELECT * FROM transactions WHERE id = $1 FOR UPDATE",
-      [id]
-    );
+    const selectQuery = userId
+      ? "SELECT * FROM transactions WHERE id = $1 AND (user_id = $2 OR user_id IS NULL) FOR UPDATE"
+      : "SELECT * FROM transactions WHERE id = $1 FOR UPDATE";
+    const selectParams = userId ? [id, userId] : [id];
+
+    const { rows: currentRows } = await client.query(selectQuery, selectParams);
 
     if (currentRows.length > 0) {
-      // O'chirishdan oldin hamyon balansiga qaytaramiz (-1)
-      await applyWalletBalanceChange(client, currentRows[0], -1);
-      await client.query("DELETE FROM transactions WHERE id = $1", [id]);
+      await applyWalletBalanceChange(client, currentRows[0], -1, userId);
+      if (userId) {
+        await client.query("DELETE FROM transactions WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", [id, userId]);
+      } else {
+        await client.query("DELETE FROM transactions WHERE id = $1", [id]);
+      }
     }
 
     await client.query("COMMIT");
