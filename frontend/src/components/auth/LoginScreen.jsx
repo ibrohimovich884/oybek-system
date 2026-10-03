@@ -18,6 +18,10 @@ import {
   Phone,
   UserPlus,
   LogIn,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 
@@ -40,6 +44,7 @@ export default function LoginScreen() {
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -49,6 +54,7 @@ export default function LoginScreen() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [lockCountdown, setLockCountdown] = useState(0);
 
+  const cardRef = useRef(null);
   const loginInputRef = useRef(null);
   const regEmailInputRef = useRef(null);
 
@@ -85,6 +91,10 @@ export default function LoginScreen() {
       regEmailInputRef.current.focus();
     }
   }, [activeTab, isLocked]);
+
+  // Parol mosligi tekshiruvi
+  const passwordsMatch = regPassword.length >= 6 && regConfirmPassword.length > 0 && regPassword === regConfirmPassword;
+  const passwordsMismatch = regConfirmPassword.length > 0 && regPassword !== regConfirmPassword;
 
   // Kirish funksiyasi
   const handleLoginSubmit = async (e) => {
@@ -149,8 +159,8 @@ export default function LoginScreen() {
       return;
     }
 
-    if (!email.includes("@")) {
-      setErrorMsg("Iltimos, haqiqiy email kiriting (masalan: misol@gmail.com)");
+    if (!email.includes("@") || !email.includes(".")) {
+      setErrorMsg("Iltimos, toʻgʻri email kiriting (masalan: foydalanuvchi@gmail.com)");
       return;
     }
 
@@ -160,7 +170,7 @@ export default function LoginScreen() {
     }
 
     if (password !== confirm) {
-      setErrorMsg("Parollar bir-biriga mos kelmadi!");
+      setErrorMsg("Kiritilgan parollar bir-biriga mos kelmadi!");
       return;
     }
 
@@ -207,10 +217,10 @@ export default function LoginScreen() {
       <div className="login-bg-pattern" />
 
       <div
+        ref={cardRef}
         className={`login-card ${isShaking ? "is-shaking" : ""} ${isSuccess ? "is-success" : ""} ${
           isLocked ? "is-locked-card" : ""
-        }`}
-        style={{ maxWidth: activeTab === "register" ? 460 : 420 }}
+        } ${activeTab === "register" ? "login-card--register" : ""}`}
       >
         {/* Yuqori brend belgisi */}
         <div className="login-header">
@@ -224,11 +234,13 @@ export default function LoginScreen() {
             }}
           >
             {isSuccess ? (
-              <Unlock size={28} className="text-income animate-bounce" />
+              <Unlock size={26} className="text-income animate-bounce" />
             ) : isLocked ? (
-              <ShieldAlert size={28} style={{ color: "#ef4444" }} className="animate-pulse" />
+              <ShieldAlert size={26} style={{ color: "#ef4444" }} className="animate-pulse" />
+            ) : activeTab === "register" ? (
+              <UserPlus size={26} className="text-income" />
             ) : (
-              <Lock size={28} className="text-income" />
+              <Lock size={26} className="text-income" />
             )}
           </div>
 
@@ -236,7 +248,9 @@ export default function LoginScreen() {
             <h1 className="login-brand-title">
               OYBEK <span>SysteM</span>
             </h1>
-            <p className="login-brand-desc">Multi-User Shaxsiy moliyaviy tizim</p>
+            <p className="login-brand-desc">
+              {activeTab === "register" ? "Yangi shaxsiy hisob yaratish" : "Multi-User Shaxsiy moliyaviy tizim"}
+            </p>
           </div>
 
           {/* 1 oylik sessiya nishoni */}
@@ -247,36 +261,11 @@ export default function LoginScreen() {
         </div>
 
         {/* Tablar: Kirish / Ro'yxatdan o'tish */}
-        <div
-          style={{
-            display: "flex",
-            background: "rgba(255, 255, 255, 0.04)",
-            padding: 4,
-            borderRadius: 12,
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            marginBottom: 20,
-            gap: 4,
-          }}
-        >
+        <div className="login-tabs-nav">
           <button
             type="button"
             onClick={() => setActiveTab("login")}
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 7,
-              padding: "9px 12px",
-              borderRadius: 9,
-              fontSize: "0.86rem",
-              fontWeight: activeTab === "login" ? 700 : 500,
-              background: activeTab === "login" ? "rgba(16, 185, 129, 0.22)" : "transparent",
-              color: activeTab === "login" ? "#34d399" : "rgba(245, 243, 236, 0.6)",
-              border: activeTab === "login" ? "1px solid rgba(52, 211, 153, 0.35)" : "1px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
+            className={`login-tab-btn ${activeTab === "login" ? "is-active" : ""}`}
           >
             <LogIn size={15} />
             <span>Kirish</span>
@@ -285,22 +274,7 @@ export default function LoginScreen() {
           <button
             type="button"
             onClick={() => setActiveTab("register")}
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 7,
-              padding: "9px 12px",
-              borderRadius: 9,
-              fontSize: "0.86rem",
-              fontWeight: activeTab === "register" ? 700 : 500,
-              background: activeTab === "register" ? "rgba(16, 185, 129, 0.22)" : "transparent",
-              color: activeTab === "register" ? "#34d399" : "rgba(245, 243, 236, 0.6)",
-              border: activeTab === "register" ? "1px solid rgba(52, 211, 153, 0.35)" : "1px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
+            className={`login-tab-btn ${activeTab === "register" ? "is-active" : ""}`}
           >
             <UserPlus size={15} />
             <span>Roʻyxatdan oʻtish</span>
@@ -309,38 +283,17 @@ export default function LoginScreen() {
 
         {/* Bloklangan holat indikatori */}
         {isLocked && activeTab === "login" && (
-          <div
-            className="login-lockout-banner animate-fade-in"
-            style={{
-              marginBottom: 16,
-              padding: "12px 14px",
-              borderRadius: 14,
-              background: "rgba(239, 68, 68, 0.18)",
-              border: "1px solid rgba(239, 68, 68, 0.45)",
-              color: "#fca5a5",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: "0.88rem", color: "#f87171" }}>
+          <div className="login-lockout-banner animate-fade-in">
+            <div className="login-lockout-row">
+              <div className="login-lockout-label">
                 <Timer size={16} className="animate-spin" style={{ animationDuration: "3s" }} />
                 <span>Xavfsizlik blokirovkasi</span>
               </div>
-              <span
-                className="mono"
-                style={{
-                  fontSize: "1.1rem",
-                  fontWeight: 800,
-                  color: "#ffffff",
-                  background: "rgba(239, 68, 68, 0.4)",
-                  padding: "2px 8px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(239, 68, 68, 0.6)",
-                }}
-              >
+              <span className="login-lockout-timer mono">
                 {formatCountdown(lockCountdown)}
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: "0.76rem", lineHeight: 1.4, color: "rgba(254, 202, 202, 0.9)" }}>
+            <p className="login-lockout-text">
               Ketma-ket xato urinishlar sababli tizim vaqtincha toʻxtatildi. Taymer tugagach qayta urinib koʻring.
             </p>
           </div>
@@ -372,6 +325,8 @@ export default function LoginScreen() {
                   }}
                   disabled={isLoading || isSuccess || isLocked}
                   autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck="false"
                 />
               </div>
             </div>
@@ -380,7 +335,7 @@ export default function LoginScreen() {
               <label htmlFor="login-password" className="login-label">
                 <span>Parol:</span>
                 {!isLocked && remainingAttempts !== null && remainingAttempts < 5 && (
-                  <span style={{ fontSize: "0.72rem", color: remainingAttempts === 1 ? "#ef4444" : "#f59e0b", fontWeight: 600 }}>
+                  <span className="login-attempts-tag">
                     Qolgan urinish: {remainingAttempts} ta
                   </span>
                 )}
@@ -403,6 +358,7 @@ export default function LoginScreen() {
                   disabled={isLoading || isSuccess || isLocked}
                   autoComplete="current-password"
                   required
+                  spellCheck="false"
                 />
                 <button
                   type="button"
@@ -467,12 +423,13 @@ export default function LoginScreen() {
           </form>
         ) : (
           /* ========================================================= */
-          /* TAB 2: RO'YXATDAN O'TISH (REGISTER)                       */
+          /* TAB 2: RO'YXATDAN O'TISH (REGISTER) — TELEFONGA MOSLAN GAN  */
           /* ========================================================= */
           <form onSubmit={handleRegisterSubmit} className="login-form">
+            {/* 1. Gmail / Email */}
             <div className="login-input-group">
               <label htmlFor="reg-email" className="login-label">
-                <span>Gmail (Email) * :</span>
+                <span>Gmail (Email) <b className="login-req-star">*</b></span>
               </label>
               <div className="login-input-box">
                 <div className="login-input-icon">
@@ -482,6 +439,7 @@ export default function LoginScreen() {
                   ref={regEmailInputRef}
                   id="reg-email"
                   type="email"
+                  inputMode="email"
                   className="login-input"
                   placeholder="masalan: user@gmail.com"
                   value={regEmail}
@@ -491,76 +449,42 @@ export default function LoginScreen() {
                   }}
                   disabled={isLoading || isSuccess}
                   required
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck="false"
                 />
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div className="login-input-group">
-                <label htmlFor="reg-fullname" className="login-label">
-                  <span>Ism / Familiya:</span>
-                </label>
-                <div className="login-input-box">
-                  <div className="login-input-icon">
-                    <User size={18} />
-                  </div>
-                  <input
-                    id="reg-fullname"
-                    type="text"
-                    className="login-input"
-                    placeholder="Oybek"
-                    value={regFullName}
-                    onChange={(e) => setRegFullName(e.target.value)}
-                    disabled={isLoading || isSuccess}
-                  />
-                </div>
-              </div>
-
-              <div className="login-input-group">
-                <label htmlFor="reg-username" className="login-label">
-                  <span>Username:</span>
-                </label>
-                <div className="login-input-box">
-                  <div className="login-input-icon">
-                    <User size={18} />
-                  </div>
-                  <input
-                    id="reg-username"
-                    type="text"
-                    className="login-input"
-                    placeholder="oybek_01"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
-                    disabled={isLoading || isSuccess}
-                  />
-                </div>
-              </div>
-            </div>
-
+            {/* 2. Ism / Familiya */}
             <div className="login-input-group">
-              <label htmlFor="reg-phone" className="login-label">
-                <span>Telefon raqam (zaxira):</span>
+              <label htmlFor="reg-fullname" className="login-label">
+                <span>Ism / Familiyangiz:</span>
+                <span className="login-optional-tag">ixtiyoriy</span>
               </label>
               <div className="login-input-box">
                 <div className="login-input-icon">
-                  <Phone size={18} />
+                  <User size={18} />
                 </div>
                 <input
-                  id="reg-phone"
-                  type="tel"
+                  id="reg-fullname"
+                  type="text"
                   className="login-input"
-                  placeholder="+998 90 123 45 67"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
+                  placeholder="masalan: Oybek"
+                  value={regFullName}
+                  onChange={(e) => setRegFullName(e.target.value)}
                   disabled={isLoading || isSuccess}
+                  autoComplete="name"
+                  spellCheck="false"
                 />
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {/* 3. Parol va Tasdiqlash */}
+            <div className="login-pw-grid">
               <div className="login-input-group">
                 <label htmlFor="reg-password" className="login-label">
-                  <span>Parol * :</span>
+                  <span>Parol (kamida 6 belgi) <b className="login-req-star">*</b></span>
                 </label>
                 <div className="login-input-box">
                   <div className="login-input-icon">
@@ -570,7 +494,7 @@ export default function LoginScreen() {
                     id="reg-password"
                     type={showRegPassword ? "text" : "password"}
                     className="login-input"
-                    placeholder="Kamida 6 belgi"
+                    placeholder="Parolingiz..."
                     value={regPassword}
                     onChange={(e) => {
                       setRegPassword(e.target.value);
@@ -578,30 +502,9 @@ export default function LoginScreen() {
                     }}
                     disabled={isLoading || isSuccess}
                     required
-                  />
-                </div>
-              </div>
-
-              <div className="login-input-group">
-                <label htmlFor="reg-confirm" className="login-label">
-                  <span>Tasdiqlash * :</span>
-                </label>
-                <div className="login-input-box">
-                  <div className="login-input-icon">
-                    <KeyRound size={18} />
-                  </div>
-                  <input
-                    id="reg-confirm"
-                    type={showRegPassword ? "text" : "password"}
-                    className="login-input"
-                    placeholder="Qayta kiriting"
-                    value={regConfirmPassword}
-                    onChange={(e) => {
-                      setRegConfirmPassword(e.target.value);
-                      if (errorMsg) setErrorMsg("");
-                    }}
-                    disabled={isLoading || isSuccess}
-                    required
+                    autoComplete="new-password"
+                    autoCapitalize="none"
+                    spellCheck="false"
                   />
                   <button
                     type="button"
@@ -614,6 +517,102 @@ export default function LoginScreen() {
                   </button>
                 </div>
               </div>
+
+              <div className="login-input-group">
+                <label htmlFor="reg-confirm" className="login-label">
+                  <span>Parolni tasdiqlash <b className="login-req-star">*</b></span>
+                  {passwordsMatch && (
+                    <span className="login-pw-match-badge is-match">
+                      <Check size={11} /> Mos keldi
+                    </span>
+                  )}
+                  {passwordsMismatch && (
+                    <span className="login-pw-match-badge is-mismatch">
+                      Mos emas
+                    </span>
+                  )}
+                </label>
+                <div className="login-input-box">
+                  <div className="login-input-icon">
+                    <KeyRound size={18} />
+                  </div>
+                  <input
+                    id="reg-confirm"
+                    type={showRegPassword ? "text" : "password"}
+                    className="login-input"
+                    placeholder="Qayta kiriting..."
+                    value={regConfirmPassword}
+                    onChange={(e) => {
+                      setRegConfirmPassword(e.target.value);
+                      if (errorMsg) setErrorMsg("");
+                    }}
+                    disabled={isLoading || isSuccess}
+                    required
+                    autoComplete="new-password"
+                    autoCapitalize="none"
+                    spellCheck="false"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Qo'shimcha maydonlar (Username & Telefon) — Accordion */}
+            <div className="login-optional-section">
+              <button
+                type="button"
+                className="login-optional-toggle"
+                onClick={() => setShowOptionalFields(!showOptionalFields)}
+              >
+                <span>Qoʻshimcha maʼlumotlar (Username, Telefon)</span>
+                {showOptionalFields ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </button>
+
+              {showOptionalFields && (
+                <div className="login-optional-fields animate-fade-in">
+                  <div className="login-input-group">
+                    <label htmlFor="reg-username" className="login-label">
+                      <span>Username:</span>
+                    </label>
+                    <div className="login-input-box">
+                      <div className="login-input-icon">
+                        <User size={18} />
+                      </div>
+                      <input
+                        id="reg-username"
+                        type="text"
+                        className="login-input"
+                        placeholder="masalan: oybek_01"
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                        disabled={isLoading || isSuccess}
+                        autoCapitalize="none"
+                        spellCheck="false"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="login-input-group">
+                    <label htmlFor="reg-phone" className="login-label">
+                      <span>Telefon raqam:</span>
+                    </label>
+                    <div className="login-input-box">
+                      <div className="login-input-icon">
+                        <Phone size={18} />
+                      </div>
+                      <input
+                        id="reg-phone"
+                        type="tel"
+                        inputMode="tel"
+                        className="login-input"
+                        placeholder="+998 90 123 45 67"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        disabled={isLoading || isSuccess}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Xatolik / Muvaffaqiyat xabari */}
@@ -634,7 +633,7 @@ export default function LoginScreen() {
             <button
               type="submit"
               className="login-submit-btn"
-              disabled={!regEmail.trim() || !regPassword.trim() || isLoading || isSuccess}
+              disabled={!regEmail.trim() || !regPassword.trim() || !regConfirmPassword.trim() || isLoading || isSuccess}
             >
               {isLoading ? (
                 <>
@@ -648,11 +647,24 @@ export default function LoginScreen() {
                 </>
               ) : (
                 <>
-                  <span>Roʻyxatdan oʻtish</span>
-                  <ArrowRight size={18} />
+                  <Sparkles size={17} />
+                  <span>Hisob yaratish & Kirish</span>
+                  <ArrowRight size={17} />
                 </>
               )}
             </button>
+
+            {/* Tezkor Kirish havolasi */}
+            <div className="login-switch-row">
+              <span>Hisobingiz bormi?</span>
+              <button
+                type="button"
+                onClick={() => setActiveTab("login")}
+                className="login-switch-btn"
+              >
+                Tizimga kirish
+              </button>
+            </div>
           </form>
         )}
 
@@ -660,7 +672,7 @@ export default function LoginScreen() {
         <div className="login-footer">
           <div className="login-security-notice">
             <Shield size={13} />
-            <span>Multi-User izolyatsiya & 7 ta avtomatik hamyon</span>
+            <span>Multi-User xavfsiz izolyatsiya & 7 ta avtomatik hamyon</span>
           </div>
         </div>
       </div>

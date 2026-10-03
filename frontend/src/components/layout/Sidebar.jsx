@@ -115,90 +115,6 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Foydalanuvchi profili kartochkasi */}
-        <div
-          style={{
-            margin: "0 12px 14px 12px",
-            padding: "10px 12px",
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.5) 100%)",
-              border: "1px solid rgba(52, 211, 153, 0.4)",
-              color: "#34d399",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: "0.95rem",
-              flexShrink: 0,
-            }}
-          >
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  color: "#f5f3ec",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {displayName}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.62rem",
-                  padding: "1px 5px",
-                  borderRadius: 6,
-                  background: user?.role === "admin" ? "rgba(245, 158, 11, 0.18)" : "rgba(16, 185, 129, 0.15)",
-                  color: user?.role === "admin" ? "#fbbf24" : "#34d399",
-                  border: user?.role === "admin" ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid rgba(52, 211, 153, 0.25)",
-                  fontWeight: 600,
-                }}
-              >
-                {roleLabel}
-              </span>
-            </div>
-
-            {displayEmail && (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.72rem",
-                  color: "rgba(245, 243, 236, 0.55)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {displayEmail}
-              </p>
-            )}
-          </div>
-        </div>
-
         <nav className="sidebar__nav">
           <span className="sidebar__section-title">Asosiy bo'limlar</span>
           {navItems.map((item) => {
@@ -246,7 +162,36 @@ export default function Sidebar({ isOpen, onClose }) {
           })}
         </nav>
 
+        {/* Pastki qism: Foydalanuvchi ismi, DB holati va chiqish */}
         <div className="sidebar__footer">
+          {/* Foydalanuvchi profili kartochkasi (Pastda joylashtirilgan) */}
+          <div className="sidebar__user-card">
+            <div className="sidebar__user-avatar">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="sidebar__user-info">
+              <div className="sidebar__user-name-row">
+                <span className="sidebar__user-name" title={displayName}>
+                  {displayName}
+                </span>
+                <span
+                  className={`sidebar__user-role-badge ${
+                    user?.role === "admin" ? "sidebar__user-role-badge--admin" : ""
+                  }`}
+                >
+                  {roleLabel}
+                </span>
+              </div>
+
+              {displayEmail && (
+                <p className="sidebar__user-email" title={displayEmail}>
+                  {displayEmail}
+                </p>
+              )}
+            </div>
+          </div>
+
           <NavLink
             to="/settings"
             onClick={onClose}
@@ -286,20 +231,8 @@ export default function Sidebar({ isOpen, onClose }) {
           </NavLink>
 
           {/* 30 kunlik JWT Sessiya & Chiqish tugmasi */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "8px 10px",
-              marginTop: 6,
-              background: "rgba(16, 185, 129, 0.08)",
-              border: "1px solid rgba(52, 211, 153, 0.2)",
-              borderRadius: 8,
-              fontSize: "0.74rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#34d399" }}>
+          <div className="sidebar__session-bar">
+            <div className="sidebar__session-text">
               <ShieldCheck size={14} />
               <span>Sessiya: {daysRemaining > 0 ? `${daysRemaining} kun` : "30 kun"}</span>
             </div>
@@ -312,16 +245,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   if (onClose) onClose();
                 }
               }}
-              className="btn btn--ghost btn--xs"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                color: "#f87171",
-                padding: "3px 7px",
-                fontSize: "0.72rem",
-                cursor: "pointer",
-              }}
+              className="btn btn--ghost btn--xs sidebar__logout-btn"
               title="Hisobdan chiqish"
             >
               <LogOut size={13} />

@@ -529,19 +529,22 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px 16px;
   background: #090e0c;
   background: radial-gradient(circle at 50% 20%, #0d1e16 0%, #08110d 60%, #040806 100%);
   z-index: 10000;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
 }
 
 .login-bg-glow {
-  position: absolute;
+  position: fixed;
   top: 15%;
   left: 50%;
   transform: translateX(-50%);
@@ -571,7 +574,7 @@
 }
 
 .login-bg-pattern {
-  position: absolute;
+  position: fixed;
   inset: 0;
   background-image: radial-gradient(rgba(52, 211, 153, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
@@ -583,10 +586,10 @@
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 410px;
-  margin: 0 auto;
-  padding: 32px 24px 24px;
-  background: rgba(14, 25, 20, 0.78);
+  max-width: 420px;
+  margin: auto 0;
+  padding: 28px 22px 20px;
+  background: rgba(14, 25, 20, 0.84);
   backdrop-filter: blur(32px) saturate(190%);
   -webkit-backdrop-filter: blur(32px) saturate(190%);
   border: 1px solid rgba(52, 211, 153, 0.3);
@@ -600,6 +603,10 @@
   align-items: stretch;
   box-sizing: border-box;
   transition: all 0.25s ease;
+}
+
+.login-card--register {
+  max-width: 440px;
 }
 
 .login-card.is-shaking {
@@ -624,12 +631,12 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
 .login-badge-aura {
-  width: 64px;
-  height: 64px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(16, 185, 129, 0.28) 0%, rgba(6, 78, 59, 0.45) 100%);
   border: 1.5px solid rgba(52, 211, 153, 0.5);
@@ -639,7 +646,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   position: relative;
 }
 
@@ -653,12 +660,12 @@
 }
 
 .login-brand-meta {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .login-brand-title {
   margin: 0;
-  font-size: 1.45rem;
+  font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #f5f3ec;
@@ -671,8 +678,8 @@
 }
 
 .login-brand-desc {
-  margin: 4px 0 0 0;
-  font-size: 0.8rem;
+  margin: 3px 0 0 0;
+  font-size: 0.78rem;
   color: rgba(245, 243, 236, 0.65);
 }
 
@@ -680,35 +687,132 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-radius: 9999px;
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(52, 211, 153, 0.3);
-  font-size: 0.74rem;
+  font-size: 0.73rem;
   font-weight: 600;
   color: #34d399;
+}
+
+/* Tablar: Kirish / Ro'yxatdan o'tish */
+.login-tabs-nav {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 18px;
+  gap: 4px;
+}
+
+.login-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  background: transparent;
+  color: rgba(245, 243, 236, 0.6);
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none !important;
+  transition: all 0.2s ease;
+}
+
+.login-tab-btn:focus,
+.login-tab-btn:focus-visible {
+  outline: none !important;
+}
+
+.login-tab-btn.is-active {
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+}
+
+/* Bloklangan xavfsizlik paneli */
+.login-lockout-banner {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
+.login-lockout-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.login-lockout-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #f87171;
+}
+
+.login-lockout-timer {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: rgba(239, 68, 68, 0.4);
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+}
+
+.login-lockout-text {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: rgba(254, 202, 202, 0.9);
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
+}
+
+.login-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .login-input-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .login-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #f5f3ec;
+}
+
+.login-attempts-tag {
+  font-size: 0.72rem;
+  color: #f59e0b;
+  font-weight: 600;
 }
 
 .login-hint {
@@ -729,13 +833,14 @@
   background: rgba(8, 16, 12, 0.65);
   border: 1.5px solid rgba(52, 211, 153, 0.25);
   border-radius: 14px;
+  overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .login-input-box:focus-within {
   border-color: #34d399;
   background: rgba(16, 185, 129, 0.08);
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.32);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.28);
 }
 
 .login-input-icon {
@@ -747,21 +852,52 @@
   flex-shrink: 0;
 }
 
+/* INPUT ICHIDAGI TO'RTBURCHAK CHIZIQ / OUTLINELARNI TO'LIQ YO'Q QILISH */
 .login-input {
   width: 100%;
-  height: 48px;
-  background: transparent;
-  border: none;
+  height: 46px;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   padding: 0 12px;
   color: #f5f3ec;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-family: inherit;
-  outline: none;
+  box-sizing: border-box;
+}
+
+.login-input:focus,
+.login-input:focus-visible,
+.login-input:active,
+.login-input:hover {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* WebKit autofill fon va to'rtburchaklarini tozalash */
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus,
+.login-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f5f3ec !important;
+  -webkit-box-shadow: 0 0 0px 1000px #0a1711 inset !important;
+  box-shadow: 0 0 0px 1000px #0a1711 inset !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  border: none !important;
+  outline: none !important;
 }
 
 .login-input::placeholder {
   color: rgba(245, 243, 236, 0.35);
-  font-size: 0.88rem;
+  font-size: 0.86rem;
 }
 
 .login-toggle-pw {
@@ -774,7 +910,13 @@
   justify-content: center;
   color: rgba(245, 243, 236, 0.55);
   cursor: pointer;
+  outline: none !important;
   transition: color 0.18s ease;
+}
+
+.login-toggle-pw:focus,
+.login-toggle-pw:focus-visible {
+  outline: none !important;
 }
 
 .login-toggle-pw:hover {
@@ -823,7 +965,13 @@
   gap: 8px;
   cursor: pointer;
   box-shadow: 0 8px 22px rgba(16, 185, 129, 0.38);
+  outline: none !important;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.login-submit-btn:focus,
+.login-submit-btn:focus-visible {
+  outline: none !important;
 }
 
 .login-submit-btn:hover:not(:disabled) {
@@ -852,8 +1000,8 @@
 }
 
 .login-footer {
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid rgba(52, 211, 153, 0.14);
   display: flex;
   flex-direction: column;
@@ -890,62 +1038,196 @@
   color: rgba(245, 243, 236, 0.5);
 }
 
+/* Register maydonlari uchun qo'shimcha uslublar */
+.login-req-star {
+  color: #f87171;
+  font-size: 0.85rem;
+  margin-left: 2px;
+}
+
+.login-optional-tag {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(245, 243, 236, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.login-pw-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-pw-match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.login-pw-match-badge.is-match {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.login-pw-match-badge.is-mismatch {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Accordion: Ixtiyoriy maydonlar */
+.login-optional-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.login-optional-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(52, 211, 153, 0.25);
+  color: rgba(245, 243, 236, 0.7);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none !important;
+  transition: all 0.18s ease;
+}
+
+.login-optional-toggle:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #34d399;
+}
+
+.login-optional-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(52, 211, 153, 0.15);
+  border-radius: 12px;
+}
+
+.login-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: rgba(245, 243, 236, 0.6);
+}
+
+.login-switch-btn {
+  background: transparent;
+  border: none;
+  color: #34d399;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none !important;
+}
+
+.login-switch-btn:hover {
+  color: #6ee7b7;
+}
+
 /* =========================================================================
    TELEFON UCHUN MOSLASHUVCHANLIK (Mobile <= 480px va <= 360px)
    ========================================================================= */
 
 @media (max-width: 480px) {
+  .login-screen-wrapper {
+    align-items: flex-start;
+    padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 16px));
+  }
+
   .login-card {
-    padding: 22px 16px 18px;
-    border-radius: 20px;
+    padding: 18px 14px 16px;
+    border-radius: 18px;
     max-width: 100%;
-    margin: 0 auto;
+    margin: 8px auto 20px;
+  }
+
+  .login-card--register {
+    max-width: 100%;
   }
 
   .login-header {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
   .login-badge-aura {
-    width: 52px;
-    height: 52px;
-    margin-bottom: 10px;
+    width: 46px;
+    height: 46px;
+    margin-bottom: 8px;
   }
 
   .login-brand-title {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
   }
 
   .login-brand-desc {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
   }
 
   .login-session-pill {
-    font-size: 0.68rem;
-    padding: 4px 10px;
-    text-align: center;
-    max-width: 100%;
-    box-sizing: border-box;
+    font-size: 0.65rem;
+    padding: 3px 8px;
+  }
+
+  .login-tabs-nav {
+    margin-bottom: 14px;
+    padding: 3px;
+  }
+
+  .login-tab-btn {
+    padding: 7px 8px;
+    font-size: 0.8rem;
   }
 
   .login-form {
-    gap: 12px;
+    gap: 10px;
   }
 
-  .login-submit-btn {
-    height: 44px;
-    font-size: 0.88rem;
+  .login-input-box {
     border-radius: 12px;
   }
 
   .login-input {
     height: 44px;
+    font-size: 0.88rem;
+    padding: 0 10px;
+  }
+
+  .login-submit-btn {
+    height: 46px;
     font-size: 0.9rem;
+    border-radius: 12px;
+    margin-top: 4px;
   }
 
   .login-footer {
-    margin-top: 14px;
-    padding-top: 12px;
+    margin-top: 12px;
+    padding-top: 10px;
   }
 
   .security-card-glass {
@@ -1006,11 +1288,26 @@
 
 @media (max-width: 360px) {
   .login-screen-wrapper {
-    padding: 10px;
+    padding: 8px 6px calc(20px + env(safe-area-inset-bottom, 12px));
   }
 
   .login-card {
-    padding: 16px 12px 14px;
+    padding: 14px 10px 12px;
+    border-radius: 16px;
+  }
+
+  .login-badge-aura {
+    width: 40px;
+    height: 40px;
+  }
+
+  .login-brand-title {
+    font-size: 1.1rem;
+  }
+
+  .login-input {
+    height: 42px;
+    font-size: 0.85rem;
   }
 
   .security-card-glass {

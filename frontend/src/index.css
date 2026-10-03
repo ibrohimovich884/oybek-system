@@ -145,16 +145,30 @@
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: var(--sp-5) var(--sp-4);
+  padding: var(--sp-4) var(--sp-35, 14px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
   position: sticky;
   top: 0;
   height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
   z-index: 60;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 4px;
 }
 
 .sidebar__header {
@@ -230,7 +244,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-  margin-top: var(--sp-4);
+  margin-top: var(--sp-2);
   flex: 1;
 }
 
@@ -279,13 +293,95 @@
 .sidebar__footer {
   border-top: 1px solid var(--border-subtle);
   padding-top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+/* Foydalanuvchi profili kartochkasi (Pastda) */
+.sidebar__user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.sidebar__user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.5) 100%);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.sidebar__user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar__user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sidebar__user-name {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: #f5f3ec;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sidebar__user-role-badge {
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sidebar__user-role-badge--admin {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.sidebar__user-email {
+  margin: 0;
+  font-size: 0.7rem;
+  color: rgba(245, 243, 236, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar__system-badge {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
+  padding: 6px 10px;
   background: var(--surface-2);
   border-radius: var(--radius);
   border: 1px solid var(--border-subtle);
@@ -306,6 +402,35 @@
 .sidebar__system-sub {
   font-size: var(--fs-2xs);
   color: var(--text-muted);
+}
+
+.sidebar__session-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: 8px;
+  font-size: 0.72rem;
+}
+
+.sidebar__session-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #34d399;
+  font-weight: 600;
+}
+
+.sidebar__logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #f87171 !important;
+  padding: 2px 6px !important;
+  font-size: 0.7rem !important;
+  cursor: pointer;
 }
 
 .sidebar-backdrop {
@@ -8678,6 +8803,71 @@ textarea.field-input {
   justify-content: center;
   border: 1.5px solid var(--bg);
 }
+
+/* =========================================================================
+   UMUMIY MOBIL MOSLASHUVCHANLIK VA SILIQ ISHLASH (Mobile Polish <= 768px / <= 480px)
+   ========================================================================= */
+
+/* Barcha inputlarda xunuk to'rtburchak browser outline larni yo'qotish */
+input,
+textarea,
+select,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+}
+
+/* Mobil modallar uchun to'liq sig'im va silliq scrolling */
+@media (max-width: 768px) {
+  .modal-dialog,
+  .modal-content,
+  .universal-transfer-modal,
+  .edit-tx-modal {
+    max-width: calc(100vw - 20px) !important;
+    width: 100% !important;
+    margin: 10px auto !important;
+  }
+
+  /* Kichik ekranlarda tugmalar va amallarning bir-birini qisib qo'ymasligi */
+  .btn-group {
+    flex-wrap: wrap;
+  }
+
+  /* Gorizontal jadvallar uchun silliq scroll */
+  .table-responsive,
+  .ledger-table-container {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Smartfon ekranlarida (masalan Samsung A56) sarlavha va qidiruv qatorlari */
+  .search-input-wrapper {
+    width: 100%;
+  }
+
+  /* Mobil kartochkalardagi padding */
+  .card,
+  .wallet-card,
+  .reserve-card {
+    padding: 12px !important;
+  }
+
+  /* Amallar tugmalari sensorli ekranda bosishga qulay 40px+ minimal balandlik */
+  .btn {
+    min-height: 38px;
+  }
+}
+
 
 
 
