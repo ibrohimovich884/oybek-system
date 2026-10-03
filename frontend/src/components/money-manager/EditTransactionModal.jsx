@@ -6,8 +6,9 @@ import {
   INCOME_CATEGORIES,
   WALLET_CONFIG,
 } from "../../constants/money.js";
-import { formatSum, toLocalDatetimeInput, formatDateTime } from "../../utils/format.js";
+import { formatSum, formatDollar, toLocalDatetimeInput, formatDateTime } from "../../utils/format.js";
 import CategoryIcon from "./CategoryIcon.jsx";
+import SecurityGate from "../security/SecurityGate.jsx";
 
 export default function EditTransactionModal({ item, onClose }) {
   const { updateExpense, deleteExpense } = useExpenses();
@@ -32,6 +33,7 @@ export default function EditTransactionModal({ item, onClose }) {
   const [isSaving, setIsSaving] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showSecurityDelete, setShowSecurityDelete] = useState(false);
 
   const categories = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   const currentCategoryObj = categories.find((c) => c.id === category);
@@ -437,7 +439,7 @@ export default function EditTransactionModal({ item, onClose }) {
             <button
               type="button"
               className="btn btn--danger"
-              onClick={handleDelete}
+              onClick={() => setShowSecurityDelete(true)}
             >
               <Trash2 size={15} />
               <span>O'chirish</span>
@@ -453,6 +455,21 @@ export default function EditTransactionModal({ item, onClose }) {
             </div>
           </div>
         </form>
+
+        {/* Xavfsiz PIN bilan o'chirish modali */}
+        <SecurityGate
+          isModal={true}
+          isOpen={showSecurityDelete}
+          isDanger={true}
+          title="Amalni Oʻchirish"
+          subtitle={`Ushbu ${item.currency === "USD" || item.paymentMethod === "dollar" ? formatDollar(item.amount) : formatSum(item.amount)} miqdoridagi amalni oʻchirish uchun 4 xonali PIN parolni kiriting`}
+          onSuccess={async () => {
+            await deleteExpense(item.id);
+            setShowSecurityDelete(false);
+            onClose();
+          }}
+          onCancel={() => setShowSecurityDelete(false)}
+        />
       </div>
     </div>
   );

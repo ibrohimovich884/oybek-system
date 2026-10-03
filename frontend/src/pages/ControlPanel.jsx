@@ -33,6 +33,7 @@ import { WALLET_CONFIG, RESERVE_CONFIG } from "../constants/money.js";
 import EditReserveModal from "../components/control-panel/EditReserveModal.jsx";
 import UniversalTransferModal from "../components/control-panel/UniversalTransferModal.jsx";
 import EditTransactionModal from "../components/money-manager/EditTransactionModal.jsx";
+import SecurityGate from "../components/security/SecurityGate.jsx";
 
 export default function ControlPanel() {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ export default function ControlPanel() {
   const [editingReserveId, setEditingReserveId] = useState(null);
   const [transferModal, setTransferModal] = useState(null); // { from, to } | null
   const [editingTx, setEditingTx] = useState(null);
+  const [deleteTargetTx, setDeleteTargetTx] = useState(null);
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   const [isEditingRate, setIsEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState(String(Math.round(rateInfo?.rate || 12850)));
@@ -711,11 +713,7 @@ export default function ControlPanel() {
                         <button
                           type="button"
                           className="btn-icon btn-icon--danger"
-                          onClick={() => {
-                            if (window.confirm("Rostdan ham ushbu zaxira amalini o'chirmoqchimisiz?")) {
-                              deleteExpense(tx.id);
-                            }
-                          }}
+                          onClick={() => setDeleteTargetTx(tx)}
                           title="O'chirish"
                         >
                           <Trash2 size={13} />
@@ -828,6 +826,26 @@ export default function ControlPanel() {
           onClose={() => setEditingTx(null)}
         />
       )}
+
+      {/* Zaxira amalini o'chirish uchun Xavfsiz PIN modali */}
+      <SecurityGate
+        isModal={true}
+        isOpen={Boolean(deleteTargetTx)}
+        isDanger={true}
+        title="Zaxira Amalini Oʻchirish"
+        subtitle={
+          deleteTargetTx
+            ? `${deleteTargetTx.currency === "USD" || deleteTargetTx.paymentMethod === "dollar" ? formatDollar(deleteTargetTx.amount) : formatSum(deleteTargetTx.amount)} miqdoridagi zaxira oʻtkazmasini oʻchirish uchun 4 xonali PIN parolni kiriting`
+            : "Ushbu zaxira amalini oʻchirish uchun 4 xonali maxfiy parolni kiriting"
+        }
+        onSuccess={() => {
+          if (deleteTargetTx) {
+            deleteExpense(deleteTargetTx.id);
+            setDeleteTargetTx(null);
+          }
+        }}
+        onCancel={() => setDeleteTargetTx(null)}
+      />
     </div>
   );
 }

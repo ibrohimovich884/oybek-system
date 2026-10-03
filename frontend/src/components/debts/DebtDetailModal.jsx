@@ -23,6 +23,7 @@ import {
 import { formatSum, formatDollar } from "../../utils/format.js";
 import { DEBT_TYPES, DEBT_TYPE_LABELS, DEBT_STATUS_LABELS } from "../../constants/debts.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
+import SecurityGate from "../security/SecurityGate.jsx";
 
 export default function DebtDetailModal({
   isOpen,
@@ -34,6 +35,7 @@ export default function DebtDetailModal({
   onSettleDebt,
 }) {
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [showSecurityDelete, setShowSecurityDelete] = useState(false);
 
   if (!isOpen || !debt) return null;
 
@@ -417,12 +419,7 @@ export default function DebtDetailModal({
             <button
               type="button"
               className="btn btn--sm btn--ghost debt-detail-btn-delete"
-              onClick={() => {
-                if (window.confirm(`${debt.personName}ga tegishli qarz yozuvini butunlay o'chirishni xohlaysizmi?`)) {
-                  onDeleteDebt(debt.id);
-                  onClose();
-                }
-              }}
+              onClick={() => setShowSecurityDelete(true)}
               title="Qarz yozuvini o'chirish"
             >
               <Trash2 size={15} />
@@ -486,6 +483,21 @@ export default function DebtDetailModal({
             )}
           </div>
         </div>
+
+        {/* Xavfsiz Parol bilan O'chirish Modali */}
+        <SecurityGate
+          isModal={true}
+          isOpen={showSecurityDelete}
+          isDanger={true}
+          title="Qarzni Oʻchirish"
+          subtitle={`"${debt.personName}"ga tegishli ${formatFn(totalAmount)} miqdoridagi qarzni oʻchirish uchun 4 xonali PIN parolni kiriting`}
+          onSuccess={() => {
+            onDeleteDebt(debt.id);
+            setShowSecurityDelete(false);
+            onClose();
+          }}
+          onCancel={() => setShowSecurityDelete(false)}
+        />
       </div>
     </div>
   );

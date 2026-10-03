@@ -6,10 +6,16 @@ const AuthContext = createContext(null);
 export const STORAGE_TOKEN_KEY = "oybek_jwt_token";
 export const STORAGE_EXPIRES_KEY = "oybek_jwt_expires_at";
 export const STORAGE_USER_KEY = "oybek_auth_user";
+export const STORAGE_LOCKOUT_KEY = "oybek_auth_lockout_state";
 
 // 30 kunlik (1 oylik) sessiya davomiyligi
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 const SYSTEM_PASSWORD = "Oybek-SysteM";
+
+// Rate limiting konfiguratsiyasi (Lokal xavfsizlik himoyasi)
+const WINDOW_MS = 60 * 1000; // 1 daqiqalik oyna
+const MAX_ATTEMPTS_PER_WINDOW = 3;
+const LOCKOUT_DURATIONS_SEC = [30, 60, 120, 300];
 
 function createJwtSession(username = "admin") {
   const now = Math.floor(Date.now() / 1000);
@@ -47,12 +53,57 @@ export function AuthProvider({ children }) {
     }
   });
 
+  // Bloklash va urinishlar holati
+  const [lockoutState, setLockoutState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_LOCKOUT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.lockUntil && parsed.lockUntil > Date.now()) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return {
+      lockUntil: 0,
+      lockoutStage: 0,
+      attempts: [],
+    };
+  });
+
   // Sessiya muddati o'tganligini tekshirish
   const isSessionValid = Boolean(
     token && expiresAt && expiresAt > Date.now()
   );
 
   const [isAuthenticated, setIsAuthenticated] = useState(isSessionValid);
+
+  // Bloklash holatini saqlash
+  const saveLockoutState = useCallback((newState) => {
+    setLockoutState(newState);
+    try {
+      localStorage.setItem(STORAGE_LOCKOUT_KEY, JSON.stringify(newState));
+    } catch (e) {
+      console.warn("Lockout holatini saqlashda xato:", e);
+    }
+  }, []);
+
+  // Bloklash muddati tugaganini muntazam tekshirish
+  useEffect(() => {
+    if (!lockoutState.lockUntil) return;
+
+    const timer = setInterval(() => {
+      if (Date.now() >= lockoutState.lockUntil) {
+        saveLockoutState({
+          ...lockoutState,
+          lockUntil: 0,
+          attempts: [],
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lockoutState, saveLockoutState]);
 
   // Sessiya tugaganida tozalash
   const logout = useCallback(() => {
@@ -96,10 +147,23 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("oybek-auth-expired", handleAuthExpired);
   }, [logout]);
 
-  // Kirish funksiyasi (1 oylik JWT sessiya)
+  // Kirish funksiyasi (Progressiv Rate Limiting va 1 oylik JWT sessiya bilan)
   const login = async (passwordInput) => {
-    const trimmed = String(passwordInput || "").trim();
+    const now = Date.now();
 
+    // 1. Agar hozirda mijoz bloklangan bo'lsa
+    if (lockoutState.lockUntil > now) {
+      const remainingSec = Math.ceil((lockoutState.lockUntil - now) / 1000);
+      return {
+        success: false,
+        isLocked: true,
+        lockUntil: lockoutState.lockUntil,
+        retryAfter: remainingSec,
+        message: `Xavfsizlik blokirovkasi! ${remainingSec} soniyadan so'ng qayta urinishingiz mumkin.`,
+      };
+    }
+
+    const trimmed = String(passwordInput || "").trim();
     if (!trimmed) {
       return {
         success: false,
@@ -107,13 +171,16 @@ export function AuthProvider({ children }) {
       };
     }
 
+    // 1 daqiqadan eski xatolarni tozalash
+    const recentAttempts = (lockoutState.attempts || []).filter((ts) => now - ts < WINDOW_MS);
+
     const isDirectMatch =
       trimmed === SYSTEM_PASSWORD ||
       trimmed.toLowerCase() === SYSTEM_PASSWORD.toLowerCase();
     const expiry = Date.now() + SESSION_DURATION_MS;
     const defaultUser = { name: "Oybek", role: "admin", system: "OYBEK SysteM" };
 
-    // 1. Tizim paroli bo'lsa (Oybek-SysteM) — zudlik bilan 1 oylik JWT sessiya bilan tasdiqlash
+    // 1. Agar to'g'ri tizim paroli bo'lsa (Oybek-SysteM)
     if (isDirectMatch) {
       let finalToken = createJwtSession("admin");
 
@@ -135,6 +202,23 @@ export function AuthProvider({ children }) {
         });
         clearTimeout(timer);
 
+        if (res.status === 429) {
+          const data = await res.json();
+          const lockTime = data.lockUntil || Date.now() + (data.retryAfter || 30) * 1000;
+          saveLockoutState({
+            lockUntil: lockTime,
+            lockoutStage: data.lockoutStage || 1,
+            attempts: [],
+          });
+          return {
+            success: false,
+            isLocked: true,
+            lockUntil: lockTime,
+            retryAfter: data.retryAfter || 30,
+            message: data.error || `Tizim ${data.retryAfter || 30} soniyaga bloklandi.`,
+          };
+        }
+
         if (res.ok) {
           const data = await res.json();
           if (data?.token) {
@@ -142,9 +226,15 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (e) {
-        // Server uyg'onmagan bo'lsa ham offline JWT sessiya ochiladi
         console.log("Server auth sync bypass:", e.message);
       }
+
+      // Muvaffaqiyatli kirish: Bloklash holatini tozalash
+      saveLockoutState({
+        lockUntil: 0,
+        lockoutStage: 0,
+        attempts: [],
+      });
 
       try {
         localStorage.setItem(STORAGE_TOKEN_KEY, finalToken);
@@ -166,7 +256,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    // 2. Agar boshqa parol kiritilgan bo'lsa, server orqali tekshirish
+    // 2. Agar noto'g'ri bo'lsa yoki server orqali tekshirish kerak bo'lsa
     try {
       const baseUrl = getBackendBaseUrl();
       const url = `${baseUrl}/api/auth/login`;
@@ -191,6 +281,13 @@ export function AuthProvider({ children }) {
         const serverExpiry = data.expiresAt || expiry;
         const userData = data.user || defaultUser;
 
+        // Xatoliklarni tozalash
+        saveLockoutState({
+          lockUntil: 0,
+          lockoutStage: 0,
+          attempts: [],
+        });
+
         try {
           localStorage.setItem(STORAGE_TOKEN_KEY, jwtToken);
           localStorage.setItem(STORAGE_EXPIRES_KEY, String(serverExpiry));
@@ -209,16 +306,93 @@ export function AuthProvider({ children }) {
           message: "Kirish muvaffaqiyatli! 1 oylik xavfsiz sessiya faollashtirildi.",
           expiresAt: serverExpiry,
         };
-      } else {
+      }
+
+      if (res.status === 429) {
+        const data = await res.json();
+        const lockDuration = (data.retryAfter || 30) * 1000;
+        const lockUntil = data.lockUntil || (Date.now() + lockDuration);
+        saveLockoutState({
+          lockUntil,
+          lockoutStage: data.lockoutStage || (lockoutState.lockoutStage + 1),
+          attempts: [],
+        });
+
         return {
           success: false,
-          message: "Noto'g'ri parol! Qayta urinib ko'ring.",
+          isLocked: true,
+          lockUntil,
+          retryAfter: data.retryAfter || 30,
+          message: data.error || `Ko'p marotaba xato qilindi. Tizim ${data.retryAfter || 30} soniyaga bloklandi.`,
         };
       }
-    } catch (netErr) {
+
+      // 401 noto'g'ri parol
+      const updatedAttempts = [...recentAttempts, now];
+      if (updatedAttempts.length >= MAX_ATTEMPTS_PER_WINDOW) {
+        const nextStage = lockoutState.lockoutStage + 1;
+        const durationSec = LOCKOUT_DURATIONS_SEC[Math.min(nextStage - 1, LOCKOUT_DURATIONS_SEC.length - 1)];
+        const lockUntil = now + durationSec * 1000;
+
+        saveLockoutState({
+          lockUntil,
+          lockoutStage: nextStage,
+          attempts: [],
+        });
+
+        return {
+          success: false,
+          isLocked: true,
+          lockUntil,
+          retryAfter: durationSec,
+          message: `1 daqiqa ichida ${MAX_ATTEMPTS_PER_WINDOW} marta xato parol kiritildi! Tizim ${durationSec} soniyaga bloklandi.`,
+        };
+      }
+
+      const remaining = MAX_ATTEMPTS_PER_WINDOW - updatedAttempts.length;
+      saveLockoutState({
+        ...lockoutState,
+        attempts: updatedAttempts,
+      });
+
       return {
         success: false,
-        message: "Noto'g'ri parol! Qayta urinib ko'ring.",
+        remainingAttempts: remaining,
+        message: `Noto'g'ri parol! 1 daqiqada qolgan urinishlar: ${remaining} ta`,
+      };
+    } catch (netErr) {
+      // Offline holatda ham lokal rate limiting ishlashi kerak
+      const updatedAttempts = [...recentAttempts, now];
+      if (updatedAttempts.length >= MAX_ATTEMPTS_PER_WINDOW) {
+        const nextStage = lockoutState.lockoutStage + 1;
+        const durationSec = LOCKOUT_DURATIONS_SEC[Math.min(nextStage - 1, LOCKOUT_DURATIONS_SEC.length - 1)];
+        const lockUntil = now + durationSec * 1000;
+
+        saveLockoutState({
+          lockUntil,
+          lockoutStage: nextStage,
+          attempts: [],
+        });
+
+        return {
+          success: false,
+          isLocked: true,
+          lockUntil,
+          retryAfter: durationSec,
+          message: `1 daqiqa ichida ${MAX_ATTEMPTS_PER_WINDOW} marta xato parol kiritildi! Tizim ${durationSec} soniyaga bloklandi.`,
+        };
+      }
+
+      const remaining = MAX_ATTEMPTS_PER_WINDOW - updatedAttempts.length;
+      saveLockoutState({
+        ...lockoutState,
+        attempts: updatedAttempts,
+      });
+
+      return {
+        success: false,
+        remainingAttempts: remaining,
+        message: `Noto'g'ri parol! 1 daqiqada qolgan urinishlar: ${remaining} ta`,
       };
     }
   };
@@ -236,6 +410,7 @@ export function AuthProvider({ children }) {
     expiresAt,
     user,
     isAuthenticated,
+    lockoutState,
     daysRemaining: getDaysRemaining(),
     login,
     logout,
@@ -251,3 +426,4 @@ export function useAuth() {
   }
   return ctx;
 }
+

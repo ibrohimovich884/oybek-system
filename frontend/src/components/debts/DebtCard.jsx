@@ -25,6 +25,7 @@ import {
   DEBT_TYPE_LABELS,
   DEBT_STATUS_LABELS,
 } from "../../constants/debts.js";
+import SecurityGate from "../security/SecurityGate.jsx";
 
 export default function DebtCard({
   debt,
@@ -34,6 +35,7 @@ export default function DebtCard({
   onSettleDebt,
 }) {
   const [showPayments, setShowPayments] = useState(false);
+  const [showSecurityDelete, setShowSecurityDelete] = useState(false);
 
   const isGiven = debt.type === DEBT_TYPES.GIVEN;
   const isUsd = debt.currency === "USD";
@@ -289,15 +291,7 @@ export default function DebtCard({
         <button
           type="button"
           className="debt-card__btn-delete"
-          onClick={() => {
-            if (
-              window.confirm(
-                `${debt.personName}ga tegishli qarz qaydini o'chirishni tasdiqlaysizmi?`
-              )
-            ) {
-              onDeleteDebt(debt.id);
-            }
-          }}
+          onClick={() => setShowSecurityDelete(true)}
           title="O'chirish"
           aria-label="O'chirish"
         >
@@ -351,6 +345,20 @@ export default function DebtCard({
           </button>
         </div>
       </div>
+
+      {/* Xavfsiz Parol bilan O'chirish Modali */}
+      <SecurityGate
+        isModal={true}
+        isOpen={showSecurityDelete}
+        isDanger={true}
+        title="Qarzni Oʻchirish"
+        subtitle={`"${debt.personName}"ga tegishli ${formatFn(totalAmount)} qarz yozuvini oʻchirish uchun 4 xonali PIN parolni kiriting`}
+        onSuccess={() => {
+          onDeleteDebt(debt.id);
+          setShowSecurityDelete(false);
+        }}
+        onCancel={() => setShowSecurityDelete(false)}
+      />
     </div>
   );
 }

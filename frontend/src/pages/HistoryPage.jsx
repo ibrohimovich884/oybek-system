@@ -33,6 +33,7 @@ import {
 import CategoryIcon from "../components/money-manager/CategoryIcon.jsx";
 import EditTransactionModal from "../components/money-manager/EditTransactionModal.jsx";
 import TransferModal from "../components/money-manager/TransferModal.jsx";
+import SecurityGate from "../components/security/SecurityGate.jsx";
 
 const CATEGORY_MAP = {};
 [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].forEach((c) => {
@@ -71,6 +72,7 @@ export default function HistoryPage() {
   // Modallar
   const [editingItem, setEditingItem] = useState(null);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [deleteTargetTx, setDeleteTargetTx] = useState(null);
 
   // Barcha mavjud kategoriyalar ro'yxati (dinamik)
   const availableCategories = useMemo(() => {
@@ -866,11 +868,7 @@ export default function HistoryPage() {
                             <button
                               type="button"
                               className="btn-icon btn-icon--sm btn-icon--danger"
-                              onClick={() => {
-                                if (window.confirm("Rostdan ham ushbu amalni o'chirmoqchimisiz?")) {
-                                  deleteExpense(tx.id);
-                                }
-                              }}
+                              onClick={() => setDeleteTargetTx(tx)}
                               title="O'chirish"
                               aria-label="O'chirish"
                             >
@@ -920,6 +918,26 @@ export default function HistoryPage() {
           onClose={() => setIsTransferModalOpen(false)}
         />
       )}
+
+      {/* 7. Tranzaksiyani O'chirish uchun Xavfsiz PIN Modali */}
+      <SecurityGate
+        isModal={true}
+        isOpen={Boolean(deleteTargetTx)}
+        isDanger={true}
+        title="Amalni Oʻchirish"
+        subtitle={
+          deleteTargetTx
+            ? `${deleteTargetTx.currency === "USD" || deleteTargetTx.paymentMethod === "dollar" ? formatDollar(deleteTargetTx.amount) : formatSum(deleteTargetTx.amount)} miqdoridagi amalni (${deleteTargetTx.reason || deleteTargetTx.category || "tranzaksiya"}) oʻchirish uchun 4 xonali PIN parolni kiriting`
+            : "Ushbu amalni oʻchirish uchun 4 xonali maxfiy parolni kiriting"
+        }
+        onSuccess={() => {
+          if (deleteTargetTx) {
+            deleteExpense(deleteTargetTx.id);
+            setDeleteTargetTx(null);
+          }
+        }}
+        onCancel={() => setDeleteTargetTx(null)}
+      />
     </div>
   );
 }

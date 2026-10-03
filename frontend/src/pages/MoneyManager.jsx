@@ -7,6 +7,8 @@ import ExpenseRow from "../components/money-manager/ExpenseRow.jsx";
 import EditTransactionModal from "../components/money-manager/EditTransactionModal.jsx";
 import AnalyticsView from "../components/money-manager/AnalyticsView.jsx";
 import TransferModal from "../components/money-manager/TransferModal.jsx";
+import SecurityGate from "../components/security/SecurityGate.jsx";
+import { formatSum, formatDollar } from "../utils/format.js";
 import {
   PlusCircle,
   History,
@@ -41,6 +43,7 @@ export default function MoneyManager() {
   const [activeTab, setActiveTab] = useState("form"); // "form" | "analytics"
   const [transferConfig, setTransferConfig] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
+  const [deleteTargetItem, setDeleteTargetItem] = useState(null);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
   const fileInputRef = useRef(null);
 
@@ -254,7 +257,7 @@ export default function MoneyManager() {
                       key={expense.id}
                       expense={expense}
                       onEdit={(item) => setEditingItem(item)}
-                      onDelete={deleteExpense}
+                      onDelete={() => setDeleteTargetItem(expense)}
                     />
                   ))}
                 </div>
@@ -295,6 +298,26 @@ export default function MoneyManager() {
           onClose={() => setTransferConfig(null)}
         />
       )}
+
+      {/* Amalni o'chirish uchun Xavfsiz PIN modali */}
+      <SecurityGate
+        isModal={true}
+        isOpen={Boolean(deleteTargetItem)}
+        isDanger={true}
+        title="Amalni Oʻchirish"
+        subtitle={
+          deleteTargetItem
+            ? `${deleteTargetItem.currency === "USD" || deleteTargetItem.paymentMethod === "dollar" ? formatDollar(deleteTargetItem.amount) : formatSum(deleteTargetItem.amount)} miqdoridagi amalni (${deleteTargetItem.reason || deleteTargetItem.category || "tranzaksiya"}) oʻchirish uchun 4 xonali PIN parolni kiriting`
+            : "Ushbu amalni oʻchirish uchun 4 xonali maxfiy parolni kiriting"
+        }
+        onSuccess={() => {
+          if (deleteTargetItem) {
+            deleteExpense(deleteTargetItem.id);
+            setDeleteTargetItem(null);
+          }
+        }}
+        onCancel={() => setDeleteTargetItem(null)}
+      />
     </div>
   );
 }

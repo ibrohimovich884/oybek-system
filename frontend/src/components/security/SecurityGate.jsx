@@ -12,6 +12,8 @@ import {
   KeyRound,
   CheckCircle2,
   AlertTriangle,
+  Trash2,
+  X,
 } from "lucide-react";
 import { useSecurity } from "../../context/SecurityContext.jsx";
 
@@ -23,8 +25,8 @@ import { useSecurity } from "../../context/SecurityContext.jsx";
  *    <SecurityGate scope="control_panel" title="Control Panel"> <ControlPanel /> </SecurityGate>
  * 2. Inline darajada:
  *    <SecurityGate scope="settings_security" inline={true}> <SecuritySettingsTab /> </SecurityGate>
- * 3. Modal / Tasdiqlash darajasida:
- *    <SecurityGate isModal={true} isOpen={isOpen} onSuccess={handleSuccess} onCancel={handleCancel} />
+ * 3. Modal / Tasdiqlash darajasida (O'chirish yoki muhim amallarda):
+ *    <SecurityGate isModal={true} isOpen={isOpen} isDanger={true} title="O'chirishni tasdiqlash" subtitle="..." onSuccess={handleSuccess} onCancel={handleCancel} />
  */
 export default function SecurityGate({
   scope,
@@ -35,6 +37,7 @@ export default function SecurityGate({
   inline = false,
   isModal = false,
   isOpen = true,
+  isDanger = false,
   onSuccess,
   onCancel,
   showBackButton = true,
@@ -51,12 +54,21 @@ export default function SecurityGate({
   const [errorMsg, setErrorMsg] = useState("");
   const [isShaking, setIsShaking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const hiddenInputRef = useRef(null);
 
   // Hozirgi parollar uzunligi (4 ta belgi)
   const PIN_LENGTH = 4;
 
   const unlocked = scope ? isUnlocked(scope) : false;
+
+  // Modal qayta ochilganda holatni tozalash
+  useEffect(() => {
+    if (isModal && isOpen) {
+      setInputPin("");
+      setErrorMsg("");
+      setIsShaking(false);
+      setIsSuccess(false);
+    }
+  }, [isModal, isOpen]);
 
   // Parol to'liq kiritilganda tekshirish
   const handleVerify = useCallback(
@@ -151,7 +163,7 @@ export default function SecurityGate({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [inputPin, unlocked, isModal, isOpen]);
+  }, [inputPin, unlocked, isModal, isOpen, onCancel]);
 
   // Agar allaqachon ochilgan bo'lsa (Wrapper rejimida)
   if (unlocked && !isModal) {
@@ -183,14 +195,20 @@ export default function SecurityGate({
     <div
       className={`security-card-glass ${isShaking ? "is-shaking" : ""} ${
         isSuccess ? "is-success" : ""
-      } ${inline ? "security-inline-gate" : ""}`}
+      } ${inline ? "security-inline-gate" : ""} ${isDanger ? "is-danger-gate" : ""}`}
+      style={isDanger ? { borderColor: "rgba(239, 68, 68, 0.4)", boxShadow: "0 24px 50px -10px rgba(0, 0, 0, 0.75), 0 0 35px rgba(239, 68, 68, 0.15)" } : undefined}
     >
-      {/* Yuqori yoritilgan qalqon / qulf belgisi */}
-      <div className="security-icon-badge">
+      {/* Yuqori yoritilgan qalqon / qulf / o'chirish belgisi */}
+      <div
+        className="security-icon-badge"
+        style={isDanger ? { background: "radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, rgba(127, 29, 29, 0.4) 100%)", borderColor: "rgba(239, 68, 68, 0.45)", color: "#f87171" } : undefined}
+      >
         {isSuccess ? (
           <Unlock size={26} color="#34d399" />
         ) : CustomIcon ? (
           CustomIcon
+        ) : isDanger ? (
+          <Trash2 size={24} color="#f87171" />
         ) : (
           <Shield size={26} />
         )}
@@ -241,7 +259,7 @@ export default function SecurityGate({
         ) : isSuccess ? (
           <>
             <CheckCircle2 size={14} />
-            <span>Qulf ochildi! Yo'naltirilmoqda...</span>
+            <span>Tasdiqlandi! Bajarilmoqda...</span>
           </>
         ) : (
           <span>Klaviatura yoki sensorli tugmalardan foydalaning</span>
@@ -321,7 +339,7 @@ export default function SecurityGate({
           <div />
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.72rem", color: "rgba(52, 211, 153, 0.7)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.72rem", color: isDanger ? "rgba(248, 113, 113, 0.85)" : "rgba(52, 211, 153, 0.7)" }}>
           <ShieldCheck size={13} />
           <span>4 xonali PIN</span>
         </div>
@@ -353,3 +371,4 @@ export default function SecurityGate({
     </div>
   );
 }
+
