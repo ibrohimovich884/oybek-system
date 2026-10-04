@@ -195,11 +195,24 @@ export function AuthProvider({ children }) {
             localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(data.user));
           } catch {}
         }
+      } else if (res.status === 401) {
+        // Server token yaroqsiz dedi (masalan, eski yoki soxta token)
+        console.warn("Sessiya tokeni serverda eskirgan yoki yaroqsiz — qayta kirish talab qilinadi");
+        logout();
       }
     } catch (err) {
       console.warn("Profile refresh error:", err.message);
     }
-  }, [token]);
+  }, [token, logout]);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      console.warn("Backend 401 qaytardi — sessiya yangilanadi");
+      logout();
+    };
+    window.addEventListener("oybek:auth-unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("oybek:auth-unauthorized", handleUnauthorized);
+  }, [logout]);
 
   // Faqat 30 kunlik haqiqiy muddat tugaganida chiqish
   useEffect(() => {
@@ -247,7 +260,8 @@ export function AuthProvider({ children }) {
       const baseUrl = getBackendBaseUrl();
       const url = `${baseUrl}/api/auth/register`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
+      // Render bepul tarifda uyg'onishi 30-45 soniya olishi mumkin
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS || 45000);
 
       const res = await fetch(url, {
         method: "POST",
@@ -279,30 +293,28 @@ export function AuthProvider({ children }) {
           success: false,
           message: data.error || "Maʼlumotlar toʻliq kiritilmadi.",
         };
+      } else {
+        return {
+          success: false,
+          message: data.error || `Server xatosi (${res.status}). Qayta urinib koʻring.`,
+        };
       }
     } catch (netErr) {
-      console.warn("Server register offline fallback:", netErr.message);
+      console.warn("Server register xatosi:", netErr.message);
+      const isTimeout = netErr.name === "AbortError";
+      return {
+        success: false,
+        message: isTimeout
+          ? "Server uyg'onishi uzoqroq vaqt olmoqda (Render 30-45s). Iltimos, bir ozdan soʻng qayta urinib koʻring."
+          : "Serverga ulanishda xatolik. Internet aloqasini tekshiring.",
+      };
     }
 
-    // Server javob bermasa yoki 404 bo'lsa -> Barqaror mahalliy ro'yxatdan o'tkazish
     if (!serverSuccess || !jwtToken) {
-      const localUserId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-      jwtToken = createLocalJwtSession(localUserId, cleanFullName, cleanEmail, "user");
-      userData = {
-        id: localUserId,
-        userId: localUserId,
-        email: cleanEmail,
-        username: cleanUsername,
-        phoneNumber: cleanPhone,
-        fullName: cleanFullName,
-        name: cleanFullName,
-        role: "user",
-        defaultCurrency: "UZS",
-        language: "uz",
-        theme: "dark",
-        password: cleanPassword,
+      return {
+        success: false,
+        message: "Roʻyxatdan oʻtish yakunlanmadi. Iltimos, qayta urinib koʻring.",
       };
-      saveLocalUser(userData);
     }
 
     saveLockoutState({
@@ -382,7 +394,8 @@ export function AuthProvider({ children }) {
       const baseUrl = getBackendBaseUrl();
       const url = `${baseUrl}/api/auth/login`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
+      // Render bepul tarifda uyg'onishi 30-45s olishi mumkin
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS || 45000);
 
       const res = await fetch(url, {
         method: "POST",
@@ -423,9 +436,22 @@ export function AuthProvider({ children }) {
           retryAfter: data.retryAfter || 30,
           message: data.error || `Koʻp marotaba xato qilindi. Tizim ${data.retryAfter || 30} soniyaga bloklandi.`,
         };
+      } else if (res.status === 401 || res.status === 400 || res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        return {
+          success: false,
+          remainingAttempts: data.remainingAttempts,
+          message: data.error || "Notoʻgʻri email/login yoki parol! Iltimos, qayta tekshirib urinib koʻring.",
+        };
       }
     } catch (netErr) {
-      console.warn("Server login network/offline fallback:", netErr.message);
+      console.warn("Server login tarmoq xatosi:", netErr.message);
+      if (netErr.name === "AbortError") {
+        return {
+          success: false,
+          message: "Server javob berishga ulgurmadi (Render uyg'onishi 30-45s olishi mumkin). Iltimos, yana bir bor urinib koʻring.",
+        };
+      }
     }
 
     if (serverSuccess && jwtToken && userData) {

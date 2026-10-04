@@ -14,6 +14,7 @@ import exchangeRateRouter from "./routes/exchangeRate.js";
 import backupRouter from "./routes/backup.js";
 import snapshotRouter from "./routes/snapshot.js";
 import adminRouter from "./routes/admin.js";
+import updatesRouter from "./routes/updates.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
@@ -25,6 +26,9 @@ app.use(express.json({ limit: "10mb" }));
 // Ochiq yo'llar (Health va Login)
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
+
+// Yangilanishlar (GET ochiq, POST shikoyat va admin amallari router ichida himoyalangan)
+app.use("/api/updates", updatesRouter);
 
 // JWT bilan himoyalangan API yo'llari (30 kunlik sessiya)
 app.use("/api/admin", adminRouter);

@@ -122,7 +122,7 @@ export async function addDebtRecord(debtData) {
 export function markDebtSynced(debtId, isSynced = true) {
   const debts = readLocalDebts();
   const updated = debts.map((d) => (d.id === debtId ? { ...d, synced: isSynced } : d));
-  localStorage.setItem(STORAGE_PENDING_DEBTS_KEY, JSON.stringify(updated));
+  writeLocalDebts(updated);
 }
 
 export async function updateDebtRecord(id, updates) {

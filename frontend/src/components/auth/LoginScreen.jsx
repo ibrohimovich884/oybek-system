@@ -54,10 +54,25 @@ export default function LoginScreen() {
   const [isShaking, setIsShaking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [lockCountdown, setLockCountdown] = useState(0);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
 
   const cardRef = useRef(null);
   const loginInputRef = useRef(null);
   const regEmailInputRef = useRef(null);
+
+  // Yuklanish vaqti hisoblagichi (sovuq server uyg'onishini ko'rsatish)
+  useEffect(() => {
+    let t;
+    if (isLoading) {
+      setLoadingSeconds(0);
+      t = setInterval(() => {
+        setLoadingSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      setLoadingSeconds(0);
+    }
+    return () => clearInterval(t);
+  }, [isLoading]);
 
   // Qolgan bloklash vaqtini hisoblash
   useEffect(() => {
@@ -229,7 +244,11 @@ export default function LoginScreen() {
             variant="overlay"
             size="lg"
             text={activeTab === "register" ? "Roʻyxatdan oʻtkazilmoqda..." : "Tizimga kirilmoqda..."}
-            subtext="30 kunlik xavfsiz sessiya tekshirilmoqda"
+            subtext={
+              loadingSeconds > 4
+                ? `Server uygʻonmoqda (${loadingSeconds}s)... Render servisida bir oz vaqt olishi mumkin`
+                : "30 kunlik xavfsiz sessiya tekshirilmoqda"
+            }
             blur="5px"
           />
         )}

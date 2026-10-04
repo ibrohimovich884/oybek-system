@@ -20,12 +20,16 @@ router.get("/stats", async (req, res) => {
       txCountRes,
       walletsCountRes,
       debtsCountRes,
+      complaintsCountRes,
+      pendingComplaintsRes,
     ] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int AS count FROM users`),
       pool.query(`SELECT COUNT(*)::int AS count FROM users WHERE is_active = true`),
       pool.query(`SELECT COUNT(*)::int AS count FROM transactions`),
       pool.query(`SELECT COUNT(*)::int AS count FROM wallets`),
       pool.query(`SELECT COUNT(*)::int AS count FROM debts WHERE status != 'settled'`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints`).catch(() => ({ rows: [{ count: 0 }] })),
+      pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints WHERE status = 'pending'`).catch(() => ({ rows: [{ count: 0 }] })),
     ]);
 
     return res.json({
@@ -36,6 +40,8 @@ router.get("/stats", async (req, res) => {
         totalTransactions: txCountRes.rows[0]?.count || 0,
         totalWallets: walletsCountRes.rows[0]?.count || 0,
         pendingDebts: debtsCountRes.rows[0]?.count || 0,
+        totalComplaints: complaintsCountRes.rows[0]?.count || 0,
+        pendingComplaints: pendingComplaintsRes.rows[0]?.count || 0,
         serverTime: new Date().toISOString(),
       },
     });
@@ -383,6 +389,142 @@ router.post("/hash-tool", async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ error: "Xeshlashda xatolik: " + err.message });
+  }
+});
+
+// =========================================================================
+// GET /api/admin/complaints — Foydalanuvchilarning barcha shikoyat va takliflari
+// =========================================================================
+router.get("/complaints", async (req, res) => {
+  try {
+    const { status, type, search } = req.query;
+
+    let query = `SELECT * FROM update_complaints`;
+    const conditions = [];
+    const params = [];
+
+    if (status && status !== "all") {
+      params.push(status);
+      conditions.push(`status = $${params.length}`);
+    }
+
+    if (type && type !== "all") {
+      params.push(type);
+      conditions.push(`complaint_type = $${params.length}`);
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      conditions.push(`(
+        LOWER(subject) LIKE $${params.length} OR 
+        LOWER(message) LIKE $${params.length} OR 
+        LOWER(user_name) LIKE $${params.length} OR 
+        LOWER(user_email) LIKE $${params.length} OR 
+        LOWER(COALESCE(update_version, '')) LIKE $${params.length}
+      )`);
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    query += ` ORDER BY 
+      CASE WHEN status = 'pending' THEN 0 
+           WHEN status = 'in_review' THEN 1 
+           WHEN status = 'resolved' THEN 2 
+           ELSE 3 END,
+      created_at DESC`;
+
+    const { rows } = await pool.query(query, params);
+
+    // Umumiy statistika hisoblash
+    const countsRes = await pool.query(`
+      SELECT 
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END)::int AS pending,
+        COUNT(CASE WHEN status = 'in_review' THEN 1 END)::int AS in_review,
+        COUNT(CASE WHEN status = 'resolved' THEN 1 END)::int AS resolved,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END)::int AS rejected
+      FROM update_complaints
+    `).catch(() => ({ rows: [{ total: 0, pending: 0, in_review: 0, resolved: 0, rejected: 0 }] }));
+
+    return res.json({
+      ok: true,
+      count: rows.length,
+      complaints: rows,
+      stats: countsRes.rows[0] || {},
+    });
+  } catch (err) {
+    console.error("[admin get complaints error]", err);
+    return res.status(500).json({ error: "Shikoyatlarni olishda xatolik: " + err.message });
+  }
+});
+
+// =========================================================================
+// PUT /api/admin/complaints/:id/status — Shikoyat holatini yangilash va javob yozish
+// =========================================================================
+router.put("/complaints/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status, adminNotes } = req.body;
+
+  const validStatuses = ["pending", "in_review", "resolved", "rejected"];
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({ error: "Noto'g'ri holat tanlandi" });
+  }
+
+  try {
+    const isResolved = status === "resolved";
+    const updateRes = await pool.query(
+      `UPDATE update_complaints
+       SET 
+        status = COALESCE($1, status),
+        admin_notes = COALESCE($2, admin_notes),
+        admin_id = $3,
+        resolved_at = CASE WHEN $4::boolean = true THEN now() ELSE resolved_at END,
+        updated_at = now()
+       WHERE id = $5
+       RETURNING *`,
+      [
+        status || null,
+        adminNotes !== undefined ? adminNotes : null,
+        req.user?.userId || "usr_admin",
+        isResolved,
+        id,
+      ]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({ error: "Shikoyat topilmadi" });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Shikoyat holati muvaffaqiyatli yangilandi",
+      complaint: updateRes.rows[0],
+    });
+  } catch (err) {
+    console.error("[admin update complaint error]", err);
+    return res.status(500).json({ error: "Holatni yangilashda xatolik: " + err.message });
+  }
+});
+
+// =========================================================================
+// DELETE /api/admin/complaints/:id — Shikoyatni oʻchirish
+// =========================================================================
+router.delete("/complaints/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const delRes = await pool.query(`DELETE FROM update_complaints WHERE id = $1 RETURNING id`, [id]);
+    if (delRes.rows.length === 0) {
+      return res.status(404).json({ error: "Shikoyat topilmadi" });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Shikoyat oʻchirildi",
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Shikoyatni oʻchirishda xatolik: " + err.message });
   }
 });
 

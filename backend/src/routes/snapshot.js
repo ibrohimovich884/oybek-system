@@ -11,7 +11,7 @@ router.get("/", async (req, res) => {
     const snapshotId = userId ? `snap_${userId}` : "1";
 
     const { rows } = await pool.query(
-      "SELECT * FROM app_snapshot WHERE id = $1 OR (user_id = $2 AND user_id IS NOT NULL)",
+      "SELECT * FROM app_snapshot WHERE id::text = $1 OR (user_id = $2 AND user_id IS NOT NULL)",
       [snapshotId, userId || null]
     );
     const s = rows[0] || {};

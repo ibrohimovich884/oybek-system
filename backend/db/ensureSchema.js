@@ -131,6 +131,39 @@ export const EXPECTED = {
     completed_at: "text",
     details: "jsonb",
   },
+  system_updates: {
+    id: "text",
+    version: "text",
+    title: "text",
+    category: "text",
+    badge: "text",
+    summary: "text",
+    details: "jsonb",
+    release_date: "date",
+    is_pinned: "boolean",
+    created_at: "timestamp with time zone",
+    updated_at: "timestamp with time zone",
+  },
+  update_complaints: {
+    id: "text",
+    user_id: "text",
+    user_name: "text",
+    user_email: "text",
+    user_phone: "text",
+    update_id: "text",
+    update_version: "text",
+    update_title: "text",
+    complaint_type: "text",
+    priority: "text",
+    subject: "text",
+    message: "text",
+    status: "text",
+    admin_notes: "text",
+    admin_id: "text",
+    resolved_at: "timestamp with time zone",
+    created_at: "timestamp with time zone",
+    updated_at: "timestamp with time zone",
+  },
 };
 
 const DEFAULTS = {
@@ -166,6 +199,17 @@ const DEFAULTS = {
   "cbu_rate_log.recorded_at": "now()",
   "exercise_logs.completed": "true",
   "exercise_logs.details": "'{}'::jsonb",
+  "system_updates.category": "'feature'",
+  "system_updates.details": "'[]'::jsonb",
+  "system_updates.release_date": "CURRENT_DATE",
+  "system_updates.is_pinned": "false",
+  "system_updates.created_at": "now()",
+  "system_updates.updated_at": "now()",
+  "update_complaints.complaint_type": "'complaint'",
+  "update_complaints.priority": "'normal'",
+  "update_complaints.status": "'pending'",
+  "update_complaints.created_at": "now()",
+  "update_complaints.updated_at": "now()",
 };
 
 // Bir guruh jadvallar: birinchisi "ota", qolganlari unga bog'liq.
@@ -311,6 +355,120 @@ export async function ensureSchema() {
     log.push("Admin foydalanuvchisi (Login: Admin) tekshirildi/saqlandi");
   } catch (err) {
     log.push(`Admin hisobini tekshirishda ogohlantirish: ${err.message}`);
+  }
+
+  // Tizim yangilanishlarini (system_updates) boshlang'ich ma'lumotlar bilan to'ldirish
+  try {
+    const countRes = await pool.query(`SELECT COUNT(*)::int AS count FROM system_updates`);
+    if (countRes.rows[0]?.count === 0) {
+      const defaultUpdates = [
+        {
+          id: "upd_v5_2_0",
+          version: "v5.2.0",
+          title: "Tizim Yangilanishlari (Changelog) va Adminga Shikoyat Tizimi",
+          category: "feature",
+          badge: "Eng soʻnggi yangilik",
+          summary: "Tizimning barcha yangilanishlarini qulay koʻrish, har bir yangilik yuzasidan adminga bevosita shikoyat, fikr yoki taklif yuborish imkoniyati qoʻshildi.",
+          details: JSON.stringify([
+            { text: "Tizim yangilanishlari (Changelog) sahifasi: versiyalar tarixi va batafsil yangiliklar", type: "new" },
+            { text: "Har bir yangilanish boʻyicha adminga toʻgʻridan-toʻgʻri shikoyat va taklif yuborish shakli", type: "new" },
+            { text: "Admin paneli uchun maxsus 'Shikoyatlar & Fikrlar' boshqaruv moduli va holatni belgilash", type: "new" },
+            { text: "Foydalanuvchilar oʻz yuborgan murojaatlari holatini va admin javobini kuzatish imkoni", type: "improved" },
+            { text: "Oflayn rejimda ham xabarlarni xavfsiz saqlash va sinxronizatsiya kafolati", type: "fix" }
+          ]),
+          release_date: "2026-10-04",
+          is_pinned: true,
+        },
+        {
+          id: "upd_v5_1_0",
+          version: "v5.1.0",
+          title: "Multi-User Tizimi, Admin Panel va CASCADE Tozalash",
+          category: "security",
+          badge: "Xavfsizlik & Multi-User",
+          summary: "Koʻp foydalanuvchili arxitektura, Admin paneli, Bcrypt+Pepper xeshlash va foydalanuvchi oʻchirilganda maʼlumotlarni 100% tozalash.",
+          details: JSON.stringify([
+            { text: "Har bir foydalanuvchi uchun toʻliq mustaqil hamyonlar, xarajatlar va qarzlar bazasi", type: "new" },
+            { text: "Admin boshqaruv paneli: barcha foydalanuvchilarni koʻrish, parolni tiklash va bloklash", type: "new" },
+            { text: "Bcrypt (10 raund) + HMAC-SHA256 Pepper maxfiy kalitli parollarni shifrlash", type: "security" },
+            { text: "CASCADE xavfsiz tozalash: foydalanuvchi oʻchirilganda barcha tranzaksiyalari toʻliq yoʻqotiladi", type: "improved" }
+          ]),
+          release_date: "2026-10-01",
+          is_pinned: false,
+        },
+        {
+          id: "upd_v5_0_0",
+          version: "v5.0.0",
+          title: "Markaziy Bank (CBU) Kursi va Zaxira Snapshot",
+          category: "improvement",
+          badge: "Avtomatlashtirish",
+          summary: "Markaziy bankdan avtomatik USD kursi sinxronizatsiyasi va JSONB formatida toʻliq tizim zaxira nusxasi.",
+          details: JSON.stringify([
+            { text: "Kunlik CBU rasmiy valyuta kursini avtomatik yangilash mexanizmi", type: "new" },
+            { text: "App Snapshot: tizimning toʻliq zaxira nusxasini PostgreSQL JSONB da saqlash", type: "new" },
+            { text: "Koʻp valyutali xarajatlarni oʻsha vaqtdagi kurs boʻyicha aniq hisoblash", type: "improved" }
+          ]),
+          release_date: "2026-09-20",
+          is_pinned: false,
+        },
+        {
+          id: "upd_v4_8_0",
+          version: "v4.8.0",
+          title: "Qarz Daftari va Toʻlovlar Jurnali",
+          category: "feature",
+          badge: "Moliyaviy nazorat",
+          summary: "Berilgan va olingan qarzlarni alohida nazorat qilish, qisman toʻlovlar jurnali va muddat eslatmalari.",
+          details: JSON.stringify([
+            { text: "Olingan va berilgan qarzlarni qulay filtrlash va muddatini kuzatish", type: "new" },
+            { text: "Qarz boʻyicha qisman toʻlovlarni qabul qilish va qoldiq summani hisoblash", type: "new" },
+            { text: "Qarz yopilganda tanlangan hamyon balansiga pulni avtomatik qaytarish", type: "improved" }
+          ]),
+          release_date: "2026-09-10",
+          is_pinned: false,
+        },
+        {
+          id: "upd_v4_5_0",
+          version: "v4.5.0",
+          title: "Money Manager & 7 ta Hamyon Arxitekturasi",
+          category: "feature",
+          badge: "Asosiy funksional",
+          summary: "Naqd pul, karta, jamgʻarma va zaxira fondlari oʻrtasida tezkor universal oʻtkazmalar.",
+          details: JSON.stringify([
+            { text: "7 ta asosiy va zaxira hamyonlar (Naqd pul, Karta, Jamgʻarma va boshqalar)", type: "new" },
+            { text: "Hamyonlararo universal transfer (UZS <-> USD konvertatsiya bilan)", type: "new" },
+            { text: "Kategoriya va oylar boʻyicha interaktiv diagrammalar", type: "improved" }
+          ]),
+          release_date: "2026-08-25",
+          is_pinned: false,
+        },
+        {
+          id: "upd_v4_0_0",
+          version: "v4.0.0",
+          title: "Maxfiy PIN Kod va PWA Oflayn Qobiliyati",
+          category: "security",
+          badge: "Xavfsizlik",
+          summary: "Control Panel uchun 4 xonali PIN kod qulfi va Progressive Web App (PWA) oflayn rejim.",
+          details: JSON.stringify([
+            { text: "Control Panel va maxfiy maʼlumotlar uchun 4 xonali PIN kod muhofazasi", type: "security" },
+            { text: "PWA texnologiyasi: ilovani telefonga va kompyuterga dastur kabi oʻrnatish", type: "new" },
+            { text: "Internetsiz toʻliq ishlash va qayta ulanganda sinxronlash", type: "improved" }
+          ]),
+          release_date: "2026-08-10",
+          is_pinned: false,
+        }
+      ];
+
+      for (const u of defaultUpdates) {
+        await pool.query(
+          `INSERT INTO system_updates (id, version, title, category, badge, summary, details, release_date, is_pinned)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (id) DO NOTHING`,
+          [u.id, u.version, u.title, u.category, u.badge, u.summary, u.details, u.release_date, u.is_pinned]
+        );
+      }
+      log.push("Boshlang'ich tizim yangilanishlari (system_updates) yuklandi");
+    }
+  } catch (err) {
+    log.push(`Tizim yangilanishlarini kiritishda ogohlantirish: ${err.message}`);
   }
 
   const status = await checkSchema();

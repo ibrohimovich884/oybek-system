@@ -14,6 +14,7 @@ import {
   Layers,
   Bell,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 
 export default function Home() {
@@ -131,6 +132,16 @@ export default function Home() {
           <div className="quick-action-card__text">
             <span className="quick-action-card__title">Boshqaruv</span>
             <span className="quick-action-card__sub">Zaxiralar & Kurs</span>
+          </div>
+        </Link>
+
+        <Link to="/updates" className="quick-action-card">
+          <div className="quick-action-card__icon" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+            <Sparkles size={20} />
+          </div>
+          <div className="quick-action-card__text">
+            <span className="quick-action-card__title">Yangilanishlar</span>
+            <span className="quick-action-card__sub">v5.2 & Shikoyatlar</span>
           </div>
         </Link>
       </div>

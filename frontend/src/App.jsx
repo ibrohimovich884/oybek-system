@@ -9,6 +9,7 @@ import ExercisesPage from "./pages/ExercisesPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
+import UpdatesPage from "./pages/UpdatesPage.jsx";
 import SecurityGate from "./components/security/SecurityGate.jsx";
 import LoginScreen from "./components/auth/LoginScreen.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -62,6 +63,9 @@ export default function App() {
         <Route path="/debts" element={<DebtsPage />} />
         <Route path="/exercises" element={<ExercisesPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/updates" element={<UpdatesPage />} />
+        <Route path="/changelog" element={<Navigate to="/updates" replace />} />
+        <Route path="/yangilanishlar" element={<Navigate to="/updates" replace />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </Layout>

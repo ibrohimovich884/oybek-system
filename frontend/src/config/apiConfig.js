@@ -23,7 +23,25 @@ export function getBackendBaseUrl() {
     return "";
   }
 
-  // 2. Standart holatda to'g'ridan-to'g'ri Render serveri
+  // 2. Agar localStorage da maxsus saqlangan manzil bo'lsa
+  if (typeof window !== "undefined") {
+    const savedUrl = localStorage.getItem(STORAGE_URL_KEY);
+    if (savedUrl && typeof savedUrl === "string" && savedUrl.trim()) {
+      return savedUrl.trim().replace(/\/+$/, "");
+    }
+  }
+
+  // 3. Agar .env da VITE_BACKEND_URL bo'lsa
+  const envUrl = import.meta.env?.VITE_BACKEND_URL;
+  if (envUrl && typeof envUrl === "string" && envUrl.trim()) {
+    let cleanEnv = envUrl.trim().replace(/\/+$/, "");
+    if (!cleanEnv.startsWith("http://") && !cleanEnv.startsWith("https://")) {
+      cleanEnv = `https://${cleanEnv}`;
+    }
+    return cleanEnv;
+  }
+
+  // 4. Standart holatda to'g'ridan-to'g'ri Render serveri
   return DEFAULT_BACKEND_URL;
 }
 

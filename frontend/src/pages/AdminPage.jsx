@@ -28,8 +28,14 @@ import {
   Database,
   Info,
   Clock,
+  MessageSquare,
+  Send,
+  Bug,
+  Lightbulb,
+  HelpCircle,
 } from "lucide-react";
 import { adminApi } from "../api/admin.js";
+import { updatesApi } from "../api/updates.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import Loader from "../components/common/Loader.jsx";
 
@@ -79,6 +85,17 @@ export default function AdminPage() {
   const [labResult, setLabResult] = useState(null);
   const [isHashing, setIsHashing] = useState(false);
 
+  // Shikoyatlar va Fikrlar holatlari
+  const [complaints, setComplaints] = useState([]);
+  const [complaintStats, setComplaintStats] = useState({ total: 0, pending: 0, in_review: 0, resolved: 0, rejected: 0 });
+  const [complaintFilterStatus, setComplaintFilterStatus] = useState("all");
+  const [complaintFilterType, setComplaintFilterType] = useState("all");
+  const [complaintSearch, setComplaintSearch] = useState("");
+  const [selectedComplaintForReply, setSelectedComplaintForReply] = useState(null);
+  const [replyStatus, setReplyStatus] = useState("resolved");
+  const [replyNotes, setReplyNotes] = useState("");
+  const [isUpdatingComplaint, setIsUpdatingComplaint] = useState(false);
+
   const showToast = (text, type = "success") => {
     setToast({ text, type });
     setTimeout(() => {
@@ -99,9 +116,10 @@ export default function AdminPage() {
     else setIsRefreshing(true);
 
     try {
-      const [usersRes, statsRes] = await Promise.all([
+      const [usersRes, statsRes, complaintsRes] = await Promise.all([
         adminApi.getUsers(),
         adminApi.getStats(),
+        updatesApi.getAdminComplaints().catch(() => ({ ok: false })),
       ]);
 
       if (usersRes.ok && usersRes.users) {
@@ -109,6 +127,12 @@ export default function AdminPage() {
       }
       if (statsRes.ok && statsRes.stats) {
         setStats(statsRes.stats);
+      }
+      if (complaintsRes.ok && complaintsRes.complaints) {
+        setComplaints(complaintsRes.complaints);
+        if (complaintsRes.stats) {
+          setComplaintStats(complaintsRes.stats);
+        }
       }
     } catch (err) {
       showToast("Maʼlumotlarni yuklashda xatolik: " + err.message, "error");
@@ -274,6 +298,57 @@ export default function AdminPage() {
       return matchSearch && matchRole && matchStatus;
     });
   }, [users, searchTerm, filterRole, filterStatus]);
+
+  // Filtrlangan shikoyatlar
+  const filteredComplaints = useMemo(() => {
+    return complaints.filter((c) => {
+      const term = complaintSearch.toLowerCase().trim();
+      const matchSearch =
+        !term ||
+        c.subject?.toLowerCase().includes(term) ||
+        c.message?.toLowerCase().includes(term) ||
+        c.user_name?.toLowerCase().includes(term) ||
+        c.user_email?.toLowerCase().includes(term) ||
+        c.update_version?.toLowerCase().includes(term);
+
+      const matchStatus = complaintFilterStatus === "all" || c.status === complaintFilterStatus;
+      const matchType = complaintFilterType === "all" || c.complaint_type === complaintFilterType;
+
+      return matchSearch && matchStatus && matchType;
+    });
+  }, [complaints, complaintSearch, complaintFilterStatus, complaintFilterType]);
+
+  const handleUpdateComplaintStatus = async (id, status, adminNotes) => {
+    try {
+      const res = await updatesApi.updateComplaintStatus(id, { status, adminNotes });
+      if (res.ok) {
+        showToast(res.message || "Holat yangilandi!");
+        loadData(true);
+        if (selectedComplaintForReply?.id === id) {
+          setSelectedComplaintForReply(null);
+        }
+      } else {
+        showToast(res.error || "Xatolik yuz berdi", "error");
+      }
+    } catch (err) {
+      showToast("Xatolik: " + err.message, "error");
+    }
+  };
+
+  const handleDeleteComplaint = async (id) => {
+    if (!window.confirm("Haqiqatan ham ushbu shikoyatni oʻchirmoqchimisiz?")) return;
+    try {
+      const res = await updatesApi.deleteComplaint(id);
+      if (res.ok) {
+        showToast("Shikoyat oʻchirildi");
+        loadData(true);
+      } else {
+        showToast(res.error || "Oʻchirishda xatolik", "error");
+      }
+    } catch (err) {
+      showToast("Xatolik: " + err.message, "error");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -454,6 +529,44 @@ export default function AdminPage() {
             User oʻchirilganda barcha maʼlumot ketadi
           </div>
         </div>
+
+        <div
+          className="card"
+          onClick={() => setActiveTab("complaints")}
+          style={{
+            padding: "14px 18px",
+            borderLeft: "3px solid #ef4444",
+            cursor: "pointer",
+            background: activeTab === "complaints" ? "rgba(239, 68, 68, 0.08)" : undefined,
+            transition: "all 0.15s ease",
+          }}
+          title="Shikoyatlar va fikrlarni ko'rish"
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }}>Shikoyat & Fikrlar</span>
+            <MessageSquare size={18} style={{ color: "#ef4444" }} />
+          </div>
+          <div style={{ fontSize: "1.65rem", fontWeight: 800, marginTop: 4, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span>{complaintStats.total || complaints.length}</span>
+            {complaintStats.pending > 0 && (
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  background: "#ef4444",
+                  color: "#fff",
+                  padding: "2px 7px",
+                  borderRadius: 10,
+                  fontWeight: 800,
+                }}
+              >
+                {complaintStats.pending} yangi
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: "0.72rem", color: complaintStats.pending > 0 ? "#f87171" : "#34d399", marginTop: 2 }}>
+            {complaintStats.pending > 0 ? `● ${complaintStats.pending} ta ko'rib chiqilmagan` : "● Barcha shikoyatlar ko'rilgan"}
+          </div>
+        </div>
       </div>
 
       {/* Tab Navigatsiyasi */}
@@ -465,6 +578,30 @@ export default function AdminPage() {
         >
           <Users size={16} />
           <span>Foydalanuvchilar roʻyxati ({filteredUsers.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("complaints")}
+          className={`money-tab-btn ${activeTab === "complaints" ? "is-active" : ""}`}
+        >
+          <MessageSquare size={16} />
+          <span>Shikoyatlar & Fikrlar ({complaints.length})</span>
+          {complaintStats.pending > 0 && (
+            <span
+              style={{
+                background: "#ef4444",
+                color: "#fff",
+                fontSize: "0.68rem",
+                fontWeight: 800,
+                padding: "2px 6px",
+                borderRadius: 10,
+                marginLeft: 4,
+              }}
+            >
+              {complaintStats.pending}
+            </span>
+          )}
         </button>
 
         <button
@@ -1256,6 +1393,553 @@ export default function AdminPage() {
                 Shuningdek, brauzerning LocalStorage xotirasidagi foydalanuvchiga tegishli barcha keshlar ham toʻliq tozalanadi. Hech qanday "yetim" (orphan) maʼlumot qolmaydi.
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* TAB 4: SHIKOYATLAR VA FIKRLAR (COMPLAINTS & FEEDBACK)               */}
+      {/* =================================================================== */}
+      {activeTab === "complaints" && (
+        <div className="tab-content-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Statistika kartochkalari */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 12,
+            }}
+          >
+            <div className="card" style={{ padding: "12px 16px", borderLeft: "3px solid #ef4444" }}>
+              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>Jami Murojaatlar</span>
+              <div style={{ fontSize: "1.45rem", fontWeight: 800, marginTop: 4, color: "var(--text)" }}>
+                {complaints.length}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: "12px 16px", borderLeft: "3px solid #fbbf24" }}>
+              <span style={{ fontSize: "0.78rem", color: "#fbbf24", fontWeight: 600 }}>Kutilayotgan (Yangi)</span>
+              <div style={{ fontSize: "1.45rem", fontWeight: 800, marginTop: 4, color: "#fbbf24" }}>
+                {complaints.filter((c) => c.status === "pending").length}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: "12px 16px", borderLeft: "3px solid #38bdf8" }}>
+              <span style={{ fontSize: "0.78rem", color: "#38bdf8", fontWeight: 600 }}>Koʻrib chiqilmoqda</span>
+              <div style={{ fontSize: "1.45rem", fontWeight: 800, marginTop: 4, color: "#38bdf8" }}>
+                {complaints.filter((c) => c.status === "in_review").length}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: "12px 16px", borderLeft: "3px solid #10b981" }}>
+              <span style={{ fontSize: "0.78rem", color: "#34d399", fontWeight: 600 }}>Hal qilinganlar</span>
+              <div style={{ fontSize: "1.45rem", fontWeight: 800, marginTop: 4, color: "#34d399" }}>
+                {complaints.filter((c) => c.status === "resolved").length}
+              </div>
+            </div>
+          </div>
+
+          {/* Qidiruv va Filtr paneli */}
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              padding: "12px 16px",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
+              <Search
+                size={16}
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--text-muted)",
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Mavzu, xabar, foydalanuvchi yoki versiya..."
+                value={complaintSearch}
+                onChange={(e) => setComplaintSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  paddingLeft: 36,
+                  paddingRight: 12,
+                  height: 38,
+                  borderRadius: 8,
+                  fontSize: "0.85rem",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
+              />
+              {complaintSearch && (
+                <button
+                  type="button"
+                  onClick={() => setComplaintSearch("")}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>Holat:</span>
+              <select
+                value={complaintFilterStatus}
+                onChange={(e) => setComplaintFilterStatus(e.target.value)}
+                style={{
+                  height: 38,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  fontSize: "0.82rem",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="all">Barcha holatlar</option>
+                <option value="pending">Kutilayotgan (Yangi)</option>
+                <option value="in_review">Koʻrib chiqilmoqda</option>
+                <option value="resolved">Hal qilingan</option>
+                <option value="rejected">Rad etilgan</option>
+              </select>
+
+              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600, marginLeft: 6 }}>
+                Tur:
+              </span>
+              <select
+                value={complaintFilterType}
+                onChange={(e) => setComplaintFilterType(e.target.value)}
+                style={{
+                  height: 38,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  fontSize: "0.82rem",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="all">Barcha turlar</option>
+                <option value="complaint">Shikoyat</option>
+                <option value="bug">Tizim xatosi (Bug)</option>
+                <option value="suggestion">Taklif / Gʻoya</option>
+                <option value="question">Savol</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Shikoyatlar ro'yxati */}
+          {filteredComplaints.length === 0 ? (
+            <div
+              className="card"
+              style={{
+                padding: "48px 24px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <MessageSquare size={44} style={{ color: "var(--text-muted)", opacity: 0.4 }} />
+              <div style={{ fontSize: "1rem", fontWeight: 700 }}>Hozircha hech qanday shikoyat yoki fikr tushmadi</div>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-muted)", maxWidth: 400 }}>
+                Foydalanuvchilar Yangilanishlar sahifasi orqali shikoyat yoki taklif yuborganlarida, bu yerda darhol aks etadi.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {filteredComplaints.map((c) => {
+                const isPending = c.status === "pending";
+                const isInReview = c.status === "in_review";
+                const isResolved = c.status === "resolved";
+
+                let typeLabel = "Shikoyat";
+                let typeColor = "#f87171";
+                let TypeIcon = AlertTriangle;
+
+                if (c.complaint_type === "bug") {
+                  typeLabel = "Tizim xatosi";
+                  typeColor = "#fb923c";
+                  TypeIcon = Bug;
+                } else if (c.complaint_type === "suggestion") {
+                  typeLabel = "Taklif / Fikr";
+                  typeColor = "#34d399";
+                  TypeIcon = Lightbulb;
+                } else if (c.complaint_type === "question") {
+                  typeLabel = "Savol";
+                  typeColor = "#38bdf8";
+                  TypeIcon = HelpCircle;
+                }
+
+                return (
+                  <div
+                    key={c.id}
+                    className="card"
+                    style={{
+                      padding: "16px 18px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                      borderLeft: isPending
+                        ? "4px solid #fbbf24"
+                        : isInReview
+                        ? "4px solid #38bdf8"
+                        : isResolved
+                        ? "4px solid #34d399"
+                        : "4px solid #ef4444",
+                      background: "var(--surface)",
+                    }}
+                  >
+                    {/* Yuqori qator: Foydalanuvchi ma'lumoti, sana va holat */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: "50%",
+                            background: "rgba(56, 189, 248, 0.15)",
+                            color: "#38bdf8",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 700,
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          {(c.user_name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text)" }}>
+                              {c.user_name}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                fontWeight: 700,
+                                padding: "2px 7px",
+                                borderRadius: 5,
+                                background: "var(--surface-2)",
+                                color: typeColor,
+                                border: `1px solid ${typeColor}40`,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              <TypeIcon size={12} />
+                              <span>{typeLabel}</span>
+                            </span>
+
+                            {c.priority && c.priority !== "normal" && (
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  fontWeight: 700,
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                  background: c.priority === "urgent" ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)",
+                                  color: c.priority === "urgent" ? "#f87171" : "#fbbf24",
+                                  border: `1px solid ${c.priority === "urgent" ? "#f87171" : "#fbbf24"}50`,
+                                }}
+                              >
+                                {c.priority === "urgent" ? "SHOSHILINCH" : "MUHIM"}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
+                            {c.user_email && <span>Gmail: {c.user_email}</span>}
+                            {c.user_phone && <span>Tel: {c.user_phone}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Holat tanlagich va o'chirish */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <select
+                          value={c.status}
+                          onChange={(e) => handleUpdateComplaintStatus(c.id, e.target.value, c.admin_notes)}
+                          style={{
+                            height: 32,
+                            padding: "0 8px",
+                            borderRadius: 6,
+                            fontSize: "0.76rem",
+                            fontWeight: 700,
+                            background: isPending
+                              ? "rgba(245, 158, 11, 0.15)"
+                              : isInReview
+                              ? "rgba(56, 189, 248, 0.15)"
+                              : isResolved
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : "rgba(239, 68, 68, 0.15)",
+                            color: isPending
+                              ? "#fbbf24"
+                              : isInReview
+                              ? "#38bdf8"
+                              : isResolved
+                              ? "#34d399"
+                              : "#f87171",
+                            border: `1px solid ${
+                              isPending
+                                ? "rgba(245, 158, 11, 0.4)"
+                                : isInReview
+                                ? "rgba(56, 189, 248, 0.4)"
+                                : isResolved
+                                ? "rgba(52, 211, 153, 0.4)"
+                                : "rgba(239, 68, 68, 0.4)"
+                            }`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="pending">Kutilmoqda</option>
+                          <option value="in_review">Koʻrib chiqilmoqda</option>
+                          <option value="resolved">Hal qilindi</option>
+                          <option value="rejected">Rad etildi</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComplaint(c.id)}
+                          className="btn-icon btn-icon--xs"
+                          style={{ color: "#f87171", background: "rgba(239, 68, 68, 0.1)", borderRadius: 6, padding: 5 }}
+                          title="Shikoyatni oʻchirish"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Shikoyat mavzusi va tegishli yangilanish */}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "var(--text)" }}>
+                          {c.subject}
+                        </h4>
+                        {c.update_version && (
+                          <span
+                            style={{
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              background: "rgba(56, 189, 248, 0.12)",
+                              color: "#38bdf8",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            Yangilik: {c.update_version}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: "0.86rem", color: "var(--text-muted)", lineHeight: 1.5, background: "var(--surface-2)", padding: "10px 12px", borderRadius: 8 }}>
+                        {c.message}
+                      </p>
+                    </div>
+
+                    {/* Admin Javobi (Resolution Note) */}
+                    {c.admin_notes ? (
+                      <div
+                        style={{
+                          background: "rgba(16, 185, 129, 0.08)",
+                          border: "1px solid rgba(52, 211, 153, 0.3)",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ fontSize: "0.82rem", color: "#34d399", lineHeight: 1.45 }}>
+                          <strong>Admin Javobi / Izohi:</strong> {c.admin_notes}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedComplaintForReply(c);
+                            setReplyStatus(c.status);
+                            setReplyNotes(c.admin_notes || "");
+                          }}
+                          className="btn btn--secondary btn--xs"
+                          style={{ flexShrink: 0 }}
+                        >
+                          Tahrirlash
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedComplaintForReply(c);
+                            setReplyStatus(c.status === "pending" ? "in_review" : c.status);
+                            setReplyNotes("");
+                          }}
+                          className="btn btn--secondary btn--xs"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            color: "#38bdf8",
+                            borderColor: "rgba(56, 189, 248, 0.35)",
+                          }}
+                        >
+                          <Send size={13} />
+                          <span>Admin javobi yozish</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Pastki sana */}
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+                      <span>Murojaat vaqti: {new Date(c.created_at).toLocaleString("uz-UZ")}</span>
+                      {c.resolved_at && <span style={{ color: "#34d399" }}>Hal qilindi: {new Date(c.resolved_at).toLocaleString("uz-UZ")}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: ADMIN JAVOBI YOZISH                                          */}
+      {/* =================================================================== */}
+      {selectedComplaintForReply && (
+        <div className="modal-backdrop" onClick={() => setSelectedComplaintForReply(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 520, width: "95%", background: "var(--surface)" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>
+                  Shikoyatga Javob Yozish & Holatni Yangilash
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Murojaatchi: {selectedComplaintForReply.user_name} ({selectedComplaintForReply.user_email})
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-icon btn-icon--xs"
+                onClick={() => setSelectedComplaintForReply(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setIsUpdatingComplaint(true);
+                try {
+                  await handleUpdateComplaintStatus(
+                    selectedComplaintForReply.id,
+                    replyStatus,
+                    replyNotes.trim()
+                  );
+                } finally {
+                  setIsUpdatingComplaint(false);
+                }
+              }}
+              style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                  Yangi holat:
+                </label>
+                <select
+                  value={replyStatus}
+                  onChange={(e) => setReplyStatus(e.target.value)}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text)",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  <option value="in_review">Koʻrib chiqilmoqda (In Review)</option>
+                  <option value="resolved">Hal qilindi (Resolved)</option>
+                  <option value="rejected">Rad etildi (Rejected)</option>
+                  <option value="pending">Kutilmoqda (Pending)</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                  Admin javobi / Yechim izohi:
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Foydalanuvchiga ko'rinadigan javobingizni yozing (masalan: 'Muammo v5.2.1 da tuzatildi' yoki 'Taklifingiz qabul qilindi')..."
+                  value={replyNotes}
+                  onChange={(e) => setReplyNotes(e.target.value)}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text)",
+                    fontSize: "0.85rem",
+                    resize: "vertical",
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedComplaintForReply(null)}
+                  className="btn btn--secondary"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingComplaint}
+                  className="btn btn--primary"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  }}
+                >
+                  <Check size={16} />
+                  <span>{isUpdatingComplaint ? "Saqlanmoqda..." : "Saqlash va Yuborish"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

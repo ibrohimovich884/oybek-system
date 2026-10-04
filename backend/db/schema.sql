@@ -171,6 +171,43 @@ CREATE TABLE IF NOT EXISTS exercise_logs (
 
 ALTER TABLE exercise_logs ADD COLUMN IF NOT EXISTS user_id TEXT;
 
+-- ===== Tizim yangilanishlari (Changelog & System Updates) =====
+CREATE TABLE IF NOT EXISTS system_updates (
+  id TEXT PRIMARY KEY,
+  version TEXT NOT NULL,                  -- masalan 'v5.2.0', 'v5.1.0'
+  title TEXT NOT NULL,                    -- Sarlavha
+  category TEXT NOT NULL DEFAULT 'feature', -- 'feature' | 'security' | 'improvement' | 'fix'
+  badge TEXT,                             -- masalan 'Muhim yangilanish', 'Yangi'
+  summary TEXT NOT NULL,                  -- Qisqacha tavsif
+  details JSONB NOT NULL DEFAULT '[]',    -- Bandma-band o'zgarishlar (ro'yxat: [ { text: "...", type: "new"|"improved"|"fix" } ])
+  release_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  is_pinned BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ===== Yangilanish bo'yicha shikoyat va fikrlar (Complaints & Feedback) =====
+CREATE TABLE IF NOT EXISTS update_complaints (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,                           -- Foydalanuvchi ID
+  user_name TEXT NOT NULL,                -- Ism
+  user_email TEXT NOT NULL,               -- Email / Gmail
+  user_phone TEXT,                        -- Telefon raqam
+  update_id TEXT,                         -- Qaysi yangilanishga tegishli
+  update_version TEXT,                    -- masalan 'v5.2.0'
+  update_title TEXT,                      -- Yangilanish nomi
+  complaint_type TEXT NOT NULL DEFAULT 'complaint', -- 'complaint' | 'bug' | 'suggestion' | 'question'
+  priority TEXT NOT NULL DEFAULT 'normal', -- 'low' | 'normal' | 'high' | 'urgent'
+  subject TEXT NOT NULL,                  -- Mavzu
+  message TEXT NOT NULL,                  -- Shikoyat matni
+  status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'in_review' | 'resolved' | 'rejected'
+  admin_notes TEXT,                       -- Admin izohi / yechimi
+  admin_id TEXT,                          -- Qaysi admin ko'rib chiqdi
+  resolved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ===== Indekslar =====
 CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets (user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions (user_id);
@@ -182,3 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises (user_id);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_id ON exercise_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_exercise_id ON exercise_logs (exercise_id);
 CREATE INDEX IF NOT EXISTS idx_app_snapshot_user_id ON app_snapshot (user_id);
+CREATE INDEX IF NOT EXISTS idx_system_updates_release_date ON system_updates (release_date DESC);
+CREATE INDEX IF NOT EXISTS idx_update_complaints_status ON update_complaints (status);
+CREATE INDEX IF NOT EXISTS idx_update_complaints_user_id ON update_complaints (user_id);
+CREATE INDEX IF NOT EXISTS idx_update_complaints_created_at ON update_complaints (created_at DESC);

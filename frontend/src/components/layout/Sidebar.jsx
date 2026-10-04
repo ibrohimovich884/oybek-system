@@ -14,6 +14,7 @@ import {
   LogOut,
   ShieldCheck,
   User,
+  Sparkles,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { useSecurity } from "../../context/SecurityContext.jsx";
@@ -79,6 +80,13 @@ export default function Sidebar({ isOpen, onClose }) {
       icon: SlidersHorizontal,
       badge: isControlLocked ? <Lock size={12} style={{ color: "#34d399" }} /> : null,
       badgeType: isControlLocked ? "lock" : null,
+    },
+    {
+      to: "/updates",
+      label: "Yangilanishlar",
+      icon: Sparkles,
+      badge: "v5.2",
+      badgeType: "update",
     },
     { to: "/exercises", label: "Mashqlar", icon: Dumbbell, badge: "Tez kunda" },
     {
@@ -152,6 +160,8 @@ export default function Sidebar({ isOpen, onClose }) {
                         ? "sidebar__badge--lock"
                         : item.badgeType === "admin"
                         ? "sidebar__badge--admin"
+                        : item.badgeType === "update"
+                        ? "sidebar__badge--update"
                         : ""
                     }`}
                     style={
@@ -170,6 +180,17 @@ export default function Sidebar({ isOpen, onClose }) {
                             background: "rgba(245, 158, 11, 0.2)",
                             border: "1px solid rgba(245, 158, 11, 0.45)",
                             color: "#fbbf24",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "6px",
+                            fontSize: "0.68rem",
+                            letterSpacing: "0.02em",
+                          }
+                        : item.badgeType === "update"
+                        ? {
+                            background: "rgba(56, 189, 248, 0.18)",
+                            border: "1px solid rgba(56, 189, 248, 0.35)",
+                            color: "#38bdf8",
                             fontWeight: 700,
                             padding: "2px 6px",
                             borderRadius: "6px",
