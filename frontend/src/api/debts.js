@@ -3,12 +3,14 @@ import { formatISOWithOffset } from "../utils/format.js";
 import { scheduleSnapshotPush, pushSnapshot, pullSnapshotFromDB } from "../services/snapshotSync.js";
 import { syncService } from "../services/syncService.js";
 import { apiClient } from "./client.js";
+import { getUserStorageKey } from "../utils/storageKeys.js";
 
-const STORAGE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
+const BASE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
 
 export function readLocalDebts() {
   if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_PENDING_DEBTS_KEY);
+  const storageKey = getUserStorageKey(BASE_PENDING_DEBTS_KEY);
+  const raw = localStorage.getItem(storageKey);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -24,7 +26,8 @@ export function readLocalDebts() {
 
 export function writeLocalDebts(debts) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_PENDING_DEBTS_KEY, JSON.stringify(debts));
+  const storageKey = getUserStorageKey(BASE_PENDING_DEBTS_KEY);
+  localStorage.setItem(storageKey, JSON.stringify(debts));
   scheduleSnapshotPush();
 }
 

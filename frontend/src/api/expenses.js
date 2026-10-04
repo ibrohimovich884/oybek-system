@@ -19,12 +19,13 @@ import {
 } from "../config/apiConfig.js";
 import { syncService } from "../services/syncService.js";
 import { scheduleSnapshotPush, pushSnapshot, pullSnapshotFromDB } from "../services/snapshotSync.js";
+import { getUserStorageKey } from "../utils/storageKeys.js";
 
-const STORAGE_EXPENSES_KEY = "oybek-system:expenses";
-const STORAGE_WALLETS_KEY = "oybek-system:wallets";
-const STORAGE_RESERVES_KEY = "oybek-system:reserves";
-const STORAGE_DOLLAR_RATES_KEY = "oybek-system:dollar_rate_history";
-const STORAGE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
+const BASE_EXPENSES_KEY = "oybek-system:expenses";
+const BASE_WALLETS_KEY = "oybek-system:wallets";
+const BASE_RESERVES_KEY = "oybek-system:reserves";
+const BASE_DOLLAR_RATES_KEY = "oybek-system:dollar_rate_history";
+const BASE_PENDING_DEBTS_KEY = "oybek-system:pending_debts";
 
 const LEGACY_MAP = {
   "naqd-asosiy": "naqd_reserve",
@@ -38,13 +39,14 @@ export function canonicalWalletId(id) {
 }
 
 /**
- * Mahalliy xotiradan (localStorage) hamyonlarni o'qish
+ * Mahalliy xotiradan (localStorage) hamyonlarni o'qish (Multi-User Scoped)
  */
 function readLocalWallets() {
   if (typeof window === "undefined") return { ...DEFAULT_WALLETS };
-  const raw = localStorage.getItem(STORAGE_WALLETS_KEY);
+  const storageKey = getUserStorageKey(BASE_WALLETS_KEY);
+  const raw = localStorage.getItem(storageKey);
   if (!raw) {
-    localStorage.setItem(STORAGE_WALLETS_KEY, JSON.stringify(DEFAULT_WALLETS));
+    localStorage.setItem(storageKey, JSON.stringify(DEFAULT_WALLETS));
     return { ...DEFAULT_WALLETS };
   }
   try {
@@ -72,17 +74,19 @@ function readLocalWallets() {
 
 function writeLocalWallets(wallets) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_WALLETS_KEY, JSON.stringify(wallets));
+  const storageKey = getUserStorageKey(BASE_WALLETS_KEY);
+  localStorage.setItem(storageKey, JSON.stringify(wallets));
 }
 
 /**
- * Asosiy (reserve) balanslarni o'qish va saqlash
+ * Asosiy (reserve) balanslarni o'qish va saqlash (Multi-User Scoped)
  */
 function readLocalReserves() {
   if (typeof window === "undefined") return { ...DEFAULT_RESERVES };
-  const raw = localStorage.getItem(STORAGE_RESERVES_KEY);
+  const storageKey = getUserStorageKey(BASE_RESERVES_KEY);
+  const raw = localStorage.getItem(storageKey);
   if (!raw) {
-    localStorage.setItem(STORAGE_RESERVES_KEY, JSON.stringify(DEFAULT_RESERVES));
+    localStorage.setItem(storageKey, JSON.stringify(DEFAULT_RESERVES));
     return { ...DEFAULT_RESERVES };
   }
   try {
@@ -110,7 +114,8 @@ function readLocalReserves() {
 
 function writeLocalReserves(reserves) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_RESERVES_KEY, JSON.stringify(reserves));
+  const storageKey = getUserStorageKey(BASE_RESERVES_KEY);
+  localStorage.setItem(storageKey, JSON.stringify(reserves));
   scheduleSnapshotPush();
 }
 
@@ -119,7 +124,8 @@ function writeLocalReserves(reserves) {
  */
 function readLocalDollarRateHistory() {
   if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_DOLLAR_RATES_KEY);
+  const storageKey = getUserStorageKey(BASE_DOLLAR_RATES_KEY);
+  const raw = localStorage.getItem(storageKey);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -131,16 +137,15 @@ function readLocalDollarRateHistory() {
 
 function writeLocalDollarRateHistory(history) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_DOLLAR_RATES_KEY, JSON.stringify(history));
+  const storageKey = getUserStorageKey(BASE_DOLLAR_RATES_KEY);
+  localStorage.setItem(storageKey, JSON.stringify(history));
   scheduleSnapshotPush();
 }
 
-/**
- * Kelajakdagi qarz daftarchasi uchun
- */
 function readLocalPendingDebts() {
   if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_PENDING_DEBTS_KEY);
+  const storageKey = getUserStorageKey(BASE_PENDING_DEBTS_KEY);
+  const raw = localStorage.getItem(storageKey);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -152,7 +157,8 @@ function readLocalPendingDebts() {
 
 function writeLocalPendingDebts(debts) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_PENDING_DEBTS_KEY, JSON.stringify(debts));
+  const storageKey = getUserStorageKey(BASE_PENDING_DEBTS_KEY);
+  localStorage.setItem(storageKey, JSON.stringify(debts));
   scheduleSnapshotPush();
 }
 
@@ -219,11 +225,12 @@ export function normalizeExpense(item) {
 }
 
 /**
- * Mahalliy ro'yxatni o'qish (localStorage)
+ * Mahalliy ro'yxatni o'qish (localStorage - Multi-User Scoped)
  */
 function readLocalExpenses() {
   if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_EXPENSES_KEY);
+  const storageKey = getUserStorageKey(BASE_EXPENSES_KEY);
+  const raw = localStorage.getItem(storageKey);
   if (!raw) {
     return [];
   }
@@ -238,7 +245,8 @@ function readLocalExpenses() {
 
 function writeLocalExpenses(items) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_EXPENSES_KEY, JSON.stringify(items));
+  const storageKey = getUserStorageKey(BASE_EXPENSES_KEY);
+  localStorage.setItem(storageKey, JSON.stringify(items));
 }
 
 // ==========================================

@@ -4,9 +4,10 @@ import jwt from "jsonwebtoken";
 import { pool } from "../../db/pool.js";
 import { JWT_SECRET, requireAuth } from "../middleware/auth.js";
 import { ensureUserWallets } from "../services/walletsService.js";
+import { hashPassword, verifyPassword, SECRET_KEY } from "../utils/security.js";
 
 const router = Router();
-const DEFAULT_PASSWORD = "Oybek-SysteM";
+const DEFAULT_PASSWORD = SECRET_KEY;
 
 // =========================================================================
 // Xavfsizlik & Rate Limiting (Progressiv bloklash tizimi)
@@ -104,9 +105,8 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ error: "Ushbu username allaqachon band qilingan" });
     }
 
-    // 3. Parolni xeshlash
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(cleanPassword, saltRounds);
+    // 3. Parolni xavfsiz maxfiy kalit bilan xeshlash
+    const passwordHash = await hashPassword(cleanPassword);
 
     // 4. Yangi foydalanuvchi ID si
     const userId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -243,13 +243,13 @@ router.post("/login", async (req, res) => {
       }
     }
 
-    // 3. Parolni tekshirish
+    // 3. Parolni tekshirish (Maxfiy kalit bilan)
     if (user && user.password_hash) {
-      isPasswordValid = await bcrypt.compare(rawPassword, user.password_hash);
+      isPasswordValid = await verifyPassword(rawPassword, user.password_hash);
     } else {
       // Orqaga moslik / Legacy Admin tekshiruvi:
       const expectedPassword = process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
-      if (rawPassword === expectedPassword || rawPassword === DEFAULT_PASSWORD) {
+      if (rawPassword === expectedPassword || rawPassword.toLowerCase() === expectedPassword.toLowerCase()) {
         isPasswordValid = true;
         user = {
           id: "usr_admin",

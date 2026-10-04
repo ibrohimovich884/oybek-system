@@ -164,6 +164,9 @@ export function AuthProvider({ children }) {
     setExpiresAt(null);
     setUser(null);
     setIsAuthenticated(false);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+    }
   }, []);
 
   // Faqat 30 kunlik haqiqiy muddat tugaganida chiqish
@@ -311,6 +314,9 @@ export function AuthProvider({ children }) {
     setExpiresAt(serverExpiry);
     setUser(userData);
     setIsAuthenticated(true);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+    }
 
     return {
       success: true,
@@ -414,6 +420,9 @@ export function AuthProvider({ children }) {
       setExpiresAt(serverExpiry);
       setUser(userData);
       setIsAuthenticated(true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+      }
 
       return {
         success: true,
@@ -451,6 +460,9 @@ export function AuthProvider({ children }) {
       setExpiresAt(expiry);
       setUser(matchedUser);
       setIsAuthenticated(true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+      }
 
       return {
         success: true,
@@ -482,6 +494,9 @@ export function AuthProvider({ children }) {
       setExpiresAt(expiry);
       setUser(defaultUser);
       setIsAuthenticated(true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+      }
 
       return {
         success: true,

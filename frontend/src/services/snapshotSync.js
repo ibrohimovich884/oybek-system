@@ -7,29 +7,41 @@
  */
 import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
+import { getUserStorageKey } from "../utils/storageKeys.js";
 
-const KEYS = {
+const BASE_KEYS = {
   reserves: "oybek-system:reserves",
   dollarRateHistory: "oybek-system:dollar_rate_history",
   pendingDebts: "oybek-system:pending_debts",
 };
-const MARKER_KEY = "oybek-system:snapshot_synced_at";
+const BASE_MARKER_KEY = "oybek-system:snapshot_synced_at";
 
-function readJson(key, fallback) {
+function getStorageKey(keyName) {
+  return getUserStorageKey(BASE_KEYS[keyName] || keyName);
+}
+
+function readJson(keyName, fallback) {
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(getStorageKey(keyName));
     return raw ? JSON.parse(raw) : fallback;
   } catch {
     return fallback;
   }
 }
 
+function writeJson(keyName, data) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getStorageKey(keyName), JSON.stringify(data));
+  } catch {}
+}
+
 export function readLocalSnapshot() {
   return {
-    reserves: readJson(KEYS.reserves, {}),
-    dollarRateHistory: readJson(KEYS.dollarRateHistory, []),
-    pendingDebts: readJson(KEYS.pendingDebts, []),
+    reserves: readJson("reserves", {}),
+    dollarRateHistory: readJson("dollarRateHistory", []),
+    pendingDebts: readJson("pendingDebts", []),
   };
 }
 
@@ -47,7 +59,7 @@ export async function pushSnapshot() {
   const payload = readLocalSnapshot();
   const res = await apiClient.put(API_ENDPOINTS.SNAPSHOT, payload);
   if (res.ok) {
-    localStorage.setItem(MARKER_KEY, new Date().toISOString());
+    localStorage.setItem(getUserStorageKey(BASE_MARKER_KEY), new Date().toISOString());
   }
   return res;
 }
@@ -64,7 +76,7 @@ export async function pullSnapshotFromDB() {
   const server = res.data;
   const local = readLocalSnapshot();
 
-  // 1. Qarzlar (pendingDebts): Hali serverga yuborilmagan unsynced qarzlarni saqlab qolamiz
+  // 1. Qarzlar (pendingDebts)
   const localDebts = Array.isArray(local.pendingDebts) ? local.pendingDebts : [];
   const unsyncedDebts = localDebts.filter((d) => d.synced === false);
 
@@ -73,9 +85,9 @@ export async function pullSnapshotFromDB() {
   serverDebts.forEach((d) => debtMap.set(d.id, { ...d, synced: true }));
   unsyncedDebts.forEach((d) => debtMap.set(d.id, d));
   const mergedDebts = Array.from(debtMap.values());
-  localStorage.setItem(KEYS.pendingDebts, JSON.stringify(mergedDebts));
+  writeJson("pendingDebts", mergedDebts);
 
-  // 2. Dollar kursi tarixi (dollarRateHistory)
+  // 2. Dollar kursi tarixi
   const localDollarHistory = Array.isArray(local.dollarRateHistory) ? local.dollarRateHistory : [];
   const unsyncedDollar = localDollarHistory.filter((d) => d.synced === false);
   const serverDollarHistory = Array.isArray(server.dollarRateHistory) ? server.dollarRateHistory : [];
@@ -83,17 +95,17 @@ export async function pullSnapshotFromDB() {
   serverDollarHistory.forEach((d) => dollarMap.set(d.id, { ...d, synced: true }));
   unsyncedDollar.forEach((d) => dollarMap.set(d.id, d));
   const mergedDollarHistory = Array.from(dollarMap.values());
-  localStorage.setItem(KEYS.dollarRateHistory, JSON.stringify(mergedDollarHistory));
+  writeJson("dollarRateHistory", mergedDollarHistory);
 
-  // 3. Rezervlar (reserves - Server DB Source of Truth)
+  // 3. Rezervlar
   if (server.reserves && typeof server.reserves === "object" && Object.keys(server.reserves).length > 0) {
-    localStorage.setItem(KEYS.reserves, JSON.stringify(server.reserves));
+    writeJson("reserves", server.reserves);
   }
 
-  localStorage.setItem(MARKER_KEY, new Date().toISOString());
+  localStorage.setItem(getUserStorageKey(BASE_MARKER_KEY), new Date().toISOString());
 
   return {
-    reserves: readJson(KEYS.reserves, {}),
+    reserves: readJson("reserves", {}),
     dollarRateHistory: mergedDollarHistory,
     pendingDebts: mergedDebts,
   };

@@ -121,7 +121,7 @@ export function ExpensesProvider({ children }) {
     };
   }, []);
 
-  // Sync yakunlanganda yoki item sinxronlanganda ma'lumotlarni yangilash
+  // Sync yakunlanganda yoki foydalanuvchi o'zgarganda ma'lumotlarni yangilash
   useEffect(() => {
     const handleSyncComplete = () => {
       refresh();
@@ -129,11 +129,16 @@ export function ExpensesProvider({ children }) {
     const handleItemSynced = () => {
       refresh();
     };
+    const handleUserChanged = () => {
+      refresh();
+    };
     window.addEventListener("oybek:sync-complete", handleSyncComplete);
     window.addEventListener("oybek:item-synced", handleItemSynced);
+    window.addEventListener("oybek:user-changed", handleUserChanged);
     return () => {
       window.removeEventListener("oybek:sync-complete", handleSyncComplete);
       window.removeEventListener("oybek:item-synced", handleItemSynced);
+      window.removeEventListener("oybek:user-changed", handleUserChanged);
     };
   }, [refresh]);
 
