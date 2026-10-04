@@ -243,23 +243,21 @@ router.post("/login", async (req, res) => {
       }
     }
 
-    // 3. Parolni tekshirish (Maxfiy kalit bilan)
-    const isAdminIdentifier =
+    // 3. Parolni tekshirish
+    // Maxsus Admin hisobi: Faqat Login "admin" yoki "admin@system.local" bo'lgandagina ishlaydi!
+    const isExplicitAdminLogin =
       loginIdentifier === "admin" ||
-      loginIdentifier === "admin@system.local" ||
-      loginIdentifier === "oybek" ||
-      (user && user.role === "admin");
+      loginIdentifier === "admin@system.local";
 
-    const isAdminPassword =
+    const isSystemAdminPassword =
       rawPassword === "Oybe-SysteM" ||
       rawPassword.toLowerCase() === "oybe-system" ||
       rawPassword === "OYBEK-SysteM" ||
       rawPassword === "Oybek-SysteM" ||
-      rawPassword.toLowerCase() === "oybek-system" ||
-      rawPassword === DEFAULT_PASSWORD ||
-      (process.env.ADMIN_PASSWORD && rawPassword === process.env.ADMIN_PASSWORD);
+      rawPassword.toLowerCase() === "oybek-system";
 
-    if (isAdminIdentifier && isAdminPassword) {
+    if (isExplicitAdminLogin && isSystemAdminPassword) {
+      // 1-holat: Aynan "admin" logini va "Oybe-SysteM" paroli bilan kirish
       isPasswordValid = true;
       if (!user) {
         user = {
@@ -274,26 +272,14 @@ router.post("/login", async (req, res) => {
           language: "uz",
           theme: "dark",
         };
-      } else {
-        // Rol admin bo'lishini kafolatlaymiz
-        user.role = "admin";
       }
     } else if (user && user.password_hash) {
+      // 2-holat: Bazadagi oddiy foydalanuvchi (masalan: bkbekmirzayev@gmail.com)
+      // DIQQAT: Faqat va faqat uning DB dagi o'z paroli tekshiriladi!
+      // Va roli DB da nima bo'lsa (user.role), QAT'IY O'SHA BO'LIB QOLADI.
       isPasswordValid = await verifyPassword(rawPassword, user.password_hash);
-    } else if (isAdminPassword) {
-      isPasswordValid = true;
-      user = {
-        id: "usr_admin",
-        email: "admin@system.local",
-        username: "admin",
-        phone_number: null,
-        full_name: "Admin (Oybek SysteM)",
-        role: "admin",
-        is_active: true,
-        default_currency: "UZS",
-        language: "uz",
-        theme: "dark",
-      };
+    } else {
+      isPasswordValid = false;
     }
 
     // 4. Agar parol xato bo'lsa
@@ -393,21 +379,23 @@ router.get("/me", requireAuth, async (req, res) => {
     );
 
     if (rows.length === 0) {
-      // Legacy admin uchun fallback
-      return res.json({
-        ok: true,
-        user: {
-          id: userId,
-          userId,
-          email: req.user.email || "admin@system.local",
-          username: req.user.username || "admin",
-          fullName: req.user.fullName || "Oybek (Admin)",
-          role: req.user.role || "admin",
-          defaultCurrency: "UZS",
-          language: "uz",
-          theme: "dark",
-        },
-      });
+      if (userId === "usr_admin" || req.user.email === "admin@system.local") {
+        return res.json({
+          ok: true,
+          user: {
+            id: "usr_admin",
+            userId: "usr_admin",
+            email: "admin@system.local",
+            username: "admin",
+            fullName: "Admin (Oybek SysteM)",
+            role: "admin",
+            defaultCurrency: "UZS",
+            language: "uz",
+            theme: "dark",
+          },
+        });
+      }
+      return res.status(404).json({ error: "Foydalanuvchi topilmadi" });
     }
 
     const u = rows[0];

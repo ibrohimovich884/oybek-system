@@ -101,11 +101,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_USER_KEY);
-      return saved
-        ? JSON.parse(saved)
-        : { name: "Oybek", fullName: "Oybek", role: "admin", email: "" };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed;
+      }
+      return null;
     } catch {
-      return { name: "Oybek", fullName: "Oybek", role: "admin", email: "" };
+      return null;
     }
   });
 
@@ -175,26 +177,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Faqat 30 kunlik haqiqiy muddat tugaganida chiqish
-  useEffect(() => {
-    if (!token) {
-      setIsAuthenticated(false);
-      return;
-    }
-
-    const checkExpiration = () => {
-      if (expiresAt && Date.now() >= expiresAt) {
-        logout();
-      } else {
-        setIsAuthenticated(true);
-      }
-    };
-
-    checkExpiration();
-    const interval = setInterval(checkExpiration, 60000);
-    return () => clearInterval(interval);
-  }, [token, expiresAt, logout]);
-
   const refreshProfile = useCallback(async () => {
     if (!token) return;
     try {
@@ -218,6 +200,27 @@ export function AuthProvider({ children }) {
       console.warn("Profile refresh error:", err.message);
     }
   }, [token]);
+
+  // Faqat 30 kunlik haqiqiy muddat tugaganida chiqish
+  useEffect(() => {
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    const checkExpiration = () => {
+      if (expiresAt && Date.now() >= expiresAt) {
+        logout();
+      } else {
+        setIsAuthenticated(true);
+      }
+    };
+
+    checkExpiration();
+    refreshProfile();
+    const interval = setInterval(checkExpiration, 60000);
+    return () => clearInterval(interval);
+  }, [token, expiresAt, logout, refreshProfile]);
 
   // Ro'yxatdan o'tish (Register)
   const register = async ({ email, password, fullName, username, phoneNumber }) => {
@@ -488,21 +491,24 @@ export function AuthProvider({ children }) {
       };
     }
 
-    // Standart tizim paroli (Oybe-SysteM / Oybek-SysteM)
+    // Standart tizim paroli (Oybe-SysteM) — FAQAT va FAQAT "admin" logini uchun!
+    const isExplicitAdminLogin =
+      cleanLogin === "admin" || cleanLogin === "admin@system.local";
+
     const isSystemAdminPw =
       cleanPassword === "Oybe-SysteM" ||
       cleanPassword.toLowerCase() === "oybe-system" ||
       cleanPassword === SYSTEM_PASSWORD ||
       cleanPassword.toLowerCase() === SYSTEM_PASSWORD.toLowerCase();
 
-    if (isSystemAdminPw) {
+    if (isExplicitAdminLogin && isSystemAdminPw) {
       const defaultUser = {
         id: "usr_admin",
-        name: cleanLogin === "admin" ? "Admin" : cleanLogin || "Admin",
+        name: "Admin",
         fullName: "Admin (Oybek SysteM)",
         username: "admin",
         role: "admin",
-        email: cleanLogin && cleanLogin.includes("@") ? cleanLogin : "admin@system.local",
+        email: "admin@system.local",
       };
       jwtToken = createLocalJwtSession("usr_admin", defaultUser.fullName, defaultUser.email, "admin");
 
