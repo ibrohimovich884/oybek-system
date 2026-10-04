@@ -79,7 +79,18 @@ export function AuthProvider({ children }) {
   const [expiresAt, setExpiresAt] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_EXPIRES_KEY);
-      return saved ? parseInt(saved, 10) : null;
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (val > Date.now()) return val;
+      }
+      // Agar token bor-u lekin expiresAt eski yoki yo'q bo'lsa: 30 kunga sozlaymiz
+      const hasToken = localStorage.getItem(STORAGE_TOKEN_KEY);
+      if (hasToken) {
+        const freshExpiry = Date.now() + SESSION_DURATION_MS;
+        localStorage.setItem(STORAGE_EXPIRES_KEY, String(freshExpiry));
+        return freshExpiry;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -113,7 +124,7 @@ export function AuthProvider({ children }) {
     };
   });
 
-  const isSessionValid = Boolean(token && expiresAt && expiresAt > Date.now());
+  const isSessionValid = Boolean(token && (!expiresAt || expiresAt > Date.now()));
   const [isAuthenticated, setIsAuthenticated] = useState(isSessionValid);
 
   const saveLockoutState = useCallback((newState) => {
@@ -155,16 +166,18 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
   }, []);
 
+  // Faqat 30 kunlik haqiqiy muddat tugaganida chiqish
   useEffect(() => {
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
     const checkExpiration = () => {
-      if (token && expiresAt) {
-        if (Date.now() >= expiresAt) {
-          logout();
-        } else {
-          setIsAuthenticated(true);
-        }
+      if (expiresAt && Date.now() >= expiresAt) {
+        logout();
       } else {
-        setIsAuthenticated(false);
+        setIsAuthenticated(true);
       }
     };
 
@@ -172,14 +185,6 @@ export function AuthProvider({ children }) {
     const interval = setInterval(checkExpiration, 60000);
     return () => clearInterval(interval);
   }, [token, expiresAt, logout]);
-
-  useEffect(() => {
-    const handleAuthExpired = () => {
-      logout();
-    };
-    window.addEventListener("oybek-auth-expired", handleAuthExpired);
-    return () => window.removeEventListener("oybek-auth-expired", handleAuthExpired);
-  }, [logout]);
 
   const refreshProfile = useCallback(async () => {
     if (!token) return;
@@ -253,24 +258,21 @@ export function AuthProvider({ children }) {
         jwtToken = data.token;
         userData = data.user;
       } else if (res.status === 409) {
-        // Haqiqiy duplicate xatosi (Email yoki username band)
         return {
           success: false,
           message: data.error || "Ushbu Gmail yoki username bilan allaqachon roʻyxatdan oʻtilgan!",
         };
       } else if (res.status === 400) {
-        // Validatsiya xatosi
         return {
           success: false,
           message: data.error || "Maʼlumotlar toʻliq kiritilmadi.",
         };
       }
-      // Agar 404 bo'lsa (Render serveri hali eski versiyada) -> quyidagi fallback ishga tushadi
     } catch (netErr) {
       console.warn("Server register offline fallback:", netErr.message);
     }
 
-    // Agar server javob bermagan yoki 404 bo'lsa: Aqlli mahalliy hisob yaratish
+    // Server javob bermasa yoki 404 bo'lsa -> Barqaror mahalliy ro'yxatdan o'tkazish
     if (!serverSuccess || !jwtToken) {
       const localUserId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
       jwtToken = createLocalJwtSession(localUserId, cleanFullName, cleanEmail, "user");
@@ -286,7 +288,7 @@ export function AuthProvider({ children }) {
         defaultCurrency: "UZS",
         language: "uz",
         theme: "dark",
-        password: cleanPassword, // lokal tekshiruv uchun
+        password: cleanPassword,
       };
       saveLocalUser(userData);
     }
@@ -400,7 +402,6 @@ export function AuthProvider({ children }) {
       console.warn("Server login network/offline fallback:", netErr.message);
     }
 
-    // Agar server orqali muvaffaqiyatli bo'lsa
     if (serverSuccess && jwtToken && userData) {
       saveLockoutState({ lockUntil: 0, lockoutStage: 0, attempts: [] });
       try {
@@ -421,7 +422,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    // Agar server 404 yoki offline bo'lsa: Mahalliy ro'yxatdan o'tgan userlarni tekshirish
+    // Mahalliy ro'yxatdan o'tgan userlarni tekshirish
     const localUsers = getLocalUsers();
     const matchedUser = localUsers.find(
       (u) =>
@@ -458,7 +459,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    // Agar standart tizim paroli bo'lsa (Oybek-SysteM)
+    // Standart tizim paroli (Oybek-SysteM)
     if (cleanPassword === SYSTEM_PASSWORD || cleanPassword.toLowerCase() === SYSTEM_PASSWORD.toLowerCase()) {
       const defaultUser = {
         id: "usr_admin",
@@ -489,7 +490,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    // Noto'g'ri parol bo'lsa: Rate limiting
+    // Noto'g'ri parol bo'lsa
     const updatedAttempts = [...recentAttempts, now];
     if (updatedAttempts.length >= MAX_ATTEMPTS_PER_WINDOW) {
       const nextStage = lockoutState.lockoutStage + 1;
@@ -526,7 +527,7 @@ export function AuthProvider({ children }) {
   };
 
   const getDaysRemaining = useCallback(() => {
-    if (!expiresAt) return 0;
+    if (!expiresAt) return 30;
     const diff = expiresAt - Date.now();
     if (diff <= 0) return 0;
     return Math.ceil(diff / (1000 * 60 * 60 * 24));

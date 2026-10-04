@@ -42,40 +42,64 @@ export function canonicalWalletId(id, userId) {
 export async function ensureUserWallets(userId, client = pool) {
   if (!userId) return;
 
-  const { rows } = await client.query(
-    "SELECT id FROM wallets WHERE user_id = $1 OR id LIKE $2 LIMIT 1",
-    [userId, `${userId}_%`]
-  );
+  const standardWallets = [
+    { key: "hamyon", name: "Hamyon", currency: "UZS", balance: 50000, parentKey: null },
+    { key: "naqd", name: "Naqd pul", currency: "UZS", balance: 30000, parentKey: null },
+    { key: "karta", name: "Plastik karta", currency: "UZS", balance: 100000, parentKey: null },
+    { key: "dollar", name: "AQSH Dollari", currency: "USD", balance: 0, parentKey: null },
+    { key: "naqd_reserve", name: "Naqd zaxira", currency: "UZS", balance: 0, parentKey: "naqd" },
+    { key: "karta_reserve", name: "Karta zaxira", currency: "UZS", balance: 0, parentKey: "karta" },
+    { key: "dollar_reserve", name: "Dollar zaxira", currency: "USD", balance: 0, parentKey: "dollar" },
+  ];
 
-  if (rows.length === 0) {
-    const standardWallets = [
-      { key: "hamyon", name: "Hamyon", currency: "UZS", balance: 50000, parentKey: null },
-      { key: "naqd", name: "Naqd pul", currency: "UZS", balance: 30000, parentKey: null },
-      { key: "karta", name: "Plastik karta", currency: "UZS", balance: 100000, parentKey: null },
-      { key: "dollar", name: "AQSH Dollari", currency: "USD", balance: 0, parentKey: null },
-      { key: "naqd_reserve", name: "Naqd zaxira", currency: "UZS", balance: 0, parentKey: "naqd" },
-      { key: "karta_reserve", name: "Karta zaxira", currency: "UZS", balance: 0, parentKey: "karta" },
-      { key: "dollar_reserve", name: "Dollar zaxira", currency: "USD", balance: 0, parentKey: "dollar" },
-    ];
+  for (const w of standardWallets) {
+    const rawWalletId = `${userId}_${w.key}`;
+    const cleanWalletId = w.key;
+    const parentIdClean = w.parentKey;
+    const parentIdPrefixed = w.parentKey ? `${userId}_${w.parentKey}` : null;
 
-    for (const w of standardWallets) {
-      const walletId = `${userId}_${w.key}`;
-      const parentId = w.parentKey ? `${userId}_${w.parentKey}` : null;
-      await client.query(
-        `INSERT INTO wallets (id, user_id, name, currency, balance, parent_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (id) DO NOTHING`,
-        [walletId, userId, w.name, w.currency, w.balance, parentId]
-      ).catch(() => {});
+    // Tekshiramiz: user uchun ushbu hamyon bormi?
+    const { rows: existing } = await client.query(
+      `SELECT id FROM wallets 
+       WHERE (user_id = $1 AND (id = $2 OR id = $3 OR id LIKE $4))
+          OR (user_id IS NULL AND id = $2)
+       LIMIT 1`,
+      [userId, cleanWalletId, rawWalletId, `%_${cleanWalletId}`]
+    ).catch(() => ({ rows: [] }));
+
+    if (existing.length === 0) {
+      // 1-urinish: clean id bilan (agar PRIMARY KEY (user_id, id) bo'lsa)
+      try {
+        await client.query(
+          `INSERT INTO wallets (id, user_id, name, currency, balance, parent_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [cleanWalletId, userId, w.name, w.currency, w.balance, parentIdClean]
+        );
+      } catch (err1) {
+        // 2-urinish: prefixed id bilan (agar PRIMARY KEY (id) bo'lsa)
+        try {
+          await client.query(
+            `INSERT INTO wallets (id, user_id, name, currency, balance, parent_id)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [rawWalletId, userId, w.name, w.currency, w.balance, parentIdPrefixed]
+          );
+        } catch (err2) {
+          console.warn(`[ensureUserWallets] Hamyon yaratishda ogohlantirish (${w.key}):`, err2.message);
+        }
+      }
     }
   }
 }
 
 export async function getWallets(userId) {
-  await ensureUserWallets(userId);
+  if (userId) {
+    await ensureUserWallets(userId).catch(() => {});
+  }
 
   const query = userId
-    ? "SELECT id, name, currency, balance, parent_id FROM wallets WHERE user_id = $1 OR id LIKE $2 ORDER BY id"
+    ? `SELECT id, name, currency, balance, parent_id FROM wallets 
+       WHERE user_id = $1 OR id LIKE $2 OR (user_id IS NULL AND id IN ('hamyon','naqd','karta','dollar','naqd_reserve','karta_reserve','dollar_reserve'))
+       ORDER BY id`
     : "SELECT id, name, currency, balance, parent_id FROM wallets ORDER BY id";
   const params = userId ? [userId, `${userId}_%`] : [];
 
@@ -119,15 +143,21 @@ export async function getWallets(userId) {
 }
 
 export async function getAllWalletsWithNotes(userId) {
-  await ensureUserWallets(userId);
+  if (userId) {
+    await ensureUserWallets(userId).catch(() => {});
+  }
 
   const walletQuery = userId
-    ? "SELECT id, name, currency, balance, parent_id FROM wallets WHERE user_id = $1 OR id LIKE $2 ORDER BY id"
+    ? `SELECT id, name, currency, balance, parent_id FROM wallets 
+       WHERE user_id = $1 OR id LIKE $2 OR (user_id IS NULL AND id IN ('hamyon','naqd','karta','dollar','naqd_reserve','karta_reserve','dollar_reserve'))
+       ORDER BY id`
     : "SELECT id, name, currency, balance, parent_id FROM wallets ORDER BY id";
   const walletParams = userId ? [userId, `${userId}_%`] : [];
 
   const noteQuery = userId
-    ? "SELECT id, wallet_id, text, amount_at_time, edited_at FROM wallet_notes WHERE user_id = $1 OR wallet_id LIKE $2 ORDER BY edited_at DESC"
+    ? `SELECT id, wallet_id, text, amount_at_time, edited_at FROM wallet_notes 
+       WHERE user_id = $1 OR wallet_id LIKE $2 
+       ORDER BY edited_at DESC`
     : "SELECT id, wallet_id, text, amount_at_time, edited_at FROM wallet_notes ORDER BY edited_at DESC";
   const noteParams = userId ? [userId, `${userId}_%`] : [];
 
@@ -166,7 +196,9 @@ export async function getAllWalletsWithNotes(userId) {
 }
 
 export async function updateWallets(updates, userId) {
-  await ensureUserWallets(userId);
+  if (userId) {
+    await ensureUserWallets(userId).catch(() => {});
+  }
 
   for (const [rawKey, value] of Object.entries(updates)) {
     if (rawKey.startsWith("_")) continue;
@@ -174,8 +206,10 @@ export async function updateWallets(updates, userId) {
     if (WALLET_KEYS.includes(cleanKey) && value !== undefined && value !== null) {
       const dbWalletId = canonicalWalletId(cleanKey, userId);
       await pool.query(
-        "UPDATE wallets SET balance = $1 WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
-        [Number(value), dbWalletId, userId, `%_${cleanKey}`]
+        `UPDATE wallets SET balance = $1 
+         WHERE (user_id = $2 AND (id = $3 OR id = $4 OR id LIKE $5))
+            OR (id = $4 AND user_id IS NULL)`,
+        [Number(value), userId, cleanKey, dbWalletId, `%_${cleanKey}`]
       );
     }
   }
@@ -184,7 +218,6 @@ export async function updateWallets(updates, userId) {
 
 export async function addWalletNote(walletId, { text, amountAtTime, amount_at_time, editedAt, edited_at }, userId) {
   const cleanKey = cleanWalletKey(walletId);
-  const dbWalletId = canonicalWalletId(cleanKey, userId);
   const amt =
     amountAtTime !== undefined && amountAtTime !== null && !isNaN(Number(amountAtTime))
       ? Number(amountAtTime)
@@ -200,7 +233,7 @@ export async function addWalletNote(walletId, { text, amountAtTime, amount_at_ti
     `INSERT INTO wallet_notes (wallet_id, user_id, text, amount_at_time, edited_at)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [dbWalletId, userId || null, noteText, amt, validDate.toISOString()]
+    [cleanKey, userId || null, noteText, amt, validDate.toISOString()]
   );
   const row = rows[0];
   return {
@@ -220,9 +253,9 @@ export async function getWalletNotes(walletId, userId) {
   const { rows } = await pool.query(
     `SELECT id, wallet_id, text, amount_at_time, edited_at 
      FROM wallet_notes 
-     WHERE wallet_id = $1 OR (user_id = $2 AND wallet_id LIKE $3)
+     WHERE (wallet_id = $1 OR wallet_id = $2 OR (user_id = $3 AND wallet_id LIKE $4))
      ORDER BY edited_at DESC`,
-    [dbWalletId, userId || null, `%_${cleanKey}`]
+    [cleanKey, dbWalletId, userId || null, `%_${cleanKey}`]
   );
 
   return rows.map((r) => ({

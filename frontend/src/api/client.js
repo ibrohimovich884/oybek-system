@@ -1,11 +1,5 @@
 /**
  * OYBEK SysteM - Resilient HTTP API Client
- * 
- * Ushbu klient quyidagi xususiyatlarga ega:
- * 1. Backend porti sozlanishi bilan avtomatik unga ulanishga harakat qiladi.
- * 2. Agar backend porti yopilgan yoki hali ishga tushmagan bo'lsa, FRONTENDDA XATOLIK
- *    KELIB CHIQMAYDI (hech qanday crash yoki qizil xatolik oynasi chiqmaydi).
- * 3. So'rovlar 3 soniya ichida javob bermasa (timeout), avtomatik mahalliy zaxiraga o'tadi.
  */
 
 import {
@@ -50,9 +44,6 @@ class ApiClient {
     return { ...this.state, port: getBackendPort(), baseUrl: getBackendBaseUrl() };
   }
 
-  /**
-   * Backend bilan aloqani xavfsiz tekshirish (Health Check)
-   */
   async checkHealth(timeoutMs = 45000) {
     this.state.isChecking = true;
     this.notify();
@@ -100,12 +91,8 @@ class ApiClient {
     return this.state.isConnected;
   }
 
-  /**
-   * Xavfsiz HTTP so'rovi (Hech qachon frontendni qulatmaydi)
-   */
   async request(endpoint, options = {}) {
     const baseUrl = getBackendBaseUrl();
-    // Nisbiy yoki to'liq manzil
     const fullUrl = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
 
     const controller = new AbortController();
@@ -129,13 +116,6 @@ class ApiClient {
       clearTimeout(timeout);
 
       if (!res.ok) {
-        // Agar 401 xatosi kelsa va auth/login bo'lmasa, sessiya tugaganini bildiramiz
-        if (res.status === 401 && !fullUrl.includes("/api/auth/login")) {
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("oybek-auth-expired"));
-          }
-        }
-
         const errorText = await res.text().catch(() => "");
         let message = errorText;
         try {
@@ -148,7 +128,7 @@ class ApiClient {
             message += ` [Kod: ${parsed.code}]`;
           }
         } catch {
-          // JSON emas (masalan HTML) — o'z holicha qoldiramiz
+          // JSON emas
         }
         return {
           ok: false,
@@ -170,7 +150,6 @@ class ApiClient {
     } catch (err) {
       clearTimeout(timeout);
 
-      // Agar server o'chiq bo'lsa yoki tarmoq xatosi bo'lsa:
       if (this.state.isConnected) {
         this.state.isConnected = false;
         this.state.error = "Aloqa uzildi";

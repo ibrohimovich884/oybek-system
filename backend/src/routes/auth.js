@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { pool } from "../../db/pool.js";
 import { JWT_SECRET, requireAuth } from "../middleware/auth.js";
+import { ensureUserWallets } from "../services/walletsService.js";
 
 const router = Router();
 const DEFAULT_PASSWORD = "Oybek-SysteM";
@@ -36,40 +37,9 @@ function getLockoutDuration(stage) {
 // Yordamchi: Yangi foydalanuvchi uchun 7 ta standart hamyon ochish
 // =========================================================================
 export async function createDefaultWalletsForUser(userId, client = pool) {
-  // Wallets jadvalida user_id ustuni borligini tekshiramiz yoki qo'shib olamiz
-  await client.query(`
-    ALTER TABLE wallets ADD COLUMN IF NOT EXISTS user_id TEXT;
-  `).catch(() => {});
-
-  const standardWallets = [
-    { key: "hamyon", name: "Hamyon", currency: "UZS", balance: 0, parentKey: null },
-    { key: "naqd", name: "Naqd pul", currency: "UZS", balance: 0, parentKey: null },
-    { key: "karta", name: "Plastik karta", currency: "UZS", balance: 0, parentKey: null },
-    { key: "dollar", name: "AQSH Dollari", currency: "USD", balance: 0, parentKey: null },
-    { key: "naqd_reserve", name: "Naqd zaxira", currency: "UZS", balance: 0, parentKey: "naqd" },
-    { key: "karta_reserve", name: "Karta zaxira", currency: "UZS", balance: 0, parentKey: "karta" },
-    { key: "dollar_reserve", name: "Dollar zaxira", currency: "USD", balance: 0, parentKey: "dollar" },
-  ];
-
-  for (const w of standardWallets) {
-    const walletId = `${userId}_${w.key}`;
-    const parentId = w.parentKey ? `${userId}_${w.parentKey}` : null;
-
-    await client.query(
-      `INSERT INTO wallets (id, user_id, name, currency, balance, parent_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO NOTHING`,
-      [walletId, userId, w.name, w.currency, w.balance, parentId]
-    ).catch(async () => {
-      // Agar user_id siz eski wallets sxemasi bo'lsa:
-      await client.query(
-        `INSERT INTO wallets (id, name, currency, balance, parent_id)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO NOTHING`,
-        [walletId, w.name, w.currency, w.balance, parentId]
-      ).catch(() => {});
-    });
-  }
+  await ensureUserWallets(userId, client).catch((err) => {
+    console.warn(`[createDefaultWalletsForUser] Warning: ${err.message}`);
+  });
 }
 
 // =========================================================================
@@ -498,6 +468,23 @@ router.get("/status", (req, res) => {
     maxAttempts: MAX_ATTEMPTS_PER_WINDOW,
     lockoutStage: clientData.lockoutStage,
   });
+});
+
+// =========================================================================
+// GET /api/auth/users — Bazadagi barcha roʻyxatdan oʻtgan foydalanuvchilar roʻyxati
+// =========================================================================
+router.get("/users", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, email, username, phone_number, full_name, avatar_url, role, 
+              is_active, default_currency, language, created_at, last_login_at
+       FROM users
+       ORDER BY created_at DESC`
+    );
+    return res.json({ ok: true, count: rows.length, users: rows });
+  } catch (err) {
+    return res.status(500).json({ error: "Foydalanuvchilarni olishda xatolik: " + err.message });
+  }
 });
 
 export default router;

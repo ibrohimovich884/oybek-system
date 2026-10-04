@@ -58,33 +58,41 @@ async function applyWalletBalanceChange(client, tx, multiplier = 1, userId) {
   const delta = amount * Number(multiplier);
 
   if (type === "expense") {
-    if (wallet) {
+    if (rawWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
-        [delta, wallet, userId || null, `%_${rawWallet}`]
+        `UPDATE wallets SET balance = balance - $1::numeric 
+         WHERE (user_id = $2 AND (id = $3 OR id = $4 OR id LIKE $5))
+            OR (id = $3 AND user_id IS NULL)`,
+        [delta, userId || null, rawWallet, wallet, `%_${rawWallet}`]
       );
     }
   } else if (type === "income") {
-    if (wallet) {
+    if (rawWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
-        [delta, wallet, userId || null, `%_${rawWallet}`]
+        `UPDATE wallets SET balance = balance + $1::numeric 
+         WHERE (user_id = $2 AND (id = $3 OR id = $4 OR id LIKE $5))
+            OR (id = $3 AND user_id IS NULL)`,
+        [delta, userId || null, rawWallet, wallet, `%_${rawWallet}`]
       );
     }
   } else if (type === "transfer") {
     const targetAmount = Number(tx.target_amount ?? tx.targetAmount ?? amount);
     const targetDelta = targetAmount * Number(multiplier);
 
-    if (fromWallet) {
+    if (rawFromWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance - $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
-        [delta, fromWallet, userId || null, `%_${rawFromWallet}`]
+        `UPDATE wallets SET balance = balance - $1::numeric 
+         WHERE (user_id = $2 AND (id = $3 OR id = $4 OR id LIKE $5))
+            OR (id = $3 AND user_id IS NULL)`,
+        [delta, userId || null, rawFromWallet, fromWallet, `%_${rawFromWallet}`]
       );
     }
-    if (toWallet) {
+    if (rawToWallet) {
       await client.query(
-        "UPDATE wallets SET balance = balance + $1::numeric WHERE id = $2 OR (user_id = $3 AND id LIKE $4)",
-        [targetDelta, toWallet, userId || null, `%_${rawToWallet}`]
+        `UPDATE wallets SET balance = balance + $1::numeric 
+         WHERE (user_id = $2 AND (id = $3 OR id = $4 OR id LIKE $5))
+            OR (id = $3 AND user_id IS NULL)`,
+        [targetDelta, userId || null, rawToWallet, toWallet, `%_${rawToWallet}`]
       );
     }
   }
