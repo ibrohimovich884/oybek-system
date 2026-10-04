@@ -12,7 +12,9 @@ import AdminPage from "./pages/AdminPage.jsx";
 import UpdatesPage from "./pages/UpdatesPage.jsx";
 import SecurityGate from "./components/security/SecurityGate.jsx";
 import LoginScreen from "./components/auth/LoginScreen.jsx";
+import WelcomeOnboarding from "./components/auth/WelcomeOnboarding.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import { getUserStorageKey } from "./utils/storageKeys.js";
 import { SlidersHorizontal } from "lucide-react";
 
 function AdminRoute({ children }) {
@@ -24,11 +26,28 @@ function AdminRoute({ children }) {
 }
 
 export default function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
-  // Agar 1 oylik JWT sessiya faol bo'lmasa, shunchaki parol oynasi ko'rsatiladi
+  // Agar 1 oylik JWT sessiya faol bo'lmasa, shunchaki login/register oynasi ko'rsatiladi
   if (!isAuthenticated) {
     return <LoginScreen />;
+  }
+
+  // Faqat yangi ro'yxatdan o'tgan foydalanuvchilar uchun 1 martalik Welcome Page
+  const uid = user?.id || user?.userId;
+  const isWelcomeDoneInStorage = uid
+    ? localStorage.getItem(getUserStorageKey("oybek-system:welcome_completed", uid)) === "true"
+    : false;
+
+  const showWelcome = Boolean(
+    user &&
+    user.role !== "admin" &&
+    (user.welcomeCompleted === false || user.welcome_completed === false) &&
+    !isWelcomeDoneInStorage
+  );
+
+  if (showWelcome) {
+    return <WelcomeOnboarding />;
   }
 
   return (

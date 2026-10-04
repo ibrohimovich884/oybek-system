@@ -331,6 +331,8 @@ export function AuthProvider({ children }) {
       // Yangi foydalanuvchining hamyonlari to'liq 0 bilan boshlanishini kafolatlash
       const uid = userData?.id || userData?.userId;
       if (uid) {
+        const welcomeKey = getUserStorageKey("oybek-system:welcome_completed", uid);
+        localStorage.setItem(welcomeKey, "false");
         const walletsKey = getUserStorageKey("oybek-system:wallets", uid);
         localStorage.setItem(walletsKey, JSON.stringify(DEFAULT_WALLETS));
         const expensesKey = getUserStorageKey("oybek-system:expenses", uid);
@@ -597,6 +599,81 @@ export function AuthProvider({ children }) {
     };
   };
 
+  const completeWelcome = useCallback(
+    async (fourWallets = {}) => {
+      const uid = user?.id || user?.userId;
+      const hamyon = Number(fourWallets.hamyon) || 0;
+      const naqd = Number(fourWallets.naqd) || 0;
+      const karta = Number(fourWallets.karta) || 0;
+      const dollar = Number(fourWallets.dollar) || 0;
+
+      const walletPayload = {
+        hamyon,
+        naqd,
+        karta,
+        dollar,
+      };
+
+      // 1. LocalStorage da saqlash (qaytib ochilmasligi uchun)
+      if (uid) {
+        const welcomeKey = getUserStorageKey("oybek-system:welcome_completed", uid);
+        localStorage.setItem(welcomeKey, "true");
+
+        const walletsKey = getUserStorageKey("oybek-system:wallets", uid);
+        let currentWallets = { ...DEFAULT_WALLETS };
+        try {
+          const existing = localStorage.getItem(walletsKey);
+          if (existing) currentWallets = JSON.parse(existing);
+        } catch {}
+
+        const updatedWallets = {
+          ...currentWallets,
+          ...walletPayload,
+        };
+        localStorage.setItem(walletsKey, JSON.stringify(updatedWallets));
+      }
+
+      // 2. Auth user holatini yangilash
+      const updatedUser = {
+        ...user,
+        welcomeCompleted: true,
+        welcome_completed: true,
+      };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedUser));
+      } catch {}
+
+      // 3. Backend ga yuborish
+      try {
+        const baseUrl = getBackendBaseUrl();
+        if (token) {
+          await fetch(`${baseUrl}/api/auth/complete-welcome`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              wallets: walletPayload,
+            }),
+          });
+        }
+      } catch (err) {
+        console.warn("Backend complete-welcome ogohlantirish:", err.message);
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+        window.dispatchEvent(new CustomEvent("oybek:welcome-completed"));
+      }
+
+      return { success: true };
+    },
+    [user, token]
+  );
+
   const getDaysRemaining = useCallback(() => {
     if (!expiresAt) return 30;
     const diff = expiresAt - Date.now();
@@ -613,6 +690,7 @@ export function AuthProvider({ children }) {
     daysRemaining: getDaysRemaining(),
     login,
     register,
+    completeWelcome,
     logout,
     refreshProfile,
   };

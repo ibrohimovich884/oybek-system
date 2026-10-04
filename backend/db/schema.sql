@@ -16,10 +16,13 @@ CREATE TABLE IF NOT EXISTS users (
   language TEXT NOT NULL DEFAULT 'uz',
   theme TEXT NOT NULL DEFAULT 'dark',
   timezone TEXT NOT NULL DEFAULT 'Asia/Tashkent',
+  welcome_completed BOOLEAN NOT NULL DEFAULT false,
   last_login_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS welcome_completed BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);

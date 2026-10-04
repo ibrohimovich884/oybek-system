@@ -115,9 +115,9 @@ router.post("/register", async (req, res) => {
     const insertResult = await pool.query(
       `INSERT INTO users (
         id, email, username, phone_number, password_hash, full_name,
-        role, is_active, default_currency, language, theme, last_login_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
-      RETURNING id, email, username, phone_number, full_name, role, is_active, default_currency, language, theme, created_at`,
+        role, is_active, default_currency, language, theme, welcome_completed, last_login_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false, now())
+      RETURNING id, email, username, phone_number, full_name, role, is_active, default_currency, language, theme, welcome_completed, created_at`,
       [
         userId,
         cleanEmail,
@@ -158,6 +158,7 @@ router.post("/register", async (req, res) => {
       message: "Muvaffaqiyatli roʻyxatdan oʻtildi!",
       token,
       expiresIn: "30d",
+      isNewUser: true,
       user: {
         id: newUser.id,
         userId: newUser.id,
@@ -169,6 +170,8 @@ router.post("/register", async (req, res) => {
         defaultCurrency: newUser.default_currency,
         language: newUser.language,
         theme: newUser.theme,
+        welcomeCompleted: false,
+        welcome_completed: false,
         createdAt: newUser.created_at,
       },
     });
@@ -357,6 +360,8 @@ router.post("/login", async (req, res) => {
         defaultCurrency: user.default_currency || "UZS",
         language: user.language || "uz",
         theme: user.theme || "dark",
+        welcomeCompleted: user.welcome_completed ?? (user.id === "usr_admin" ? true : false),
+        welcome_completed: user.welcome_completed ?? (user.id === "usr_admin" ? true : false),
       },
     });
   } catch (err) {
@@ -373,7 +378,7 @@ router.get("/me", requireAuth, async (req, res) => {
     const userId = req.user.userId;
     const { rows } = await pool.query(
       `SELECT id, email, username, phone_number, full_name, avatar_url, role, 
-              is_active, default_currency, language, theme, timezone, created_at, last_login_at
+              is_active, default_currency, language, theme, timezone, welcome_completed, created_at, last_login_at
        FROM users WHERE id = $1 LIMIT 1`,
       [userId]
     );
@@ -392,6 +397,8 @@ router.get("/me", requireAuth, async (req, res) => {
             defaultCurrency: "UZS",
             language: "uz",
             theme: "dark",
+            welcomeCompleted: true,
+            welcome_completed: true,
           },
         });
       }
@@ -415,12 +422,50 @@ router.get("/me", requireAuth, async (req, res) => {
         language: u.language,
         theme: u.theme,
         timezone: u.timezone,
+        welcomeCompleted: u.welcome_completed ?? true,
+        welcome_completed: u.welcome_completed ?? true,
         createdAt: u.created_at,
         lastLoginAt: u.last_login_at,
       },
     });
   } catch (err) {
     return res.status(500).json({ error: "Profilni yuklashda xatolik: " + err.message });
+  }
+});
+
+// =========================================================================
+// POST /api/auth/complete-welcome — Yangi foydalanuvchi 4 ta asosiy hamyonini saqlash va welcome ni yopish
+// =========================================================================
+router.post("/complete-welcome", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { wallets, defaultWallets } = req.body;
+
+    const walletUpdates = wallets || defaultWallets;
+    if (walletUpdates && typeof walletUpdates === "object") {
+      const { updateWallets } = await import("../services/walletsService.js");
+      await updateWallets(walletUpdates, userId).catch((e) => {
+        console.warn("[complete-welcome] Wallets update warning:", e.message);
+      });
+    }
+
+    if (userId !== "usr_admin") {
+      await pool.query(
+        "UPDATE users SET welcome_completed = true, updated_at = now() WHERE id = $1",
+        [userId]
+      ).catch((err) => {
+        console.warn("[complete-welcome] Update users warning:", err.message);
+      });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Boshlang'ich 4 ta asosiy hamyon balansi saqlandi va tizim faollashtirildi",
+      welcomeCompleted: true,
+    });
+  } catch (err) {
+    console.error("[complete-welcome error]", err);
+    return res.status(500).json({ error: "Welcome jarayonini yakunlashda xatolik: " + err.message });
   }
 });
 
