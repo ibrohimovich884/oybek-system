@@ -23,11 +23,12 @@ import DebtDetailModal from "../components/debts/DebtDetailModal.jsx";
 import EditDebtModal from "../components/debts/EditDebtModal.jsx";
 import AddDebtModal from "../components/debts/AddDebtModal.jsx";
 import RepayDebtModal from "../components/debts/RepayDebtModal.jsx";
+import Loader from "../components/common/Loader.jsx";
 
 const STORAGE_VIEW_KEY = "oybek_system:debts_view_mode";
 
 export default function DebtsPage() {
-  const { debts, addDebt, repayDebt, deleteDebt, updateDebt, rateInfo } = useExpenses();
+  const { debts, addDebt, repayDebt, deleteDebt, updateDebt, rateInfo, isLoading } = useExpenses();
   const currentUsdRate = rateInfo?.rate || 12850;
 
   // Standart ko'rinish: Samsung Notes / Daftar ko'rinishi ("ledger")
@@ -339,7 +340,15 @@ export default function DebtsPage() {
       </div>
 
       {/* 4. Qarzlar ro'yxati: Daftar yoki Kartalar */}
-      {filteredDebts.length > 0 ? (
+      {isLoading ? (
+        <Loader
+          variant="block"
+          size="lg"
+          text="Qarzlar daftari yuklanmoqda..."
+          subtext="Berilgan va olingan qarzlar hisob-kitobi"
+          blur="5px"
+        />
+      ) : filteredDebts.length > 0 ? (
         viewMode === "ledger" ? (
           <DebtLedgerList
             debts={filteredDebts}

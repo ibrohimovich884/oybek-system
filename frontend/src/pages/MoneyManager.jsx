@@ -8,6 +8,7 @@ import EditTransactionModal from "../components/money-manager/EditTransactionMod
 import AnalyticsView from "../components/money-manager/AnalyticsView.jsx";
 import TransferModal from "../components/money-manager/TransferModal.jsx";
 import SecurityGate from "../components/security/SecurityGate.jsx";
+import Loader from "../components/common/Loader.jsx";
 import { formatSum, formatDollar } from "../utils/format.js";
 import {
   PlusCircle,
@@ -219,7 +220,13 @@ export default function MoneyManager() {
 
       {/* Tanlangan bo'lim */}
       {isLoading ? (
-        <p className="ledger-empty">Yuklanmoqda...</p>
+        <Loader
+          variant="block"
+          size="lg"
+          text="Hisob-kitoblar va hamyonlar yuklanmoqda..."
+          subtext="Iltimos, kuting — ma'lumotlar sinxronlanmoqda"
+          blur="5px"
+        />
       ) : activeTab === "form" ? (
         <div className="tab-content-fade">
           <ExpenseForm />

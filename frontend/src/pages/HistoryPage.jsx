@@ -34,6 +34,7 @@ import CategoryIcon from "../components/money-manager/CategoryIcon.jsx";
 import EditTransactionModal from "../components/money-manager/EditTransactionModal.jsx";
 import TransferModal from "../components/money-manager/TransferModal.jsx";
 import SecurityGate from "../components/security/SecurityGate.jsx";
+import Loader from "../components/common/Loader.jsx";
 
 const CATEGORY_MAP = {};
 [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].forEach((c) => {
@@ -48,6 +49,7 @@ const ITEMS_PER_PAGE = 25;
 export default function HistoryPage() {
   const {
     regularExpenses,
+    isLoading,
     deleteExpense,
     downloadBackup,
     downloadCSV,
@@ -675,8 +677,16 @@ export default function HistoryPage() {
       </div>
 
       {/* 4. Tranzaksiyalar Ro'yxati */}
-      <div className="history-ledger-container">
-        {filteredTransactions.length === 0 ? (
+      <div className="history-ledger-container" style={{ position: "relative" }}>
+        {isLoading ? (
+          <Loader
+            variant="block"
+            size="lg"
+            text="Tranzaksiyalar tarixi yuklanmoqda..."
+            subtext="Daftar yozuvlari va filtrlash ma'lumotlari tayyorlanmoqda"
+            blur="5px"
+          />
+        ) : filteredTransactions.length === 0 ? (
           <div className="history-empty-state">
             <History size={40} className="text-muted" />
             <p className="history-empty-title">Hech qanday tranzaksiya topilmadi</p>

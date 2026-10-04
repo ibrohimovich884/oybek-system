@@ -48,6 +48,8 @@ export default function SecurityGate({
     verifyPin,
     isUnlocked,
     unlockScope,
+    isControlPanelLockEnabled,
+    isTransactionsLockEnabled,
   } = useSecurity();
 
   const [inputPin, setInputPin] = useState("");
@@ -59,6 +61,20 @@ export default function SecurityGate({
   const PIN_LENGTH = 4;
 
   const unlocked = scope ? isUnlocked(scope) : false;
+
+  // Muayyan bo'lim yoki amal parol bilan himoyalanganmi?
+  const isGuarded = (() => {
+    if (scope === "control_panel") {
+      return Boolean(isControlPanelLockEnabled);
+    }
+    if (scope === "transactions" || isDanger) {
+      return Boolean(isTransactionsLockEnabled);
+    }
+    if (scope === "settings_security") {
+      return false;
+    }
+    return true;
+  })();
 
   // Modal qayta ochilganda holatni tozalash
   useEffect(() => {
@@ -141,11 +157,23 @@ export default function SecurityGate({
 
   // Jismoniy klaviatura hodisalarini ushlash
   useEffect(() => {
+    if (!isOpen) return;
     if (unlocked && !isModal) return;
-    if (isModal && !isOpen) return;
 
     const handleKeyDown = (e) => {
-      // 0-9 raqamlari
+      // Agar himoyalanmagan modal bo'lsa: Enter tasdiqlaydi, Escape bekor qiladi
+      if (isModal && !isGuarded) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (onSuccess) onSuccess();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          if (onCancel) onCancel();
+        }
+        return;
+      }
+
+      // 0-9 raqamlari (PIN rejimi)
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
         handleDigitPress(e.key);
@@ -163,16 +191,149 @@ export default function SecurityGate({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [inputPin, unlocked, isModal, isOpen, onCancel]);
+  }, [inputPin, unlocked, isModal, isOpen, isGuarded, onCancel, onSuccess]);
 
-  // Agar allaqachon ochilgan bo'lsa (Wrapper rejimida)
-  if (unlocked && !isModal) {
+  // Agar allaqachon ochilgan bo'lsa yoki bo'lim himoyalanmagan bo'lsa (Wrapper rejimida)
+  if (!isModal && (!isGuarded || unlocked)) {
     return <>{children}</>;
   }
 
   // Agar modal rejimida bo'lsa va ochiq bo'lmasa
   if (isModal && !isOpen) {
     return null;
+  }
+
+  // AGAR HIMOYALANMAGAN MODAL BO'LSA (PIN TALAB QILINMAYDI - ODDIY TASDIQLASH)
+  if (isModal && !isGuarded) {
+    const cleanSubtitle = subtitle
+      ? subtitle.replace(/uchun 4 xonali (PIN )?parolni kiriting/gi, "oʻchirishni tasdiqlaysizmi?")
+      : "Ushbu amalni tasdiqlaysizmi?";
+
+    return (
+      <div
+        className="security-modal-backdrop"
+        onClick={() => onCancel && onCancel()}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(7, 10, 15, 0.82)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: 16,
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="security-card"
+          style={{
+            maxWidth: 400,
+            width: "100%",
+            borderColor: isDanger ? "rgba(239, 68, 68, 0.4)" : "rgba(52, 211, 153, 0.3)",
+            boxShadow: isDanger
+              ? "0 20px 45px rgba(239, 68, 68, 0.2)"
+              : "0 20px 45px rgba(16, 185, 129, 0.15)",
+            textAlign: "center",
+            padding: "24px 20px",
+          }}
+        >
+          {/* Header Icon */}
+          <div
+            className={`security-icon-circle ${isDanger ? "is-danger" : ""}`}
+            style={{
+              margin: "0 auto 14px auto",
+              width: 54,
+              height: 54,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: isDanger ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
+              border: `1px solid ${isDanger ? "rgba(239, 68, 68, 0.35)" : "rgba(52, 211, 153, 0.35)"}`,
+            }}
+          >
+            {isDanger ? (
+              <Trash2 size={24} color="#f87171" />
+            ) : (
+              <CheckCircle2 size={24} color="#34d399" />
+            )}
+          </div>
+
+          <h2
+            style={{
+              margin: "0 0 8px 0",
+              fontSize: "1.15rem",
+              fontWeight: 700,
+              color: "#f5f3ec",
+            }}
+          >
+            {title || "Tasdiqlash"}
+          </h2>
+
+          <p
+            style={{
+              margin: "0 0 16px 0",
+              fontSize: "0.85rem",
+              color: "var(--text-muted)",
+              lineHeight: 1.5,
+            }}
+          >
+            {cleanSubtitle}
+          </p>
+
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 10px",
+              borderRadius: 8,
+              background: "rgba(255, 255, 255, 0.04)",
+              border: "1px dashed rgba(255, 255, 255, 0.12)",
+              fontSize: "0.74rem",
+              color: "rgba(245, 243, 236, 0.65)",
+              marginBottom: 20,
+            }}
+          >
+            <Shield size={13} color="var(--text-muted)" />
+            <span>Oʻchirish qulfi oʻchirilgan (PIN talab etilmaydi)</span>
+          </div>
+
+          {/* Amallar tugmalari */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button
+              type="button"
+              className="btn btn--subtle"
+              style={{ flex: 1, padding: "10px 16px" }}
+              onClick={onCancel}
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="button"
+              className={`btn ${isDanger ? "btn--danger" : "btn--primary"}`}
+              style={{ flex: 1.2, padding: "10px 16px" }}
+              onClick={onSuccess}
+              autoFocus
+            >
+              {isDanger ? (
+                <>
+                  <Trash2 size={15} />
+                  <span>Ha, oʻchirilsin</span>
+                </>
+              ) : (
+                <>
+                  <Check size={15} />
+                  <span>Tasdiqlash</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Raqamlar klaviaturasi ma'lumotlari (1-9, C, 0, Backspace)

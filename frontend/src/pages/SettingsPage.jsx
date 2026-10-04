@@ -28,11 +28,16 @@ import {
   ClipboardList,
   ShieldCheck,
   Lock,
+  Sparkles,
+  Eye,
+  Play,
+  Layers,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
 import { formatSum, formatDateTime } from "../utils/format.js";
 import { DEFAULT_BACKEND_URL } from "../config/apiConfig.js";
 import SecuritySettingsTab from "../components/security/SecuritySettingsTab.jsx";
+import Loader, { CardLoader, BlockLoader, ButtonLoader } from "../components/common/Loader.jsx";
 
 export default function SettingsPage() {
   const {
@@ -68,6 +73,10 @@ export default function SettingsPage() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [preserveBackendConfig, setPreserveBackendConfig] = useState(true);
+  const [showFullscreenDemo, setShowFullscreenDemo] = useState(false);
+  const [showOverlayDemo, setShowOverlayDemo] = useState(true);
+  const [demoText, setDemoText] = useState("Yuklanmoqda...");
+  const [demoSubtext, setDemoSubtext] = useState("Ma'lumotlar qayta ishlanmoqda");
 
   // Tizim jurnali filtri va qidiruvi
   const [logFilter, setLogFilter] = useState("all"); // 'all' | 'success' | 'error' | 'warning'
@@ -417,6 +426,18 @@ export default function SettingsPage() {
         >
           <ShieldCheck size={15} style={{ color: activeTab === "security" ? "var(--income)" : "currentColor" }} />
           <span>Xavfsizlik & Parol</span>
+        </button>
+
+        <button
+          type="button"
+          className={`settings-tab-btn ${activeTab === "loader" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("loader")}
+        >
+          <Sparkles size={15} style={{ color: activeTab === "loader" ? "#34d399" : "currentColor" }} />
+          <span>Yashil Loader</span>
+          <span className="settings-tab-badge" style={{ background: "rgba(52, 211, 153, 0.18)", color: "#34d399" }}>
+            5px blur
+          </span>
         </button>
       </div>
 
@@ -1369,6 +1390,251 @@ export default function SettingsPage() {
           - SecurityGate orqali himoyalangan
          ========================================================================= */}
       {activeTab === "security" && <SecuritySettingsTab />}
+
+      {/* =========================================================================
+          TAB 6: YASHIL LOADER NAMOYISHI VA MOSLASHUVCHAN QISMLAR
+          - Yashil rang (#10b981, #34d399, #059669)
+          - Orqa fon 5px blur (backdrop-filter: blur(5px))
+          - Har bir qismga moslashuvchan (fullscreen, overlay, block, inline)
+         ========================================================================= */}
+      {activeTab === "loader" && (
+        <div className="tab-content-fade" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Sarlavha paneli */}
+          <div className="settings-card" style={{ borderLeft: "3px solid #34d399" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "rgba(52, 211, 153, 0.15)",
+                  color: "#34d399",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 0 15px rgba(52, 211, 153, 0.3)",
+                }}
+              >
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                  Yashil Moslashuvchan Loader (5px Orqa Fon Bluri)
+                </h2>
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: 0 }}>
+                  Sayt kattalashgani sababli har bir qism, sahifa, karta va tugmaga moslashuvchan universal yashil loader komponenti
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+              <span className="sidebar__user-role-badge" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399" }}>
+                ✓ Yashil rang (#10b981 / #34d399)
+              </span>
+              <span className="sidebar__user-role-badge" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399" }}>
+                ✓ Orqa fon: 5px blur
+              </span>
+              <span className="sidebar__user-role-badge" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8" }}>
+                ✓ 4 ta rejim: Fullscreen, Overlay, Block, Inline
+              </span>
+              <span className="sidebar__user-role-badge" style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24" }}>
+                ✓ 5 ta oʻlcham: xs, sm, md, lg, xl
+              </span>
+            </div>
+          </div>
+
+          {/* 1. TO'LIQ EKRAN (FULLSCREEN) TESTI */}
+          <div className="settings-card">
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 6px 0", color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+              <Layers size={16} className="text-accent" />
+              <span>1. Butun Ekran (Fullscreen) Loader Sinovi</span>
+            </h3>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 14 }}>
+              Ushbu tugmani bosganingizda, butun ekran orqa foni 5px blur bilan xiralashadi va markazda animatsiyali yashil loader ishlaydi.
+            </p>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => {
+                  setShowFullscreenDemo(true);
+                  // 4 soniyadan so'ng avtomatik yopiladi (yoki tugma orqali)
+                  setTimeout(() => {
+                    setShowFullscreenDemo(false);
+                  }, 4000);
+                }}
+                style={{
+                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Play size={16} />
+                <span>Toʻliq ekran 5px blur loaderni koʻrish (4 soniya)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. OVERLAY (KARTA USTIDA 5PX BLUR) LOADER */}
+          <div className="settings-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: 0, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+                <Eye size={16} className="text-accent" />
+                <span>2. Karta Ustida Overlay Loader (5px blur bilan)</span>
+              </h3>
+              <button
+                type="button"
+                className="btn btn--subtle btn--xs"
+                onClick={() => setShowOverlayDemo(!showOverlayDemo)}
+                style={{ borderColor: showOverlayDemo ? "#34d399" : undefined }}
+              >
+                {showOverlayDemo ? "Loaderni yashirish" : "Loaderni yoqish"}
+              </button>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 14 }}>
+              Tranzaksiya saqlanayotganda yoki jadval filtrlanganda har qanday konteyner ustiga xavfsiz qoplanadi.
+            </p>
+
+            {/* Jonli namuna kartasi */}
+            <div
+              style={{
+                position: "relative",
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: "20px",
+                minHeight: 160,
+                overflow: "hidden",
+              }}
+            >
+              {/* Karta ichidagi kontent (orqada 5px blur bilan ko'rinadi) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>Hisob-kitoblar namunasi</span>
+                  <span className="mono" style={{ color: "#34d399", fontWeight: 700 }}>+ 12 500 000 UZS</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: "0.82rem" }}>
+                  <div style={{ padding: 10, background: "var(--surface)", borderRadius: 8 }}>
+                    <div style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>Karta balansi</div>
+                    <div className="mono" style={{ fontWeight: 700, marginTop: 2 }}>8 450 000 soʻm</div>
+                  </div>
+                  <div style={{ padding: 10, background: "var(--surface)", borderRadius: 8 }}>
+                    <div style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>Naqd zaxira</div>
+                    <div className="mono" style={{ fontWeight: 700, marginTop: 2 }}>$1 200 (AQSH dollari)</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Bu karta ustida 5px blur overlay loaderni sinash uchun jonli test maydoni.
+                </div>
+              </div>
+
+              {/* Yashil Overlay Loader */}
+              {showOverlayDemo && (
+                <CardLoader
+                  text="Karta maʼlumotlari yangilanmoqda..."
+                  subtext="Orqa fondagi yozuvlar 5px xiralashgan holda koʻrinadi"
+                  blur="5px"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* 3. BLOCK VA INLINE LOADERLAR */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+            {/* Block Loader */}
+            <div className="settings-card">
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 10px 0", color: "var(--text)" }}>
+                3. Mustaqil Blok Loader (5px blur fon)
+              </h3>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 12px 0" }}>
+                Sahifalar (Money manager, Tarix, Mashqlar, Qarzlar) yuklanayotganda boʻlim oʻrnida chiqadi:
+              </p>
+              <BlockLoader
+                size="md"
+                text="Tranzaksiyalar yuklanmoqda..."
+                subtext="Oybek-system xavfsiz DB bilan ulanmoqda"
+                blur="5px"
+              />
+            </div>
+
+            {/* Inline Loader (Tugmalar va nishonlar ichida) */}
+            <div className="settings-card">
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 10px 0", color: "var(--text)" }}>
+                4. Tugma va Inline Loader
+              </h3>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 14px 0" }}>
+                Formani yuborishda, PIN kiritishda va kichik sarlavhalarda:
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    minHeight: 42,
+                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  }}
+                  disabled
+                >
+                  <ButtonLoader size="xs" />
+                  <span>Amal saqlanmoqda...</span>
+                </button>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 12px",
+                    background: "rgba(52, 211, 153, 0.08)",
+                    border: "1px solid rgba(52, 211, 153, 0.25)",
+                    borderRadius: 8,
+                  }}
+                >
+                  <ButtonLoader size="xs" />
+                  <span style={{ fontSize: "0.82rem", color: "#34d399", fontWeight: 600 }}>
+                    Real vaqtda sinxronizatsiya faol...
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Butun ekran Loader sinovi faollashganda */}
+      {showFullscreenDemo && (
+        <Loader
+          variant="fullscreen"
+          size="xl"
+          text="Tizim maʼlumotlari yuklanmoqda..."
+          subtext="5px orqa fon xiralashishi (blur) bilan yashil loader ishlayapti"
+          blur="5px"
+          showProgress={true}
+        >
+          <button
+            type="button"
+            className="btn btn--subtle btn--sm"
+            onClick={() => setShowFullscreenDemo(false)}
+            style={{
+              marginTop: 14,
+              borderColor: "#34d399",
+              color: "#34d399",
+              background: "rgba(22, 21, 20, 0.9)",
+              cursor: "pointer",
+            }}
+          >
+            Yopish (Fullscreen testni yakunlash)
+          </button>
+        </Loader>
+      )}
 
       {/* MODAL: Lokal xotirani xavfsiz tozalash tasdig'i (375px mos) */}
       {showClearModal && (

@@ -157,6 +157,10 @@ export function AuthProvider({ children }) {
       localStorage.removeItem(STORAGE_TOKEN_KEY);
       localStorage.removeItem(STORAGE_EXPIRES_KEY);
       localStorage.removeItem(STORAGE_USER_KEY);
+      localStorage.removeItem(STORAGE_LOCKOUT_KEY);
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.clear();
+      }
     } catch (e) {
       console.warn("Storage tozalashda xato:", e);
     }

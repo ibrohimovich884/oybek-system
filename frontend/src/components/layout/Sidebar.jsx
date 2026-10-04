@@ -22,11 +22,12 @@ import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Sidebar({ isOpen, onClose }) {
   const { syncStatus, debts, regularExpenses } = useExpenses();
-  const { isUnlocked } = useSecurity();
+  const { isUnlocked, isControlPanelLockEnabled } = useSecurity();
   const { unreadCount } = useNotifications();
   const { user, logout, daysRemaining } = useAuth();
 
   const isControlUnlocked = isUnlocked("control_panel");
+  const isControlLocked = isControlPanelLockEnabled && !isControlUnlocked;
 
   const pendingDebtsCount = (debts || []).filter(
     (d) => d.status !== "settled"
@@ -65,8 +66,8 @@ export default function Sidebar({ isOpen, onClose }) {
       to: "/control",
       label: "Control panel",
       icon: SlidersHorizontal,
-      badge: !isControlUnlocked ? <Lock size={12} style={{ color: "#34d399" }} /> : null,
-      badgeType: !isControlUnlocked ? "lock" : null,
+      badge: isControlLocked ? <Lock size={12} style={{ color: "#34d399" }} /> : null,
+      badgeType: isControlLocked ? "lock" : null,
     },
     { to: "/exercises", label: "Mashqlar", icon: Dumbbell, badge: "Tez kunda" },
     {
@@ -190,6 +191,27 @@ export default function Sidebar({ isOpen, onClose }) {
                 </p>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                if (onClose) onClose();
+              }}
+              className="btn-icon btn-icon--xs"
+              style={{
+                marginLeft: "auto",
+                color: "var(--danger, #f87171)",
+                background: "rgba(239, 68, 68, 0.1)",
+                border: "1px solid rgba(239, 68, 68, 0.25)",
+                borderRadius: 6,
+                padding: 4,
+              }}
+              title="Hisobdan chiqish (Log out)"
+              aria-label="Hisobdan chiqish"
+            >
+              <LogOut size={13} />
+            </button>
           </div>
 
           <NavLink
@@ -240,13 +262,12 @@ export default function Sidebar({ isOpen, onClose }) {
             <button
               type="button"
               onClick={() => {
-                if (window.confirm("Haqiqatan ham hisobdan chiqmoqchimisiz?")) {
-                  logout();
-                  if (onClose) onClose();
-                }
+                logout();
+                if (onClose) onClose();
               }}
               className="btn btn--ghost btn--xs sidebar__logout-btn"
               title="Hisobdan chiqish"
+              aria-label="Hisobdan chiqish"
             >
               <LogOut size={13} />
               <span>Chiqish</span>

@@ -24,6 +24,7 @@ import {
   Check,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import Loader from "../common/Loader.jsx";
 
 export default function LoginScreen() {
   const { login, register, lockoutState } = useAuth();
@@ -221,7 +222,17 @@ export default function LoginScreen() {
         className={`login-card ${isShaking ? "is-shaking" : ""} ${isSuccess ? "is-success" : ""} ${
           isLocked ? "is-locked-card" : ""
         } ${activeTab === "register" ? "login-card--register" : ""}`}
+        style={{ position: "relative" }}
       >
+        {isLoading && (
+          <Loader
+            variant="overlay"
+            size="lg"
+            text={activeTab === "register" ? "Roʻyxatdan oʻtkazilmoqda..." : "Tizimga kirilmoqda..."}
+            subtext="30 kunlik xavfsiz sessiya tekshirilmoqda"
+            blur="5px"
+          />
+        )}
         {/* Yuqori brend belgisi */}
         <div className="login-header">
           <div

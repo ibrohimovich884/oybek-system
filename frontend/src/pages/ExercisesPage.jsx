@@ -13,6 +13,7 @@ import ExerciseCheckList from '../components/ExerciseCheckList';
 import ExerciseStreakChart from '../components/ExerciseStreakChart';
 import ExerciseCalendarChart from '../components/ExerciseCalendarChart';
 import AddExerciseForm from '../components/AddExerciseForm';
+import Loader from '../components/common/Loader.jsx';
 
 import {
   Dumbbell,
@@ -399,10 +400,13 @@ export default function ExercisesPage() {
           </div>
 
           {loading ? (
-            <div className="panel" style={{ textAlign: "center", padding: "40px" }}>
-              <Loader2 className="animate-spin" size={28} style={{ color: "var(--accent)", margin: "0 auto 12px" }} />
-              <p style={{ color: "var(--text-muted)" }}>Mashqlar yuklanmoqda...</p>
-            </div>
+            <Loader
+              variant="block"
+              size="lg"
+              text="Mashqlar va odatlar yuklanmoqda..."
+              subtext="Kunlik seriyalar va statistika hisoblanmoqda"
+              blur="5px"
+            />
           ) : error ? (
             <div className="feedback-alert feedback-alert--error" style={{ justifyContent: "center" }}>
               <span>{error}</span>

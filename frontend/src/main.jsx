@@ -6,6 +6,7 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { ExpensesProvider } from "./context/ExpensesContext.jsx";
 import { NotificationsProvider } from "./context/NotificationsContext.jsx";
 import { SecurityProvider } from "./context/SecurityContext.jsx";
+import { LoadingProvider } from "./context/LoadingContext.jsx";
 import "./index.css";
 import { registerSW } from "virtual:pwa-register";
 
@@ -19,7 +20,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <ExpensesProvider>
           <NotificationsProvider>
             <SecurityProvider>
-              <App />
+              <LoadingProvider>
+                <App />
+              </LoadingProvider>
             </SecurityProvider>
           </NotificationsProvider>
         </ExpensesProvider>

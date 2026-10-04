@@ -1,0 +1,382 @@
+/* =========================================================
+   OYBEK-SYSTEM — YASHIL (GREEN) ADAPTABLE LOADER
+   Rang: Yashil (#10b981, #34d399, #059669)
+   Orqa fon: 5px blur (backdrop-filter: blur(5px))
+   Har qanday komponentga moslashuvchan (fullscreen, overlay, block, inline)
+   ========================================================= */
+
+/* Asosiy konteyner */
+.app-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-sizing: border-box;
+  animation: appLoaderFadeIn 0.22s ease-out forwards;
+}
+
+/* 1. Fullscreen varianti — butun ekranni 5px blur bilan qoplaydi */
+.app-loader--fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  background: rgba(18, 17, 16, 0.76);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  padding: 24px;
+}
+
+/* 2. Overlay varianti — ota-element (karta, jadval, panel) ustini 5px blur bilan qoplaydi */
+.app-loader--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(22, 21, 20, 0.74);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-radius: inherit;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* 3. Block varianti — sahifa ichidagi mustaqil fonli karta, orqa foni 5px blur */
+.app-loader--block {
+  width: 100%;
+  min-height: 180px;
+  padding: 36px 20px;
+  background: rgba(34, 33, 30, 0.72);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  margin: 12px 0;
+}
+
+/* 4. Inline varianti — tugmalar va sarlavhalar ichida */
+.app-loader--inline {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Loader tarkibi (markaziy quti) */
+.app-loader__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  max-width: 380px;
+}
+
+.app-loader--inline .app-loader__box {
+  flex-direction: row;
+  gap: 8px;
+  max-width: none;
+}
+
+/* Yashil aylanuvchi spinner konteyneri */
+.app-loader__spinner-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* O'lchamlar (Sizes) */
+.app-loader--size-xs .app-loader__spinner-wrapper {
+  width: 18px;
+  height: 18px;
+}
+.app-loader--size-sm .app-loader__spinner-wrapper {
+  width: 26px;
+  height: 26px;
+}
+.app-loader--size-md .app-loader__spinner-wrapper {
+  width: 48px;
+  height: 48px;
+}
+.app-loader--size-lg .app-loader__spinner-wrapper {
+  width: 68px;
+  height: 68px;
+}
+.app-loader--size-xl .app-loader__spinner-wrapper {
+  width: 90px;
+  height: 90px;
+}
+
+/* Yashil SVG halqasi (Green SVG Circular Ring) */
+.app-loader__svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  animation: appLoaderRotate 2s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.45));
+}
+
+.app-loader__track {
+  stroke: rgba(52, 211, 153, 0.15);
+}
+
+.app-loader__indicator {
+  stroke: #34d399;
+  stroke-linecap: round;
+  animation: appLoaderDash 1.5s ease-in-out infinite;
+}
+
+/* Qarama-qarshi aylanuvchi ichki yashil mikro-halqa (Inner counter ring) */
+.app-loader__inner-ring {
+  position: absolute;
+  inset: 15%;
+  border-radius: 50%;
+  border: 2px dashed rgba(16, 185, 129, 0.4);
+  border-top-color: #10b981;
+  animation: appLoaderRotateReverse 3s linear infinite;
+}
+
+/* Markazdagi yorqin yashil yadro (Glowing Emerald Core) */
+.app-loader__core {
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #34d399 20%, #10b981 70%, #059669 100%);
+  box-shadow: 0 0 14px #34d399, 0 0 28px rgba(16, 185, 129, 0.6);
+  animation: appLoaderPulseGlow 1.8s ease-in-out infinite;
+}
+
+/* Yashil nurli aura (Ambient emerald halo) */
+.app-loader__halo {
+  position: absolute;
+  inset: -15%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.22) 0%, rgba(16, 185, 129, 0.08) 50%, transparent 75%);
+  pointer-events: none;
+  animation: appLoaderHaloPulse 2.4s ease-in-out infinite;
+}
+
+/* Matnlar qismi */
+.app-loader__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-loader--inline .app-loader__content {
+  flex-direction: row;
+  align-items: center;
+}
+
+/* Yashil sarlavha matni */
+.app-loader__title {
+  color: #34d399;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-shadow: 0 0 10px rgba(52, 211, 153, 0.35);
+}
+
+.app-loader--size-xs .app-loader__title,
+.app-loader--size-sm .app-loader__title {
+  font-size: 0.8rem;
+}
+
+.app-loader--size-lg .app-loader__title {
+  font-size: 1.1rem;
+}
+
+.app-loader--size-xl .app-loader__title {
+  font-size: 1.25rem;
+}
+
+/* Quyi yordamchi matn */
+.app-loader__subtext {
+  color: var(--text-muted, #a7a195);
+  font-size: 0.78rem;
+  margin: 0;
+  opacity: 0.88;
+}
+
+.app-loader--size-xs .app-loader__subtext,
+.app-loader--size-sm .app-loader__subtext {
+  font-size: 0.7rem;
+}
+
+/* Nuqtalar animatsiyasi (. .. ...) */
+.app-loader__dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 2px;
+}
+
+.app-loader__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: #34d399;
+  display: inline-block;
+  animation: appLoaderDotBounce 1.4s infinite ease-in-out both;
+}
+
+.app-loader__dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.app-loader__dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.app-loader__dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+/* Ixtiyoriy yashil progress bar */
+.app-loader__progress-bar {
+  width: 140px;
+  height: 3px;
+  background: rgba(52, 211, 153, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+  position: relative;
+}
+
+.app-loader__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399, #a7f3d0);
+  border-radius: 999px;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+  animation: appLoaderProgressIndeterminate 1.6s ease-in-out infinite;
+}
+
+/* Qo'shimcha narsalar uchun slot */
+.app-loader__extra {
+  margin-top: 8px;
+}
+
+/* =========================================================
+   ANIMATSIYALAR (KEYFRAMES)
+   ========================================================= */
+
+@keyframes appLoaderFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes appLoaderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes appLoaderRotateReverse {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes appLoaderDash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35px;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124px;
+  }
+}
+
+@keyframes appLoaderPulseGlow {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.85;
+    box-shadow: 0 0 10px #34d399, 0 0 20px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+    box-shadow: 0 0 18px #34d399, 0 0 32px rgba(52, 211, 153, 0.8);
+  }
+}
+
+@keyframes appLoaderHaloPulse {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.85;
+  }
+}
+
+@keyframes appLoaderDotBounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes appLoaderProgressIndeterminate {
+  0% {
+    transform: translateX(-100%);
+    width: 25%;
+  }
+  50% {
+    transform: translateX(100%);
+    width: 60%;
+  }
+  100% {
+    transform: translateX(300%);
+    width: 25%;
+  }
+}
+
+/* Light rejim uchun fon moslashuvi */
+[data-theme="light"] .app-loader--fullscreen {
+  background: rgba(248, 246, 240, 0.82);
+}
+
+[data-theme="light"] .app-loader--overlay {
+  background: rgba(248, 246, 240, 0.78);
+}
+
+[data-theme="light"] .app-loader--block {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(37, 129, 100, 0.28);
+}

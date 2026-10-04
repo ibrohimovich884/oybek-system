@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Wallet,
   ArrowRightLeft,
@@ -13,6 +13,7 @@ import {
   Check,
   X,
   Lock,
+  Unlock,
   Search,
   XCircle,
   Calendar,
@@ -34,10 +35,11 @@ import EditReserveModal from "../components/control-panel/EditReserveModal.jsx";
 import UniversalTransferModal from "../components/control-panel/UniversalTransferModal.jsx";
 import EditTransactionModal from "../components/money-manager/EditTransactionModal.jsx";
 import SecurityGate from "../components/security/SecurityGate.jsx";
+import Loader from "../components/common/Loader.jsx";
 
 export default function ControlPanel() {
   const navigate = useNavigate();
-  const { lockScope } = useSecurity();
+  const { lockScope, isControlPanelLockEnabled } = useSecurity();
   const {
     currentBalances,
     reserves,
@@ -46,6 +48,7 @@ export default function ControlPanel() {
     rateInfo,
     loadCbuRate,
     setManualUsdRate,
+    isLoading,
   } = useExpenses();
 
   const [editingReserveId, setEditingReserveId] = useState(null);
@@ -209,15 +212,27 @@ export default function ControlPanel() {
             <h1 className="cp-title">Boshqaruv</h1>
           </div>
 
-          <button
-            type="button"
-            className="cp-lock-btn"
-            onClick={handleLockAndNavigate}
-            title="Boshqaruv panelini qulflash va Bosh sahifaga o'tish"
-          >
-            <Lock size={13} />
-            <span>Qulflash</span>
-          </button>
+          {isControlPanelLockEnabled ? (
+            <button
+              type="button"
+              className="cp-lock-btn"
+              onClick={handleLockAndNavigate}
+              title="Boshqaruv panelini qulflash va Bosh sahifaga o'tish"
+            >
+              <Lock size={13} />
+              <span>Qulflash</span>
+            </button>
+          ) : (
+            <Link
+              to="/settings"
+              className="cp-lock-btn"
+              style={{ textDecoration: "none", color: "inherit", opacity: 0.85 }}
+              title="Control panel qulfini Sozlamalar orqali yoqishingiz mumkin"
+            >
+              <Unlock size={13} />
+              <span>Himoya oʻchiq</span>
+            </Link>
+          )}
         </div>
 
         {/* Ikkinchi qator: Kurs ko'rsatkichi va O'tkazma */}
@@ -262,8 +277,28 @@ export default function ControlPanel() {
         </div>
       </div>
 
-      {/* 2. Sarhisob (Barcha mablag'lar) */}
-      <div className="cp-summary-strip">
+      {isRefreshingRate && (
+        <Loader
+          variant="overlay"
+          size="md"
+          text="Markaziy Bank kursi yangilanmoqda..."
+          subtext="Iltimos, kuting"
+          blur="5px"
+        />
+      )}
+
+      {isLoading ? (
+        <Loader
+          variant="block"
+          size="lg"
+          text="Boshqaruv paneli yuklanmoqda..."
+          subtext="Jamgʻarma va zaxiralar hisob-kitobi tayyorlanmoqda"
+          blur="5px"
+        />
+      ) : (
+        <>
+          {/* 2. Sarhisob (Barcha mablag'lar) */}
+          <div className="cp-summary-strip">
         <div className="cp-summary-main">
           <span className="cp-summary-label">Jami jamgʻarma (Oddiy + Zaxira):</span>
           <div className="cp-summary-numbers">
@@ -727,6 +762,8 @@ export default function ControlPanel() {
           )}
         </div>
       </section>
+      </>
+      )}
 
       {/* Kursni tahrirlash dialogi */}
       {isEditingRate && (
