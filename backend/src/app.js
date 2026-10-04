@@ -13,6 +13,7 @@ import exercisesRouter from "./routes/exercises.js";
 import exchangeRateRouter from "./routes/exchangeRate.js";
 import backupRouter from "./routes/backup.js";
 import snapshotRouter from "./routes/snapshot.js";
+import adminRouter from "./routes/admin.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
@@ -26,6 +27,7 @@ app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 
 // JWT bilan himoyalangan API yo'llari (30 kunlik sessiya)
+app.use("/api/admin", adminRouter);
 app.use("/api/expenses", requireAuth, expensesRouter);
 app.use("/api/wallets", requireAuth, walletsRouter);
 app.use("/api/debts", requireAuth, debtsRouter);

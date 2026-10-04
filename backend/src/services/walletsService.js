@@ -43,9 +43,9 @@ export async function ensureUserWallets(userId, client = pool) {
   if (!userId) return;
 
   const standardWallets = [
-    { key: "hamyon", name: "Hamyon", currency: "UZS", balance: 50000, parentKey: null },
-    { key: "naqd", name: "Naqd pul", currency: "UZS", balance: 30000, parentKey: null },
-    { key: "karta", name: "Plastik karta", currency: "UZS", balance: 100000, parentKey: null },
+    { key: "hamyon", name: "Hamyon", currency: "UZS", balance: 0, parentKey: null },
+    { key: "naqd", name: "Naqd pul", currency: "UZS", balance: 0, parentKey: null },
+    { key: "karta", name: "Plastik karta", currency: "UZS", balance: 0, parentKey: null },
     { key: "dollar", name: "AQSH Dollari", currency: "USD", balance: 0, parentKey: null },
     { key: "naqd_reserve", name: "Naqd zaxira", currency: "UZS", balance: 0, parentKey: "naqd" },
     { key: "karta_reserve", name: "Karta zaxira", currency: "UZS", balance: 0, parentKey: "karta" },

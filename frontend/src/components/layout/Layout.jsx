@@ -23,6 +23,7 @@ export default function Layout({ children }) {
 
   const getPageTag = () => {
     if (isHome) return "Bosh sahifa";
+    if (location.pathname === "/admin") return "Admin Panel";
     if (isMoney) return "Money manager";
     if (isHistory) return "Tranzaksiyalar tarixi";
     if (isDebts) return "Qarz daftari";

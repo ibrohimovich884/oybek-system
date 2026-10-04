@@ -8,10 +8,19 @@ import DebtsPage from "./pages/DebtsPage.jsx";
 import ExercisesPage from "./pages/ExercisesPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
+import AdminPage from "./pages/AdminPage.jsx";
 import SecurityGate from "./components/security/SecurityGate.jsx";
 import LoginScreen from "./components/auth/LoginScreen.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { SlidersHorizontal } from "lucide-react";
+
+function AdminRoute({ children }) {
+  const { user } = useAuth();
+  if (user?.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
 
 export default function App() {
   const { isAuthenticated } = useAuth();
@@ -28,6 +37,14 @@ export default function App() {
         <Route path="/money" element={<MoneyManager />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/transactions" element={<Navigate to="/history" replace />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          }
+        />
         <Route
           path="/control"
           element={

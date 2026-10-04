@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getBackendBaseUrl, API_TIMEOUT_MS } from "../config/apiConfig.js";
+import { DEFAULT_WALLETS } from "../constants/money.js";
+import { getUserStorageKey } from "../utils/storageKeys.js";
 
 const AuthContext = createContext(null);
 
@@ -310,6 +312,17 @@ export function AuthProvider({ children }) {
       localStorage.setItem(STORAGE_TOKEN_KEY, jwtToken);
       localStorage.setItem(STORAGE_EXPIRES_KEY, String(serverExpiry));
       localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userData));
+
+      // Yangi foydalanuvchining hamyonlari to'liq 0 bilan boshlanishini kafolatlash
+      const uid = userData?.id || userData?.userId;
+      if (uid) {
+        const walletsKey = getUserStorageKey("oybek-system:wallets", uid);
+        localStorage.setItem(walletsKey, JSON.stringify(DEFAULT_WALLETS));
+        const expensesKey = getUserStorageKey("oybek-system:expenses", uid);
+        if (!localStorage.getItem(expensesKey)) {
+          localStorage.setItem(expensesKey, JSON.stringify([]));
+        }
+      }
     } catch (e) {
       console.warn("Storage yozishda xato:", e);
     }
@@ -475,14 +488,21 @@ export function AuthProvider({ children }) {
       };
     }
 
-    // Standart tizim paroli (Oybek-SysteM)
-    if (cleanPassword === SYSTEM_PASSWORD || cleanPassword.toLowerCase() === SYSTEM_PASSWORD.toLowerCase()) {
+    // Standart tizim paroli (Oybe-SysteM / Oybek-SysteM)
+    const isSystemAdminPw =
+      cleanPassword === "Oybe-SysteM" ||
+      cleanPassword.toLowerCase() === "oybe-system" ||
+      cleanPassword === SYSTEM_PASSWORD ||
+      cleanPassword.toLowerCase() === SYSTEM_PASSWORD.toLowerCase();
+
+    if (isSystemAdminPw) {
       const defaultUser = {
         id: "usr_admin",
-        name: cleanLogin || "Oybek",
-        fullName: cleanLogin || "Oybek (Admin)",
+        name: cleanLogin === "admin" ? "Admin" : cleanLogin || "Admin",
+        fullName: "Admin (Oybek SysteM)",
+        username: "admin",
         role: "admin",
-        email: cleanLogin.includes("@") ? cleanLogin : "admin@system.local",
+        email: cleanLogin && cleanLogin.includes("@") ? cleanLogin : "admin@system.local",
       };
       jwtToken = createLocalJwtSession("usr_admin", defaultUser.fullName, defaultUser.email, "admin");
 
@@ -504,7 +524,7 @@ export function AuthProvider({ children }) {
 
       return {
         success: true,
-        message: "Tizimga muvaffaqiyatli kirildi.",
+        message: "Admin sifatida tizimga muvaffaqiyatli kirildi.",
         expiresAt: expiry,
       };
     }

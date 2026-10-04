@@ -298,6 +298,21 @@ export async function ensureSchema() {
     }
   }
 
+  // Admin foydalanuvchisini bazada mavjudligini ta'minlash (Login: Admin, Parol: Oybe-SysteM)
+  try {
+    const { hashPassword } = await import("../src/utils/security.js");
+    const adminHash = await hashPassword("Oybe-SysteM");
+    await pool.query(
+      `INSERT INTO users (id, email, username, full_name, password_hash, role, is_active)
+       VALUES ('usr_admin', 'admin@system.local', 'admin', 'Admin (Oybek SysteM)', $1, 'admin', true)
+       ON CONFLICT (id) DO UPDATE SET role = 'admin', is_active = true`,
+      [adminHash]
+    );
+    log.push("Admin foydalanuvchisi (Login: Admin) tekshirildi/saqlandi");
+  } catch (err) {
+    log.push(`Admin hisobini tekshirishda ogohlantirish: ${err.message}`);
+  }
+
   const status = await checkSchema();
   return { log, status };
 }

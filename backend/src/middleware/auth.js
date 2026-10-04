@@ -32,3 +32,13 @@ export function requireAuth(req, res, next) {
     });
   }
 }
+
+export function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({
+      error: "Ushbu amalni bajarish uchun faqat Admin huquqi talab qilinadi.",
+      code: "FORBIDDEN",
+    });
+  }
+  next();
+}

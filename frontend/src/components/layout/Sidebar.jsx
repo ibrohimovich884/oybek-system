@@ -41,6 +41,17 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const navItems = [
     { to: "/", label: "Bosh sahifa", icon: Home },
+    ...(user?.role === "admin"
+      ? [
+          {
+            to: "/admin",
+            label: "Admin Panel",
+            icon: ShieldCheck,
+            badge: "Admin",
+            badgeType: "admin",
+          },
+        ]
+      : []),
     { to: "/money", label: "Money manager", icon: Wallet },
     {
       to: "/history",
@@ -139,6 +150,8 @@ export default function Sidebar({ isOpen, onClose }) {
                         ? "sidebar__badge--warning"
                         : item.badgeType === "lock"
                         ? "sidebar__badge--lock"
+                        : item.badgeType === "admin"
+                        ? "sidebar__badge--admin"
                         : ""
                     }`}
                     style={
@@ -151,6 +164,17 @@ export default function Sidebar({ isOpen, onClose }) {
                             justifyContent: "center",
                             padding: "3px 5px",
                             borderRadius: "6px",
+                          }
+                        : item.badgeType === "admin"
+                        ? {
+                            background: "rgba(245, 158, 11, 0.2)",
+                            border: "1px solid rgba(245, 158, 11, 0.45)",
+                            color: "#fbbf24",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "6px",
+                            fontSize: "0.68rem",
+                            letterSpacing: "0.02em",
                           }
                         : {}
                     }
