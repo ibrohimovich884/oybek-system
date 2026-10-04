@@ -28,8 +28,12 @@ router.get("/stats", async (req, res) => {
       pool.query(`SELECT COUNT(*)::int AS count FROM transactions`),
       pool.query(`SELECT COUNT(*)::int AS count FROM wallets`),
       pool.query(`SELECT COUNT(*)::int AS count FROM debts WHERE status != 'settled'`),
-      pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints`).catch(() => ({ rows: [{ count: 0 }] })),
-      pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints WHERE status = 'pending'`).catch(() => ({ rows: [{ count: 0 }] })),
+      pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints`).catch(async () => {
+        return pool.query(`SELECT COUNT(*)::int AS count FROM app_update_complaints`).catch(() => ({ rows: [{ count: 0 }] }));
+      }),
+      pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints WHERE status = 'pending'`).catch(async () => {
+        return pool.query(`SELECT COUNT(*)::int AS count FROM app_update_complaints WHERE status = 'pending'`).catch(() => ({ rows: [{ count: 0 }] }));
+      }),
     ]);
 
     return res.json({
@@ -392,14 +396,29 @@ router.post("/hash-tool", async (req, res) => {
   }
 });
 
+async function getComplaintsTable() {
+  try {
+    const res = await pool.query(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name IN ('update_complaints', 'app_update_complaints')
+      ORDER BY CASE WHEN table_name = 'update_complaints' THEN 1 ELSE 2 END
+      LIMIT 1
+    `);
+    return res.rows[0]?.table_name || "update_complaints";
+  } catch {
+    return "update_complaints";
+  }
+}
+
 // =========================================================================
 // GET /api/admin/complaints — Foydalanuvchilarning barcha shikoyat va takliflari
 // =========================================================================
 router.get("/complaints", async (req, res) => {
   try {
+    const tbl = await getComplaintsTable();
     const { status, type, search } = req.query;
 
-    let query = `SELECT * FROM update_complaints`;
+    let query = `SELECT * FROM ${tbl}`;
     const conditions = [];
     const params = [];
 
@@ -445,7 +464,7 @@ router.get("/complaints", async (req, res) => {
         COUNT(CASE WHEN status = 'in_review' THEN 1 END)::int AS in_review,
         COUNT(CASE WHEN status = 'resolved' THEN 1 END)::int AS resolved,
         COUNT(CASE WHEN status = 'rejected' THEN 1 END)::int AS rejected
-      FROM update_complaints
+      FROM ${tbl}
     `).catch(() => ({ rows: [{ total: 0, pending: 0, in_review: 0, resolved: 0, rejected: 0 }] }));
 
     return res.json({
@@ -473,9 +492,10 @@ router.put("/complaints/:id/status", async (req, res) => {
   }
 
   try {
+    const tbl = await getComplaintsTable();
     const isResolved = status === "resolved";
     const updateRes = await pool.query(
-      `UPDATE update_complaints
+      `UPDATE ${tbl}
        SET 
         status = COALESCE($1, status),
         admin_notes = COALESCE($2, admin_notes),
@@ -514,7 +534,8 @@ router.put("/complaints/:id/status", async (req, res) => {
 router.delete("/complaints/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const delRes = await pool.query(`DELETE FROM update_complaints WHERE id = $1 RETURNING id`, [id]);
+    const tbl = await getComplaintsTable();
+    const delRes = await pool.query(`DELETE FROM ${tbl} WHERE id = $1 RETURNING id`, [id]);
     if (delRes.rows.length === 0) {
       return res.status(404).json({ error: "Shikoyat topilmadi" });
     }

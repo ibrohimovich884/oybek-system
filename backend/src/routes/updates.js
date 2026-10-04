@@ -4,11 +4,40 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
+async function getUpdatesTable() {
+  try {
+    const res = await pool.query(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name IN ('system_updates', 'app_updates')
+      ORDER BY CASE WHEN table_name = 'system_updates' THEN 1 ELSE 2 END
+      LIMIT 1
+    `);
+    return res.rows[0]?.table_name || "system_updates";
+  } catch {
+    return "system_updates";
+  }
+}
+
+async function getComplaintsTable() {
+  try {
+    const res = await pool.query(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name IN ('update_complaints', 'app_update_complaints')
+      ORDER BY CASE WHEN table_name = 'update_complaints' THEN 1 ELSE 2 END
+      LIMIT 1
+    `);
+    return res.rows[0]?.table_name || "update_complaints";
+  } catch {
+    return "update_complaints";
+  }
+}
+
 // =========================================================================
-// GET /api/updates — Barcha tizim yangilanishlari roʻyxati
+// GET /api/updates — Barcha tizim yangilanishlari roʻyxati (To'g'ridan-to'g'ri DBdan)
 // =========================================================================
 router.get("/", async (req, res) => {
   try {
+    const tbl = await getUpdatesTable();
     const { rows } = await pool.query(
       `SELECT 
         id, 
@@ -22,7 +51,7 @@ router.get("/", async (req, res) => {
         is_pinned, 
         created_at, 
         updated_at
-       FROM system_updates
+       FROM ${tbl}
        ORDER BY is_pinned DESC, release_date DESC, created_at DESC`
     );
 
@@ -43,7 +72,8 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const { rows } = await pool.query(`SELECT * FROM system_updates WHERE id = $1`, [id]);
+    const tbl = await getUpdatesTable();
+    const { rows } = await pool.query(`SELECT * FROM ${tbl} WHERE id = $1`, [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: "Yangilanish topilmadi" });
     }
@@ -58,6 +88,7 @@ router.get("/:id", async (req, res) => {
 // =========================================================================
 router.post("/", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const tbl = await getUpdatesTable();
     const { version, title, category, badge, summary, details, releaseDate, isPinned } = req.body;
 
     if (!version || !title || !summary) {
@@ -68,7 +99,7 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
     const parsedDetails = Array.isArray(details) ? JSON.stringify(details) : typeof details === "string" ? details : "[]";
 
     const insertRes = await pool.query(
-      `INSERT INTO system_updates (
+      `INSERT INTO ${tbl} (
         id, version, title, category, badge, summary, details, release_date, is_pinned, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
       RETURNING *`,
@@ -102,12 +133,13 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
+    const tbl = await getUpdatesTable();
     const { version, title, category, badge, summary, details, releaseDate, isPinned } = req.body;
 
     const parsedDetails = Array.isArray(details) ? JSON.stringify(details) : typeof details === "string" ? details : undefined;
 
     const updateRes = await pool.query(
-      `UPDATE system_updates
+      `UPDATE ${tbl}
        SET 
         version = COALESCE($1, version),
         title = COALESCE($2, title),
@@ -154,7 +186,8 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
-    const delRes = await pool.query(`DELETE FROM system_updates WHERE id = $1 RETURNING id`, [id]);
+    const tbl = await getUpdatesTable();
+    const delRes = await pool.query(`DELETE FROM ${tbl} WHERE id = $1 RETURNING id`, [id]);
     if (delRes.rows.length === 0) {
       return res.status(404).json({ error: "Yangilanish topilmadi" });
     }
@@ -169,6 +202,7 @@ router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
 // =========================================================================
 router.post("/complaints", requireAuth, async (req, res) => {
   try {
+    const tbl = await getComplaintsTable();
     const {
       updateId,
       updateVersion,
@@ -197,7 +231,7 @@ router.post("/complaints", requireAuth, async (req, res) => {
     const id = `cmp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
     const insertRes = await pool.query(
-      `INSERT INTO update_complaints (
+      `INSERT INTO ${tbl} (
         id, user_id, user_name, user_email, user_phone,
         update_id, update_version, update_title,
         complaint_type, priority, subject, message,
@@ -236,11 +270,12 @@ router.post("/complaints", requireAuth, async (req, res) => {
 // =========================================================================
 router.get("/my-complaints", requireAuth, async (req, res) => {
   try {
+    const tbl = await getComplaintsTable();
     const userId = req.user?.userId;
     const userEmail = req.user?.email;
 
     const { rows } = await pool.query(
-      `SELECT * FROM update_complaints
+      `SELECT * FROM ${tbl}
        WHERE user_id = $1 OR user_email = $2
        ORDER BY created_at DESC`,
       [userId, userEmail]
