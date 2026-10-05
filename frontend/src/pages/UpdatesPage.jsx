@@ -15,7 +15,7 @@ import {
   Lightbulb,
   HelpCircle,
 } from "lucide-react";
-import { updatesApi } from "../api/updates.js";
+import { updatesApi, getLocalUpdates, isUpdatesFresh } from "../api/updates.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import Loader from "../components/common/Loader.jsx";
 
@@ -24,8 +24,8 @@ export default function UpdatesPage() {
   const isAdmin = user?.role === "admin";
 
   // Ro'yxatlar va holatlar
-  const [updates, setUpdates] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [updates, setUpdates] = useState(() => getLocalUpdates());
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Xabarnoma
@@ -59,18 +59,21 @@ export default function UpdatesPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Ma'lumotlarni yuklash
-  const loadUpdates = useCallback(async (quiet = false) => {
-    if (!quiet) setIsLoading(true);
-    else setIsRefreshing(true);
+  // Ma'lumotlarni yuklash (1 kunda 1 marta fon rejimida)
+  const loadUpdates = useCallback(async (isManual = false) => {
+    if (isManual) {
+      setIsRefreshing(true);
+    }
 
     try {
-      const res = await updatesApi.getUpdates();
+      const res = await updatesApi.getUpdates(isManual);
       if (res.ok && res.updates) {
         setUpdates(res.updates);
       }
     } catch (err) {
-      showToast("Yangilanishlarni yuklashda xatolik: " + err.message, "error");
+      if (isManual) {
+        showToast("Yangilanishlarni yuklashda xatolik: " + err.message, "error");
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -78,7 +81,9 @@ export default function UpdatesPage() {
   }, []);
 
   useEffect(() => {
-    loadUpdates();
+    if (!isUpdatesFresh()) {
+      loadUpdates(false);
+    }
   }, [loadUpdates]);
 
   // Shikoyat modalini ochish (aniq bir yangilik bo'yicha yoki umumiy)

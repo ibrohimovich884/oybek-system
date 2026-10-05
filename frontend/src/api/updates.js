@@ -4,7 +4,9 @@
 import { apiClient } from "./client.js";
 
 const STORAGE_UPDATES_KEY = "oybek_system:updates_cache_v1";
+const STORAGE_UPDATES_META_KEY = "oybek_system:updates_meta_v1";
 const STORAGE_COMPLAINTS_KEY = "oybek_system:complaints_cache_v1";
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // Default tizim yangilanishlari (oflayn yoki birinchi yuklanishda)
 export const DEFAULT_SYSTEM_UPDATES = [
@@ -120,7 +122,7 @@ function saveLocalComplaints(complaints) {
   }
 }
 
-function getLocalUpdates() {
+export function getLocalUpdates() {
   try {
     const raw = localStorage.getItem(STORAGE_UPDATES_KEY);
     return raw ? JSON.parse(raw) : DEFAULT_SYSTEM_UPDATES;
@@ -129,9 +131,27 @@ function getLocalUpdates() {
   }
 }
 
+export function isUpdatesFresh() {
+  try {
+    const metaRaw = localStorage.getItem(STORAGE_UPDATES_META_KEY);
+    if (!metaRaw) return false;
+    const meta = JSON.parse(metaRaw);
+    if (!meta.lastFetched) return false;
+    const lastDate = new Date(meta.lastFetched);
+    const now = new Date();
+    const isSameDay = lastDate.getFullYear() === now.getFullYear() &&
+                      lastDate.getMonth() === now.getMonth() &&
+                      lastDate.getDate() === now.getDate();
+    return isSameDay || (now.getTime() - lastDate.getTime() < ONE_DAY_MS);
+  } catch {
+    return false;
+  }
+}
+
 function saveLocalUpdates(updates) {
   try {
     localStorage.setItem(STORAGE_UPDATES_KEY, JSON.stringify(updates));
+    localStorage.setItem(STORAGE_UPDATES_META_KEY, JSON.stringify({ lastFetched: new Date().toISOString() }));
   } catch (e) {
     console.warn("Save local updates error:", e);
   }
@@ -139,16 +159,24 @@ function saveLocalUpdates(updates) {
 
 export const updatesApi = {
   /**
-   * Barcha yangilanishlarni olish
+   * Barcha yangilanishlarni olish (1 kunda 1 marta yangilanadi, fon rejimida)
    */
-  async getUpdates() {
-    const res = await apiClient.get("/api/updates");
-    if (res.ok && res.data?.updates && res.data.updates.length > 0) {
-      saveLocalUpdates(res.data.updates);
-      return { ok: true, updates: res.data.updates, isRemote: true };
+  async getUpdates(force = false) {
+    const cached = getLocalUpdates();
+    if (!force && isUpdatesFresh()) {
+      return { ok: true, updates: cached, isRemote: false };
     }
 
-    const cached = getLocalUpdates();
+    try {
+      const res = await apiClient.get("/api/updates");
+      if (res.ok && res.data?.updates && res.data.updates.length > 0) {
+        saveLocalUpdates(res.data.updates);
+        return { ok: true, updates: res.data.updates, isRemote: true };
+      }
+    } catch {
+      // Backend mavjud bo'lmasa kesh qaytariladi
+    }
+
     return { ok: true, updates: cached, isRemote: false };
   },
 

@@ -8,6 +8,7 @@
 import { apiClient } from '../../api/client.js';
 import { API_ENDPOINTS } from '../../config/apiConfig.js';
 import { syncService } from '../syncService.js';
+import { getUserStorageKey } from '../../utils/storageKeys.js';
 
 const STORAGE_EXERCISES_KEY = 'oybek_exercises_list';
 const STORAGE_LOGS_KEY = 'oybek_exercise_logs';
@@ -15,7 +16,7 @@ const STORAGE_LOGS_KEY = 'oybek_exercise_logs';
 function getLocal(key) {
   if (typeof window === 'undefined') return [];
   try {
-    const data = localStorage.getItem(key);
+    const data = localStorage.getItem(getUserStorageKey(key));
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
@@ -25,7 +26,7 @@ function getLocal(key) {
 function setLocal(key, data) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(getUserStorageKey(key), JSON.stringify(data));
   } catch {}
 }
 

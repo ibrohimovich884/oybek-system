@@ -35,13 +35,43 @@ export function writeLocalDebts(debts) {
  * Qarzlar ro'yxatini olish (Backend /api/debts yoki snapshot yoki lokal kesh)
  */
 export async function getDebts() {
+  const localDebts = readLocalDebts();
+  const unsyncedLocals = localDebts.filter((d) => d.synced === false);
+
   // 1. Yangi REST /api/debts endpointi
   try {
     const res = await apiClient.get("/api/debts");
     if (res.ok && Array.isArray(res.data)) {
       const serverDebts = res.data.map((d) => ({ ...d, synced: true }));
-      writeLocalDebts(serverDebts);
-      return serverDebts;
+      
+      const debtMap = new Map();
+      serverDebts.forEach((d) => debtMap.set(d.id, d));
+
+      // Unsynced local debts va ularning to'lovlarini saqlab qolamiz
+      unsyncedLocals.forEach((localD) => {
+        const serverD = debtMap.get(localD.id);
+        if (serverD) {
+          const serverPayments = serverD.payments || [];
+          const localPayments = localD.payments || [];
+          const payMap = new Map();
+          serverPayments.forEach((p) => payMap.set(p.id, p));
+          localPayments.forEach((p) => payMap.set(p.id, p));
+
+          debtMap.set(localD.id, {
+            ...serverD,
+            ...localD,
+            payments: Array.from(payMap.values()),
+            synced: false,
+          });
+        } else {
+          debtMap.set(localD.id, localD);
+        }
+      });
+
+      const merged = Array.from(debtMap.values());
+      merged.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+      writeLocalDebts(merged);
+      return merged;
     }
   } catch (err) {
     console.warn("/api/debts dan olishda xatolik, snapshot tekshiriladi:", err);
@@ -57,7 +87,7 @@ export async function getDebts() {
     console.warn("DBdan qarzlarni olishda ogohlantirish (lokal xotira ishlatiladi):", err);
   }
 
-  return readLocalDebts();
+  return localDebts;
 }
 
 /**
@@ -99,19 +129,20 @@ export async function addDebtRecord(debtData) {
   });
 
   // 2. REST API /api/debts ga yuborish
-  apiClient.post("/api/debts", newDebt)
-    .then((res) => {
-      if (res.ok) {
-        newDebt.synced = true;
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.addLog("success", `Qarz DBga saqlandi: ${newDebt.personName} (${newDebt.amount})`);
-        markDebtSynced(newDebt.id, true);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id: newDebt.id } }));
-        }
+  try {
+    const res = await apiClient.post("/api/debts", newDebt);
+    if (res && res.ok) {
+      newDebt.synced = true;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Qarz DBga saqlandi: ${newDebt.personName} (${newDebt.amount})`);
+      markDebtSynced(newDebt.id, true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id: newDebt.id } }));
       }
-    })
-    .catch(() => {});
+    }
+  } catch (err) {
+    console.warn("Debt post error:", err);
+  }
 
   // Snapshotga ham zaxira uchun yuboramiz
   pushSnapshot().catch(() => {});
@@ -148,19 +179,20 @@ export async function updateDebtRecord(id, updates) {
     payload: updated,
   });
 
-  apiClient.put(`/api/debts/${id}`, updated)
-    .then((res) => {
-      if (res.ok) {
-        updated.synced = true;
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.addLog("success", `Qarz yangilanishi DBga saqlandi: ${updated.personName}`);
-        markDebtSynced(id, true);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
-        }
+  try {
+    const res = await apiClient.put(`/api/debts/${id}`, updated);
+    if (res && res.ok) {
+      updated.synced = true;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Qarz yangilanishi DBga saqlandi: ${updated.personName}`);
+      markDebtSynced(id, true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
       }
-    })
-    .catch(() => {});
+    }
+  } catch (err) {
+    console.warn("Debt update error:", err);
+  }
 
   pushSnapshot().catch(() => {});
 
@@ -174,9 +206,8 @@ export async function recordDebtPayment(id, paymentData) {
 
   const debt = debts[index];
   const paymentAmount = Number(paymentData.amount || 0);
-  if (paymentAmount <= 0) throw new Error("To'lov summasi 0 dan katta bo'lishi kerak");
 
-  const newPayment = {
+  const newPayment = paymentAmount > 0 ? {
     id: generateId(),
     amount: paymentAmount,
     date: formatISOWithOffset(paymentData.date || new Date()),
@@ -184,13 +215,13 @@ export async function recordDebtPayment(id, paymentData) {
     affectBalance: Boolean(paymentData.affectBalance),
     note: paymentData.note?.trim() || "",
     createdAt: formatISOWithOffset(new Date()),
-  };
+  } : null;
 
-  const payments = [newPayment, ...(debt.payments || [])];
+  const payments = newPayment ? [newPayment, ...(debt.payments || [])] : [...(debt.payments || [])];
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
   let status = "partial";
-  if (totalPaid >= debt.amount) {
+  if (totalPaid >= debt.amount || paymentData.status === "settled" || paymentData.markSettled) {
     status = "settled";
   } else if (totalPaid <= 0) {
     status = "pending";
@@ -214,9 +245,14 @@ export async function recordDebtPayment(id, paymentData) {
     payload: updatedDebt,
   });
 
-  apiClient.post(`/api/debts/${id}/payments`, newPayment)
-    .then((res) => {
-      if (res.ok) {
+  try {
+    if (newPayment) {
+      const res = await apiClient.post(`/api/debts/${id}/payments`, {
+        ...newPayment,
+        debtData: debt,
+        markSettled: status === "settled",
+      });
+      if (res && res.ok) {
         updatedDebt.synced = true;
         syncService.removeFromQueue(queueEntry.queueId);
         syncService.addLog("success", `Qarz to'lovi DBga saqlandi: ${debt.personName} (+${paymentAmount})`);
@@ -225,12 +261,24 @@ export async function recordDebtPayment(id, paymentData) {
           window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
         }
       }
-    })
-    .catch(() => {});
+    } else {
+      const res = await apiClient.put(`/api/debts/${id}`, updatedDebt);
+      if (res && res.ok) {
+        updatedDebt.synced = true;
+        syncService.removeFromQueue(queueEntry.queueId);
+        markDebtSynced(id, true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Payment recording network error:", err);
+  }
 
   pushSnapshot().catch(() => {});
 
-  return { updatedDebt, payment: newPayment };
+  return { updatedDebt, payment: newPayment || { amount: 0, date: new Date().toISOString() } };
 }
 
 export async function deleteDebtRecord(id) {
@@ -245,14 +293,15 @@ export async function deleteDebtRecord(id) {
     payload: { id },
   });
 
-  apiClient.delete(`/api/debts/${id}`)
-    .then((res) => {
-      if (res.ok) {
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.addLog("success", `Qarz DBdan ham o'chirildi (ID: ${id})`);
-      }
-    })
-    .catch(() => {});
+  try {
+    const res = await apiClient.delete(`/api/debts/${id}`);
+    if (res && res.ok) {
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Qarz DBdan ham o'chirildi (ID: ${id})`);
+    }
+  } catch (err) {
+    console.warn("Delete debt network error:", err);
+  }
 
   pushSnapshot().catch(() => {});
 

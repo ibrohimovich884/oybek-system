@@ -10,12 +10,41 @@
 import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
 import { syncService } from "./syncService.js";
+import { getUserStorageKey } from "../utils/storageKeys.js";
 
 const STORAGE_RATE_KEY = "oybek-system:usd_rate";
 const STORAGE_RATE_META_KEY = "oybek-system:usd_rate_meta";
 const STORAGE_MANUAL_RATE_KEY = "oybek-system:usd_manual_rate";
+const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 soat (1 kun)
 
 const DEFAULT_FALLBACK_RATE = 12850.0;
+
+/**
+ * CBU kursi bugun yangilanganmi yoki 24 soat ichidami tekshirish (1 kunda 1 marta)
+ */
+export function isCbuRateFresh() {
+  if (typeof window === "undefined") return false;
+  try {
+    const metaRaw = localStorage.getItem(getUserStorageKey(STORAGE_RATE_META_KEY)) || localStorage.getItem(STORAGE_RATE_META_KEY);
+    const cachedRate = parseFloat(localStorage.getItem(getUserStorageKey(STORAGE_RATE_KEY)) || localStorage.getItem(STORAGE_RATE_KEY));
+    if (!cachedRate || isNaN(cachedRate) || cachedRate <= 0) return false;
+    if (!metaRaw) return false;
+    const meta = JSON.parse(metaRaw);
+    if (!meta.lastSuccess) return false;
+
+    const lastDate = new Date(meta.lastSuccess);
+    const now = new Date();
+    // Agar xuddi shu kalendar kunda olingan bo'lsa yoki 24 soat ichida bo'lsa
+    const isSameDay = lastDate.getFullYear() === now.getFullYear() &&
+                      lastDate.getMonth() === now.getMonth() &&
+                      lastDate.getDate() === now.getDate();
+
+    const diffMs = now.getTime() - lastDate.getTime();
+    return isSameDay || diffMs < ONE_DAY_MS;
+  } catch {
+    return false;
+  }
+}
 
 export function getStoredRateData() {
   if (typeof window === "undefined") {
@@ -29,7 +58,7 @@ export function getStoredRateData() {
     };
   }
 
-  const manualRaw = localStorage.getItem(STORAGE_MANUAL_RATE_KEY);
+  const manualRaw = localStorage.getItem(getUserStorageKey(STORAGE_MANUAL_RATE_KEY)) || localStorage.getItem(STORAGE_MANUAL_RATE_KEY);
   if (manualRaw) {
     const manualRate = parseFloat(manualRaw);
     if (!isNaN(manualRate) && manualRate > 0) {
@@ -44,8 +73,8 @@ export function getStoredRateData() {
     }
   }
 
-  const cachedRate = parseFloat(localStorage.getItem(STORAGE_RATE_KEY));
-  const metaRaw = localStorage.getItem(STORAGE_RATE_META_KEY);
+  const cachedRate = parseFloat(localStorage.getItem(getUserStorageKey(STORAGE_RATE_KEY)) || localStorage.getItem(STORAGE_RATE_KEY));
+  const metaRaw = localStorage.getItem(getUserStorageKey(STORAGE_RATE_META_KEY)) || localStorage.getItem(STORAGE_RATE_META_KEY);
   let meta = {};
   try {
     meta = metaRaw ? JSON.parse(metaRaw) : {};
@@ -63,11 +92,19 @@ export function getStoredRateData() {
   };
 }
 
-export async function fetchCbuUsdRate() {
-  const manualRaw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_MANUAL_RATE_KEY) : null;
+export async function fetchCbuUsdRate(force = false) {
+  const manualRaw = typeof window !== "undefined"
+    ? (localStorage.getItem(getUserStorageKey(STORAGE_MANUAL_RATE_KEY)) || localStorage.getItem(STORAGE_MANUAL_RATE_KEY))
+    : null;
   const manualRate = manualRaw ? parseFloat(manualRaw) : null;
 
-  // 1. Birinchi navbatda backend orqali DB `cbu_rate_log` ga yozish va olishga urinamiz
+  // 1. Agar majburiy (force) bo'lmasa va 1 kun ichida olingan bo'lsa, ortiqcha so'rov jo'natmaymiz
+  if (!force && isCbuRateFresh()) {
+    const stored = getStoredRateData();
+    return stored;
+  }
+
+  // 2. Birinchi navbatda backend orqali DB `cbu_rate_log` ga yozish va olishga urinamiz
   try {
     const serverRes = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {});
     if (serverRes.ok && serverRes.data && serverRes.data.rate) {
@@ -79,6 +116,8 @@ export async function fetchCbuUsdRate() {
       };
 
       if (typeof window !== "undefined") {
+        localStorage.setItem(getUserStorageKey(STORAGE_RATE_KEY), String(parsedRate));
+        localStorage.setItem(getUserStorageKey(STORAGE_RATE_META_KEY), JSON.stringify(meta));
         localStorage.setItem(STORAGE_RATE_KEY, String(parsedRate));
         localStorage.setItem(STORAGE_RATE_META_KEY, JSON.stringify(meta));
       }
@@ -109,7 +148,7 @@ export async function fetchCbuUsdRate() {
     console.warn("Backend orqali CBU log qilish kechikdi, to'g'ridan-to'g'ri CBU tekshiriladi:", backendErr.message);
   }
 
-  // 2. Agar backend javob bermasa, brauzerdan to'g'ridan-to'g'ri CBU API ga murojaat
+  // 3. Agar backend javob bermasa, brauzerdan to'g'ridan-to'g'ri CBU API ga murojaat
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 6000);
 
@@ -146,6 +185,8 @@ export async function fetchCbuUsdRate() {
     };
 
     if (typeof window !== "undefined") {
+      localStorage.setItem(getUserStorageKey(STORAGE_RATE_KEY), String(parsedRate));
+      localStorage.setItem(getUserStorageKey(STORAGE_RATE_META_KEY), JSON.stringify(meta));
       localStorage.setItem(STORAGE_RATE_KEY, String(parsedRate));
       localStorage.setItem(STORAGE_RATE_META_KEY, JSON.stringify(meta));
     }
@@ -204,11 +245,13 @@ export function saveManualRate(newRate) {
   if (typeof window === "undefined") return;
   const val = parseFloat(newRate);
   if (!isNaN(val) && val > 0) {
+    localStorage.setItem(getUserStorageKey(STORAGE_MANUAL_RATE_KEY), String(val));
     localStorage.setItem(STORAGE_MANUAL_RATE_KEY, String(val));
   }
 }
 
 export function removeManualRate() {
   if (typeof window === "undefined") return;
+  localStorage.removeItem(getUserStorageKey(STORAGE_MANUAL_RATE_KEY));
   localStorage.removeItem(STORAGE_MANUAL_RATE_KEY);
 }

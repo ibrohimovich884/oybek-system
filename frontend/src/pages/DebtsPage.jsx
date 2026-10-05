@@ -149,17 +149,16 @@ export default function DebtsPage() {
     if (!debt) return;
     const paid = (debt.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const rem = Math.max(0, Number(debt.amount || 0) - paid);
-    if (rem > 0) {
-      await repayDebt(id, {
-        amount: customOpts.amount !== undefined ? customOpts.amount : rem,
-        wallet: customOpts.wallet || debt.wallet,
-        affectBalance: customOpts.affectBalance !== undefined ? customOpts.affectBalance : false,
-        note: customOpts.note || "To'liq yopildi deb belgilandi",
-        date: new Date().toISOString(),
-      });
-    } else {
-      await updateDebt(id, { status: "settled" });
-    }
+    
+    await repayDebt(id, {
+      amount: customOpts.amount !== undefined ? Number(customOpts.amount) : rem,
+      wallet: customOpts.wallet || debt.wallet,
+      affectBalance: customOpts.affectBalance !== undefined ? customOpts.affectBalance : false,
+      note: customOpts.note || "To'liq yopildi deb belgilandi",
+      status: "settled",
+      markSettled: true,
+      date: new Date().toISOString(),
+    });
   };
 
   return (

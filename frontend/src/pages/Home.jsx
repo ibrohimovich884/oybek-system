@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useNotifications } from "../context/NotificationsContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { updatesApi } from "../api/updates.js";
+import { updatesApi, getLocalUpdates, isUpdatesFresh } from "../api/updates.js";
 import Loader from "../components/common/Loader.jsx";
 import {
   Sparkles,
@@ -29,9 +29,9 @@ export default function Home() {
   const isAdmin = user?.role === "admin";
   const { notifications, unreadCount } = useNotifications();
 
-  // Yangilanishlar holati (DBdan olinadi)
-  const [updates, setUpdates] = useState([]);
-  const [isLoadingUpdates, setIsLoadingUpdates] = useState(true);
+  // Yangilanishlar holati (darhol keshdan yuklanadi, hech qanday to'siqli loader chiqmaydi)
+  const [updates, setUpdates] = useState(() => getLocalUpdates());
+  const [isLoadingUpdates, setIsLoadingUpdates] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Xabarnoma toast
@@ -75,18 +75,21 @@ export default function Home() {
     notifications.find((n) => !n.isRead && n.priority === "high") ||
     notifications.find((n) => !n.isRead);
 
-  // DBdan yangilanishlarni yuklash
-  const loadUpdates = useCallback(async (quiet = false) => {
-    if (!quiet) setIsLoadingUpdates(true);
-    else setIsRefreshing(true);
+  // DBdan yangilanishlarni yuklash (1 kunda 1 marta fon rejimida)
+  const loadUpdates = useCallback(async (isManual = false) => {
+    if (isManual) {
+      setIsRefreshing(true);
+    }
 
     try {
-      const res = await updatesApi.getUpdates();
+      const res = await updatesApi.getUpdates(isManual);
       if (res.ok && res.updates) {
         setUpdates(res.updates);
       }
     } catch (err) {
-      showToast("Yangilanishlarni yuklashda xatolik: " + err.message, "error");
+      if (isManual) {
+        showToast("Yangilanishlarni yuklashda xatolik: " + err.message, "error");
+      }
     } finally {
       setIsLoadingUpdates(false);
       setIsRefreshing(false);
@@ -94,7 +97,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    loadUpdates();
+    // Sahifaga kirilganda faqat 1 kunda 1 marta fonda yangilanadi, ekranda loader chiqmaydi
+    if (!isUpdatesFresh()) {
+      loadUpdates(false);
+    }
   }, [loadUpdates]);
 
   // Shikoyat modalini ochish (Tepadagi tugmadan yoki har qanday kartochkadan)

@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getBackendBaseUrl, API_TIMEOUT_MS } from "../config/apiConfig.js";
 import { DEFAULT_WALLETS } from "../constants/money.js";
-import { getUserStorageKey } from "../utils/storageKeys.js";
+import { getUserStorageKey, clearAllUserData } from "../utils/storageKeys.js";
+import { syncService } from "../services/syncService.js";
+import { fetchCbuUsdRate } from "../services/exchangeRateService.js";
 
 const AuthContext = createContext(null);
 
@@ -158,13 +160,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     try {
-      localStorage.removeItem(STORAGE_TOKEN_KEY);
-      localStorage.removeItem(STORAGE_EXPIRES_KEY);
-      localStorage.removeItem(STORAGE_USER_KEY);
-      localStorage.removeItem(STORAGE_LOCKOUT_KEY);
-      if (typeof window !== "undefined" && window.sessionStorage) {
-        window.sessionStorage.clear();
-      }
+      clearAllUserData({ preserveBackendConfig: true });
     } catch (e) {
       console.warn("Storage tozalashda xato:", e);
     }
@@ -174,6 +170,7 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("oybek:user-changed"));
+      window.dispatchEvent(new CustomEvent("oybek:logout"));
     }
   }, []);
 
@@ -354,6 +351,12 @@ export function AuthProvider({ children }) {
       window.dispatchEvent(new CustomEvent("oybek:user-changed"));
     }
 
+    // Tizimga kirganda barcha ma'lumotlarni (qarzlar, valyuta, xarajatlar, hamyonlar) serverdan yuklab olish
+    setTimeout(() => {
+      syncService.syncNow({ forcePull: true }).catch(() => {});
+      fetchCbuUsdRate().catch(() => {});
+    }, 100);
+
     return {
       success: true,
       message: "Muvaffaqiyatli roʻyxatdan oʻtildi! 30 kunlik xavfsiz sessiya faollashdi.",
@@ -478,6 +481,12 @@ export function AuthProvider({ children }) {
         window.dispatchEvent(new CustomEvent("oybek:user-changed"));
       }
 
+      // Tizimga kirganda barcha ma'lumotlarni (qarzlar, valyuta, xarajatlar, hamyonlar) serverdan yuklab olish
+      setTimeout(() => {
+        syncService.syncNow({ forcePull: true }).catch(() => {});
+        fetchCbuUsdRate().catch(() => {});
+      }, 100);
+
       return {
         success: true,
         message: "Tizimga muvaffaqiyatli kirildi.",
@@ -517,6 +526,11 @@ export function AuthProvider({ children }) {
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("oybek:user-changed"));
       }
+
+      setTimeout(() => {
+        syncService.syncNow({ forcePull: true }).catch(() => {});
+        fetchCbuUsdRate().catch(() => {});
+      }, 100);
 
       return {
         success: true,

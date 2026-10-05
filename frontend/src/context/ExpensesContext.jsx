@@ -132,13 +132,22 @@ export function ExpensesProvider({ children }) {
     const handleUserChanged = () => {
       refresh();
     };
+    const handleLogout = () => {
+      setInitialWallets({ ...DEFAULT_WALLETS });
+      setReserves({ ...DEFAULT_RESERVES });
+      setExpenses([]);
+      setDebts([]);
+      setDollarRateHistory([]);
+    };
     window.addEventListener("oybek:sync-complete", handleSyncComplete);
     window.addEventListener("oybek:item-synced", handleItemSynced);
     window.addEventListener("oybek:user-changed", handleUserChanged);
+    window.addEventListener("oybek:logout", handleLogout);
     return () => {
       window.removeEventListener("oybek:sync-complete", handleSyncComplete);
       window.removeEventListener("oybek:item-synced", handleItemSynced);
       window.removeEventListener("oybek:user-changed", handleUserChanged);
+      window.removeEventListener("oybek:logout", handleLogout);
     };
   }, [refresh]);
 

@@ -14,11 +14,13 @@ import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
 import { generateId } from "../utils/id.js";
 import { pullSnapshotFromDB, readLocalSnapshot, pushSnapshot } from "./snapshotSync.js";
+import { getUserStorageKey, clearAllUserData } from "../utils/storageKeys.js";
+import { isCbuRateFresh } from "./exchangeRateService.js";
 
-const STORAGE_SYNC_QUEUE_KEY = "oybek-system:sync_queue";
-const STORAGE_LAST_SYNCED_KEY = "oybek-system:last_synced_at";
-const STORAGE_AUTO_SYNC_KEY = "oybek-system:auto_sync_enabled";
-const STORAGE_SYNC_LOGS_KEY = "oybek-system:sync_logs";
+const BASE_SYNC_QUEUE_KEY = "oybek-system:sync_queue";
+const BASE_LAST_SYNCED_KEY = "oybek-system:last_synced_at";
+const BASE_AUTO_SYNC_KEY = "oybek-system:auto_sync_enabled";
+const BASE_SYNC_LOGS_KEY = "oybek-system:sync_logs";
 
 class SyncService {
   constructor() {
@@ -75,7 +77,7 @@ class SyncService {
   getQueue() {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(STORAGE_SYNC_QUEUE_KEY);
+      const raw = localStorage.getItem(getUserStorageKey(BASE_SYNC_QUEUE_KEY));
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -85,7 +87,7 @@ class SyncService {
   setQueue(queue) {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(STORAGE_SYNC_QUEUE_KEY, JSON.stringify(queue));
+      localStorage.setItem(getUserStorageKey(BASE_SYNC_QUEUE_KEY), JSON.stringify(queue));
       this.notify();
     } catch (err) {
       console.warn("Queue saqlashda xato:", err);
@@ -125,23 +127,23 @@ class SyncService {
 
   getLastSyncedAt() {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_LAST_SYNCED_KEY) || null;
+    return localStorage.getItem(getUserStorageKey(BASE_LAST_SYNCED_KEY)) || null;
   }
 
   setLastSyncedAt(isoString) {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_LAST_SYNCED_KEY, isoString);
+    localStorage.setItem(getUserStorageKey(BASE_LAST_SYNCED_KEY), isoString);
   }
 
   isAutoSyncEnabled() {
     if (typeof window === "undefined") return true;
-    const val = localStorage.getItem(STORAGE_AUTO_SYNC_KEY);
+    const val = localStorage.getItem(getUserStorageKey(BASE_AUTO_SYNC_KEY));
     return val === null ? true : val === "true";
   }
 
   setAutoSyncEnabled(enabled) {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_AUTO_SYNC_KEY, String(enabled));
+    localStorage.setItem(getUserStorageKey(BASE_AUTO_SYNC_KEY), String(enabled));
     this.addLog("info", `Avto-sinxronizatsiya: ${enabled ? "Yoqildi" : "O'chirildi"}`);
     this.notify();
   }
@@ -149,7 +151,7 @@ class SyncService {
   getLogs() {
     if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem(STORAGE_SYNC_LOGS_KEY);
+      const raw = localStorage.getItem(getUserStorageKey(BASE_SYNC_LOGS_KEY));
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -166,15 +168,14 @@ class SyncService {
         message,
         timestamp: new Date().toISOString(),
       });
-      // Faqat oxirgi 40 ta logni saqlaymiz
       const trimmed = logs.slice(0, 40);
-      localStorage.setItem(STORAGE_SYNC_LOGS_KEY, JSON.stringify(trimmed));
+      localStorage.setItem(getUserStorageKey(BASE_SYNC_LOGS_KEY), JSON.stringify(trimmed));
     } catch {}
   }
 
   clearLogs() {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_SYNC_LOGS_KEY, JSON.stringify([]));
+    localStorage.setItem(getUserStorageKey(BASE_SYNC_LOGS_KEY), JSON.stringify([]));
     this.notify();
   }
 
@@ -182,34 +183,11 @@ class SyncService {
    * Brauzerdagi barcha lokal xotirani (localStorage) tozalash
    */
   clearAllStorage({ preserveBackendConfig = true } = {}) {
-    if (typeof window === "undefined") return { success: true, count: 0 };
-    try {
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        if (key.startsWith("oybek")) {
-          if (
-            preserveBackendConfig &&
-            (key === "oybek_backend_url" ||
-              key === "oybek_backend_port" ||
-              key === "oybek_system:backend_url_v2" ||
-              key === "oybek_system:backend_port")
-          ) {
-            continue;
-          }
-          keysToRemove.push(key);
-        }
-      }
-
-      keysToRemove.forEach((k) => localStorage.removeItem(k));
-      this.notify();
-      return { success: true, clearedKeys: keysToRemove, count: keysToRemove.length };
-    } catch (err) {
-      console.error("Local storage tozalashda xatolik:", err);
-      return { success: false, error: err.message, count: 0 };
-    }
+    clearAllUserData({ preserveBackendConfig });
+    this.notify();
+    return { success: true };
   }
+
 
   getSyncStatus() {
     const queue = this.getQueue();
@@ -360,7 +338,7 @@ class SyncService {
         const walletRes = await apiClient.get(API_ENDPOINTS.WALLETS);
         if (walletRes.ok && walletRes.data) {
           pulledCount += Object.keys(walletRes.data).length;
-          localStorage.setItem("oybek-system:wallets", JSON.stringify(walletRes.data));
+          localStorage.setItem(getUserStorageKey("oybek-system:wallets"), JSON.stringify(walletRes.data));
         }
 
         // C) Control Panel snapshot (app_snapshot: reserves, pendingDebts, dollarRateHistory)
@@ -383,10 +361,18 @@ class SyncService {
           this.mergeServerLogsWithLocal(logsRes.data);
         }
 
-        // F) CBU kursi yangilash va cbu_rate_log ga yozish
-        const cbuRes = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {}).catch(() => null);
-        if (cbuRes && cbuRes.ok && cbuRes.data?.rate) {
-          localStorage.setItem("oybek-system:usd_rate", String(cbuRes.data.rate));
+        // F) CBU kursi yangilash va cbu_rate_log ga yozish (Kuniga 1 marta yangilanadi)
+        if (!isCbuRateFresh()) {
+          const cbuRes = await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {}).catch(() => null);
+          if (cbuRes && cbuRes.ok && cbuRes.data?.rate) {
+            localStorage.setItem(getUserStorageKey("oybek-system:usd_rate"), String(cbuRes.data.rate));
+            const meta = {
+              date: new Date().toLocaleDateString("uz-UZ"),
+              diff: "0.00",
+              lastSuccess: new Date().toISOString(),
+            };
+            localStorage.setItem(getUserStorageKey("oybek-system:usd_rate_meta"), JSON.stringify(meta));
+          }
         }
       }
 
@@ -435,43 +421,47 @@ class SyncService {
   markLocalExpenseSynced(id, isSynced = true) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("oybek-system:expenses");
+      const storageKey = getUserStorageKey("oybek-system:expenses");
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return;
       const list = JSON.parse(raw);
       if (!Array.isArray(list)) return;
       const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
-      localStorage.setItem("oybek-system:expenses", JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch {}
   }
 
   markLocalDebtSynced(id, isSynced = true) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("oybek-system:pending_debts");
+      const storageKey = getUserStorageKey("oybek-system:pending_debts");
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return;
       const list = JSON.parse(raw);
       if (!Array.isArray(list)) return;
       const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
-      localStorage.setItem("oybek-system:pending_debts", JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch {}
   }
 
   markLocalExerciseSynced(id, isSynced = true) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("oybek_exercises_list");
+      const storageKey = getUserStorageKey("oybek_exercises_list");
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return;
       const list = JSON.parse(raw);
       if (!Array.isArray(list)) return;
       const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
-      localStorage.setItem("oybek_exercises_list", JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch {}
   }
 
   mergeServerExpensesWithLocal(serverExpenses) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("oybek-system:expenses");
+      const storageKey = getUserStorageKey("oybek-system:expenses");
+      const raw = localStorage.getItem(storageKey);
       const localList = raw ? JSON.parse(raw) : [];
       const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
 
@@ -483,7 +473,7 @@ class SyncService {
       const mergedList = Array.from(mergedMap.values());
       mergedList.sort((a, b) => new Date(b.spentAt || b.createdAt) - new Date(a.spentAt || a.createdAt));
 
-      localStorage.setItem("oybek-system:expenses", JSON.stringify(mergedList));
+      localStorage.setItem(storageKey, JSON.stringify(mergedList));
     } catch (err) {
       console.warn("Xarajatlarni birlashtirishda xato:", err);
     }
@@ -492,7 +482,8 @@ class SyncService {
   mergeServerExercisesWithLocal(serverExercises) {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("oybek_exercises_list");
+      const storageKey = getUserStorageKey("oybek_exercises_list");
+      const raw = localStorage.getItem(storageKey);
       const localList = raw ? JSON.parse(raw) : [];
       const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
 
@@ -500,7 +491,7 @@ class SyncService {
       serverExercises.forEach((item) => mergedMap.set(item.id, { ...item, synced: true }));
       unsyncedLocals.forEach((item) => mergedMap.set(item.id, item));
 
-      localStorage.setItem("oybek_exercises_list", JSON.stringify(Array.from(mergedMap.values())));
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(mergedMap.values())));
     } catch (err) {
       console.warn("Mashqlarni birlashtirishda xato:", err);
     }
@@ -510,7 +501,8 @@ class SyncService {
     if (typeof window === "undefined") return;
     try {
       const logKey = (l) => `${l.exerciseId}|${l.date}`;
-      const raw = localStorage.getItem("oybek_exercise_logs");
+      const storageKey = getUserStorageKey("oybek_exercise_logs");
+      const raw = localStorage.getItem(storageKey);
       const localList = raw ? JSON.parse(raw) : [];
       const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
 
@@ -518,7 +510,7 @@ class SyncService {
       serverLogs.forEach((item) => mergedMap.set(logKey(item), { ...item, synced: true }));
       unsyncedLocals.forEach((item) => mergedMap.set(logKey(item), item));
 
-      localStorage.setItem("oybek_exercise_logs", JSON.stringify(Array.from(mergedMap.values())));
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(mergedMap.values())));
     } catch (err) {
       console.warn("Mashq jurnallarini birlashtirishda xato:", err);
     }
@@ -533,9 +525,9 @@ class SyncService {
 
     try {
       this.addLog("info", "Barcha mahalliy ma'lumotlarni DBga yuklash boshlandi...");
-      const rawExpenses = localStorage.getItem("oybek-system:expenses");
+      const rawExpenses = localStorage.getItem(getUserStorageKey("oybek-system:expenses"));
       const expenses = rawExpenses ? JSON.parse(rawExpenses) : [];
-      const rawWallets = localStorage.getItem("oybek-system:wallets");
+      const rawWallets = localStorage.getItem(getUserStorageKey("oybek-system:wallets"));
       const wallets = rawWallets ? JSON.parse(rawWallets) : {};
       const { reserves, dollarRateHistory, pendingDebts } = readLocalSnapshot();
 
@@ -553,14 +545,14 @@ class SyncService {
       await apiClient.post(API_ENDPOINTS.BACKUP, backupPayload);
 
       // 2. Mashqlarni ham DBga yuklash
-      const rawExercises = localStorage.getItem("oybek_exercises_list");
+      const rawExercises = localStorage.getItem(getUserStorageKey("oybek_exercises_list"));
       const exercises = rawExercises ? JSON.parse(rawExercises) : [];
       for (const ex of exercises) {
         await apiClient.post(API_ENDPOINTS.EXERCISES, ex).catch(() => {});
       }
 
       // 3. Mashq jurnallarini ham DBga yuklash
-      const rawLogs = localStorage.getItem("oybek_exercise_logs");
+      const rawLogs = localStorage.getItem(getUserStorageKey("oybek_exercise_logs"));
       const logs = rawLogs ? JSON.parse(rawLogs) : [];
       for (const log of logs) {
         await apiClient.post(API_ENDPOINTS.EXERCISE_LOGS, log).catch(() => {});
@@ -571,16 +563,16 @@ class SyncService {
 
       // Hammasini synced: true deb belgilash
       const allSynced = expenses.map((item) => ({ ...item, synced: true }));
-      localStorage.setItem("oybek-system:expenses", JSON.stringify(allSynced));
+      localStorage.setItem(getUserStorageKey("oybek-system:expenses"), JSON.stringify(allSynced));
 
       const allDebtsSynced = pendingDebts.map((item) => ({ ...item, synced: true }));
-      localStorage.setItem("oybek-system:pending_debts", JSON.stringify(allDebtsSynced));
+      localStorage.setItem(getUserStorageKey("oybek-system:pending_debts"), JSON.stringify(allDebtsSynced));
 
       const allExSynced = exercises.map((item) => ({ ...item, synced: true }));
-      localStorage.setItem("oybek_exercises_list", JSON.stringify(allExSynced));
+      localStorage.setItem(getUserStorageKey("oybek_exercises_list"), JSON.stringify(allExSynced));
 
       const allLogsSynced = logs.map((item) => ({ ...item, synced: true }));
-      localStorage.setItem("oybek_exercise_logs", JSON.stringify(allLogsSynced));
+      localStorage.setItem(getUserStorageKey("oybek_exercise_logs"), JSON.stringify(allLogsSynced));
 
       this.clearQueue();
 
