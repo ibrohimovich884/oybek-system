@@ -12,9 +12,15 @@ import {
   CheckCircle2,
   ArrowUpRight,
   ArrowDownLeft,
+  Clock,
 } from "lucide-react";
 import { WALLET_CONFIG } from "../../constants/money.js";
 import { DEBT_TYPES, DEBT_TYPE_LABELS } from "../../constants/debts.js";
+import {
+  toLocalDatetimeInput,
+  toLocalDateInput,
+  formatDateWithWeekday,
+} from "../../utils/format.js";
 
 export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
   if (!isOpen) return null;
@@ -26,17 +32,24 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
   const [currency, setCurrency] = useState("UZS");
   const [wallet, setWallet] = useState("naqd");
   const [affectBalance, setAffectBalance] = useState(true);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [date, setDate] = useState(() => toLocalDatetimeInput(new Date()));
   const [location, setLocation] = useState("");
   const [reason, setReason] = useState("");
   const [isDueDateUnknown, setIsDueDateUnknown] = useState(true);
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    return d.toISOString().slice(0, 10);
+    return toLocalDateInput(d);
   });
   const [personalNote, setPersonalNote] = useState("");
   const [error, setError] = useState("");
+
+  const handleAddDaysToDueDate = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setDueDate(toLocalDateInput(d));
+    setIsDueDateUnknown(false);
+  };
 
   const labels = DEBT_TYPE_LABELS[type];
 
@@ -289,16 +302,45 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
           {/* Vaqt & Joy */}
           <div className="form-row form-row--2col">
             <div className="form-group">
-              <label className="field-label">
-                <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
-                <span>Sana va vaqt</span>
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label className="field-label" style={{ margin: 0 }}>
+                  <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
+                  <span>Sana va vaqt</span>
+                </label>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => setDate(toLocalDatetimeInput(new Date()))}
+                    title="Hozirgi vaqt"
+                  >
+                    Hozir
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => {
+                      const y = new Date();
+                      y.setDate(y.getDate() - 1);
+                      setDate(toLocalDatetimeInput(y));
+                    }}
+                    title="Kecha shu vaqt"
+                  >
+                    Kecha
+                  </button>
+                </div>
+              </div>
               <input
                 type="datetime-local"
                 className="field-input mono"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
+              {date && (
+                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 3, display: "block" }}>
+                  🗓 {formatDateWithWeekday(date)}
+                </span>
+              )}
             </div>
 
             <div className="form-group">
@@ -353,12 +395,42 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
             </div>
 
             {!isDueDateUnknown ? (
-              <input
-                type="date"
-                className="field-input mono"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+              <>
+                <input
+                  type="date"
+                  className="field-input mono"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 5, flexWrap: "wrap", gap: 6 }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent)", fontWeight: 600 }}>
+                    🗓 {formatDateWithWeekday(dueDate)}
+                  </span>
+                  <div style={{ display: "flex", gap: 5 }}>
+                    <button
+                      type="button"
+                      className="quick-chip-btn"
+                      onClick={() => handleAddDaysToDueDate(7)}
+                    >
+                      +1 hafta
+                    </button>
+                    <button
+                      type="button"
+                      className="quick-chip-btn"
+                      onClick={() => handleAddDaysToDueDate(30)}
+                    >
+                      +1 oy
+                    </button>
+                    <button
+                      type="button"
+                      className="quick-chip-btn"
+                      onClick={() => handleAddDaysToDueDate(90)}
+                    >
+                      +3 oy
+                    </button>
+                  </div>
+                </div>
+              </>
             ) : (
               <div
                 style={{

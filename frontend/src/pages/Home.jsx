@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useNotifications } from "../context/NotificationsContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { updatesApi, getLocalUpdates, isUpdatesFresh } from "../api/updates.js";
+import { formatDateWithWeekday } from "../utils/format.js";
 import Loader from "../components/common/Loader.jsx";
 import {
   Sparkles,
@@ -65,11 +66,7 @@ export default function Home() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const todayStr = new Date().toLocaleDateString("uz-UZ", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const todayStr = formatDateWithWeekday(new Date());
 
   const urgentNotification =
     notifications.find((n) => !n.isRead && n.priority === "high") ||

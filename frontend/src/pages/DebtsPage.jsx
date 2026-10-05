@@ -28,7 +28,7 @@ import Loader from "../components/common/Loader.jsx";
 const STORAGE_VIEW_KEY = "oybek_system:debts_view_mode";
 
 export default function DebtsPage() {
-  const { debts, addDebt, repayDebt, deleteDebt, updateDebt, rateInfo, isLoading } = useExpenses();
+  const { debts, addDebt, repayDebt, settleDebt, deleteDebt, updateDebt, rateInfo, isLoading } = useExpenses();
   const currentUsdRate = rateInfo?.rate || 12850;
 
   // Standart ko'rinish: Samsung Notes / Daftar ko'rinishi ("ledger")
@@ -150,13 +150,11 @@ export default function DebtsPage() {
     const paid = (debt.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const rem = Math.max(0, Number(debt.amount || 0) - paid);
     
-    await repayDebt(id, {
+    await settleDebt(id, {
       amount: customOpts.amount !== undefined ? Number(customOpts.amount) : rem,
       wallet: customOpts.wallet || debt.wallet,
       affectBalance: customOpts.affectBalance !== undefined ? customOpts.affectBalance : false,
       note: customOpts.note || "To'liq yopildi deb belgilandi",
-      status: "settled",
-      markSettled: true,
       date: new Date().toISOString(),
     });
   };

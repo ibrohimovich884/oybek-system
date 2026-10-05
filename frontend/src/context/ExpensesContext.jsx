@@ -575,14 +575,14 @@ export function ExpensesProvider({ children }) {
     async (debtId, paymentData) => {
       const { updatedDebt, payment } = await debtsApi.recordDebtPayment(debtId, paymentData);
 
-      if (paymentData.affectBalance) {
+      if (paymentData.affectBalance && payment && payment.amount > 0) {
         if (updatedDebt.type === "given") {
           // Qarz olgan odam qaytardi -> hisobga pul kirdi (daromad)
           await expensesApi.addExpense({
             type: "income",
             amount: Number(payment.amount),
-            wallet: payment.wallet,
-            paymentMethod: payment.wallet,
+            wallet: payment.wallet || updatedDebt.wallet,
+            paymentMethod: payment.wallet || updatedDebt.wallet,
             currency: updatedDebt.currency || "UZS",
             category: "Boshqa",
             subcategory: "Qarz qaytishi",
@@ -594,12 +594,50 @@ export function ExpensesProvider({ children }) {
           await expensesApi.addExpense({
             type: "expense",
             amount: Number(payment.amount),
-            wallet: payment.wallet,
-            paymentMethod: payment.wallet,
+            wallet: payment.wallet || updatedDebt.wallet,
+            paymentMethod: payment.wallet || updatedDebt.wallet,
             currency: updatedDebt.currency || "UZS",
             category: "Boshqa",
             subcategory: "Qarz to'lash",
             reason: `${updatedDebt.personName}ga qarz qaytarildi: ${payment.note || ""}`.trim(),
+            spentAt: payment.date || new Date().toISOString(),
+          });
+        }
+      }
+
+      await refresh();
+      return updatedDebt;
+    },
+    [refresh]
+  );
+
+  const settleDebt = useCallback(
+    async (debtId, customOpts = {}) => {
+      const { updatedDebt, payment } = await debtsApi.settleDebtApi(debtId, customOpts);
+
+      if (customOpts.affectBalance && payment && payment.amount > 0) {
+        if (updatedDebt.type === "given") {
+          await expensesApi.addExpense({
+            type: "income",
+            amount: Number(payment.amount),
+            wallet: payment.wallet || updatedDebt.wallet,
+            paymentMethod: payment.wallet || updatedDebt.wallet,
+            currency: updatedDebt.currency || "UZS",
+            category: "Boshqa",
+            subcategory: "Qarz qaytishi",
+            reason: `${updatedDebt.personName} qarzni to'liq yopdi: ${customOpts.note || ""}`.trim(),
+            spentAt: payment.date || new Date().toISOString(),
+          });
+        } else if (updatedDebt.type === "taken") {
+          await expensesApi.addExpense({
+            type: "expense",
+            amount: Number(payment.amount),
+            wallet: payment.wallet || updatedDebt.wallet,
+            paymentMethod: payment.wallet || updatedDebt.wallet,
+            currency: updatedDebt.currency || "UZS",
+            category: "Boshqa",
+            subcategory: "Qarz to'lash",
+            reason: `${updatedDebt.personName}ga qarz to'liq yopildi: ${customOpts.note || ""}`.trim(),
             spentAt: payment.date || new Date().toISOString(),
           });
         }
@@ -735,6 +773,7 @@ export function ExpensesProvider({ children }) {
     importBackup,
     addDebt,
     repayDebt,
+    settleDebt,
     deleteDebt,
     updateDebt,
     refresh,

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../../db/pool.js";
 import { canonicalWalletId } from "../services/walletsService.js";
+import * as debtsService from "../services/debtsService.js";
 
 const router = Router();
 
@@ -10,10 +11,13 @@ router.get("/", async (req, res) => {
     const userId = req.user.userId;
     const snapshotId = userId ? `snap_${userId}` : "1";
 
-    const { rows } = await pool.query(
-      "SELECT * FROM app_snapshot WHERE id::text = $1 OR (user_id = $2 AND user_id IS NOT NULL)",
-      [snapshotId, userId || null]
-    );
+    const [{ rows }, realDebts] = await Promise.all([
+      pool.query(
+        "SELECT * FROM app_snapshot WHERE id::text = $1 OR (user_id = $2 AND user_id IS NOT NULL)",
+        [snapshotId, userId || null]
+      ),
+      debtsService.getAllDebts(userId).catch(() => []),
+    ]);
     const s = rows[0] || {};
 
     // Wallets jadvalidagi haqiqiy zaxira balanslarini olamiz
@@ -49,7 +53,7 @@ router.get("/", async (req, res) => {
     res.json({
       reserves,
       dollarRateHistory: s.dollar_rate_history || [],
-      pendingDebts: s.pending_debts || [],
+      pendingDebts: Array.isArray(realDebts) && realDebts.length > 0 ? realDebts : (s.pending_debts || []),
       updatedAt: s.updated_at || null,
     });
   } catch (err) {

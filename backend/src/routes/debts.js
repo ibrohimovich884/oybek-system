@@ -54,6 +54,16 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+router.put("/:id/settle", async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const debt = await debtsService.settleDebt(req.params.id, req.body, userId);
+    res.json(debt);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.post("/:id/payments", async (req, res) => {
   try {
     const userId = req.user.userId;

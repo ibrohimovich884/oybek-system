@@ -21,7 +21,12 @@ import {
   QUICK_TEMPLATES,
   WALLET_CONFIG,
 } from "../../constants/money.js";
-import { formatSum, formatDollar, toLocalDatetimeInput } from "../../utils/format.js";
+import {
+  formatSum,
+  formatDollar,
+  toLocalDatetimeInput,
+  formatDateWithWeekday,
+} from "../../utils/format.js";
 import CategoryIcon from "./CategoryIcon.jsx";
 
 export default function ExpenseForm({ initialType = "expense", initialFrom = "hamyon", initialTo = "naqd" }) {
@@ -639,6 +644,11 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
               onChange={(e) => setSpentAt(e.target.value)}
               className="expense-form__input mono"
             />
+            {spentAt && (
+              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 4, display: "block" }}>
+                🗓 {formatDateWithWeekday(spentAt)}
+              </span>
+            )}
           </div>
         </div>
 

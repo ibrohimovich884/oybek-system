@@ -265,32 +265,67 @@ export async function addDebtPayment(debtId, payment, userId) {
     debt = await getDebtById(debtId, userId);
   }
 
-  const paymentId = payment.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const { rows } = await pool.query(
-    `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
-     VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
-     ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at
-     RETURNING *`,
-    [paymentId, debtId, userId || null, Number(payment.amount), payment.note || "", payment.paidAt || payment.date || null]
-  );
+  let paymentRow = null;
+  const paymentAmount = Number(payment.amount || 0);
+
+  if (paymentAmount > 0) {
+    const paymentId = payment.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const { rows } = await pool.query(
+      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
+       ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at
+       RETURNING *`,
+      [paymentId, debtId, userId || null, paymentAmount, payment.note || "", payment.paidAt || payment.date || null]
+    );
+    paymentRow = rows[0];
+  }
 
   // Statusni tekshirib yangilaymiz
   const updatedDebt = await getDebtById(debtId, userId);
   if (updatedDebt) {
     const totalPaid = (updatedDebt.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
     let newStatus = "partial";
-    if (totalPaid >= updatedDebt.amount || payment.markSettled) newStatus = "settled";
-    else if (totalPaid <= 0) newStatus = "pending";
+    if (totalPaid >= updatedDebt.amount || payment.markSettled || payment.status === "settled") {
+      newStatus = "settled";
+    } else if (totalPaid <= 0) {
+      newStatus = "pending";
+    }
 
-    if (newStatus !== updatedDebt.status) {
-      await pool.query("UPDATE debts SET status = $1, updated_at = now() WHERE id = $2", [
-        newStatus,
-        debtId,
-      ]);
+    await pool.query("UPDATE debts SET status = $1, updated_at = now() WHERE id = $2", [
+      newStatus,
+      debtId,
+    ]);
+  }
+
+  return paymentRow || { id: `pay_${Date.now()}`, debt_id: debtId, amount: paymentAmount };
+}
+
+export async function settleDebt(debtId, payload = {}, userId) {
+  let debt = await getDebtById(debtId, userId);
+  if (!debt) {
+    if (payload.debtData) {
+      await createDebt({ id: debtId, ...payload.debtData }, userId);
+      debt = await getDebtById(debtId, userId);
     }
   }
 
-  return rows[0];
+  const paymentAmount = Number(payload.amount || 0);
+  if (paymentAmount > 0) {
+    const paymentId = payload.paymentId || payload.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await pool.query(
+      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
+       ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at`,
+      [paymentId, debtId, userId || null, paymentAmount, payload.note || "To'liq yopildi deb belgilandi", payload.date || null]
+    ).catch(() => {});
+  }
+
+  await pool.query(
+    "UPDATE debts SET status = 'settled', updated_at = now() WHERE id = $1",
+    [debtId]
+  );
+
+  return await getDebtById(debtId, userId);
 }
 
 export async function deleteDebt(id, userId) {

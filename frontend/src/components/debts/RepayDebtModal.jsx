@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { X, DollarSign, Wallet, Calendar, FileText, CheckCircle2 } from "lucide-react";
-import { formatSum, formatDollar } from "../../utils/format.js";
+import {
+  formatSum,
+  formatDollar,
+  toLocalDatetimeInput,
+  formatDateWithWeekday,
+} from "../../utils/format.js";
 import { DEBT_TYPES } from "../../constants/debts.js";
 
 export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
@@ -17,7 +22,7 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
   const [amount, setAmount] = useState(remaining);
   const [wallet, setWallet] = useState(debt.wallet || (isUsd ? "dollar" : "naqd"));
   const [affectBalance, setAffectBalance] = useState(true);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [date, setDate] = useState(() => toLocalDatetimeInput(new Date()));
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
 
@@ -157,16 +162,45 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
 
           {/* Sana */}
           <div className="form-group">
-            <label className="field-label">
-              <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
-              <span>To'lov sanasi</span>
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label className="field-label" style={{ margin: 0 }}>
+                <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
+                <span>To'lov sanasi</span>
+              </label>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className="quick-chip-btn"
+                  onClick={() => setDate(toLocalDatetimeInput(new Date()))}
+                  title="Hozirgi vaqt"
+                >
+                  Hozir
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip-btn"
+                  onClick={() => {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    setDate(toLocalDatetimeInput(y));
+                  }}
+                  title="Kecha shu vaqt"
+                >
+                  Kecha
+                </button>
+              </div>
+            </div>
             <input
               type="datetime-local"
               className="field-input mono"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
+            {date && (
+              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 3, display: "block" }}>
+                🗓 {formatDateWithWeekday(date)}
+              </span>
+            )}
           </div>
 
           {/* Izoh */}

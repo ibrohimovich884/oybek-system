@@ -6,7 +6,13 @@ import {
   INCOME_CATEGORIES,
   WALLET_CONFIG,
 } from "../../constants/money.js";
-import { formatSum, formatDollar, toLocalDatetimeInput, formatDateTime } from "../../utils/format.js";
+import {
+  formatSum,
+  formatDollar,
+  toLocalDatetimeInput,
+  formatDateTime,
+  formatDateWithWeekday,
+} from "../../utils/format.js";
 import CategoryIcon from "./CategoryIcon.jsx";
 import SecurityGate from "../security/SecurityGate.jsx";
 
@@ -399,13 +405,44 @@ export default function EditTransactionModal({ item, onClose }) {
 
           {/* Sana (spentAt) - qo'lda kiritiladi */}
           <div className="expense-form__field">
-            <label className="expense-form__label">Sarflangan vaqt (spentAt - qo'lda kiritiladi)</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label className="expense-form__label" style={{ margin: 0 }}>
+                Sarflangan vaqt (spentAt)
+              </label>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className="quick-chip-btn"
+                  onClick={() => setSpentAt(toLocalDatetimeInput(new Date()))}
+                  title="Hozirgi vaqt"
+                >
+                  Hozir
+                </button>
+                <button
+                  type="button"
+                  className="quick-chip-btn"
+                  onClick={() => {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    setSpentAt(toLocalDatetimeInput(y));
+                  }}
+                  title="Kecha shu vaqt"
+                >
+                  Kecha
+                </button>
+              </div>
+            </div>
             <input
               type="datetime-local"
               value={spentAt}
               onChange={(e) => setSpentAt(e.target.value)}
               className="expense-form__input mono"
             />
+            {spentAt && (
+              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 3, display: "block" }}>
+                🗓 {formatDateWithWeekday(spentAt)}
+              </span>
+            )}
             {item.createdAt && (
               <span className="field-hint" style={{ fontSize: "0.74rem" }}>
                 Yaratilgan: {item.createdAt}

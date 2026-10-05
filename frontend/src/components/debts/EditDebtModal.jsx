@@ -15,6 +15,11 @@ import {
   Clock,
 } from "lucide-react";
 import { DEBT_TYPES, DEBT_TYPE_LABELS } from "../../constants/debts.js";
+import {
+  toLocalDatetimeInput,
+  toLocalDateInput,
+  formatDateWithWeekday,
+} from "../../utils/format.js";
 
 export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   if (!isOpen || !debt) return null;
@@ -26,7 +31,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   const [currency, setCurrency] = useState(debt.currency || "UZS");
   const [wallet, setWallet] = useState(debt.wallet || "naqd");
   const [date, setDate] = useState(() =>
-    debt.date ? debt.date.slice(0, 16) : new Date().toISOString().slice(0, 16)
+    debt.date ? toLocalDatetimeInput(debt.date) : toLocalDatetimeInput(new Date())
   );
   const [location, setLocation] = useState(debt.location || "");
   const [reason, setReason] = useState(debt.reason || "");
@@ -34,7 +39,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
     debt.isDueDateUnknown !== undefined ? debt.isDueDateUnknown : !debt.dueDate
   );
   const [dueDate, setDueDate] = useState(() =>
-    debt.dueDate ? debt.dueDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
+    debt.dueDate ? toLocalDateInput(debt.dueDate) : toLocalDateInput(new Date())
   );
   const [personalNote, setPersonalNote] = useState(debt.personalNote || "");
   const [error, setError] = useState("");
@@ -47,14 +52,14 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
       setAmount(debt.amount || "");
       setCurrency(debt.currency || "UZS");
       setWallet(debt.wallet || "naqd");
-      setDate(debt.date ? debt.date.slice(0, 16) : new Date().toISOString().slice(0, 16));
+      setDate(debt.date ? toLocalDatetimeInput(debt.date) : toLocalDatetimeInput(new Date()));
       setLocation(debt.location || "");
       setReason(debt.reason || "");
       setIsDueDateUnknown(
         debt.isDueDateUnknown !== undefined ? debt.isDueDateUnknown : !debt.dueDate
       );
       setDueDate(
-        debt.dueDate ? debt.dueDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
+        debt.dueDate ? toLocalDateInput(debt.dueDate) : toLocalDateInput(new Date())
       );
       setPersonalNote(debt.personalNote || "");
       setError("");
@@ -65,7 +70,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   const handleAddDaysToDueDate = (days) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
-    setDueDate(d.toISOString().slice(0, 10));
+    setDueDate(toLocalDateInput(d));
     setIsDueDateUnknown(false);
   };
 
@@ -314,16 +319,45 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
           {/* 5. Qarz sanasi va Qaytarish muddati */}
           <div className="form-row form-row--2col">
             <div className="form-group">
-              <label className="field-label">
-                <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
-                <span>Qarz sanasi</span>
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label className="field-label" style={{ margin: 0 }}>
+                  <Calendar size={14} style={{ marginRight: 4, display: "inline" }} />
+                  <span>Qarz sanasi</span>
+                </label>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => setDate(toLocalDatetimeInput(new Date()))}
+                    title="Hozirgi vaqt"
+                  >
+                    Hozir
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip-btn"
+                    onClick={() => {
+                      const y = new Date();
+                      y.setDate(y.getDate() - 1);
+                      setDate(toLocalDatetimeInput(y));
+                    }}
+                    title="Kecha shu vaqt"
+                  >
+                    Kecha
+                  </button>
+                </div>
+              </div>
               <input
                 type="datetime-local"
                 className="field-input mono"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
+              {date && (
+                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 3, display: "block" }}>
+                  🗓 {formatDateWithWeekday(date)}
+                </span>
+              )}
             </div>
 
             <div className="form-group">
@@ -352,30 +386,37 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
                 style={{ opacity: isDueDateUnknown ? 0.35 : 1 }}
               />
 
-              {/* Tezkor sana tugmalari */}
+              {/* Tezkor sana tugmalari va Hafta kuni */}
               {!isDueDateUnknown && (
-                <div className="quick-date-chips" style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                  <button
-                    type="button"
-                    className="quick-chip-btn"
-                    onClick={() => handleAddDaysToDueDate(7)}
-                  >
-                    +1 hafta
-                  </button>
-                  <button
-                    type="button"
-                    className="quick-chip-btn"
-                    onClick={() => handleAddDaysToDueDate(30)}
-                  >
-                    +1 oy
-                  </button>
-                  <button
-                    type="button"
-                    className="quick-chip-btn"
-                    onClick={() => handleAddDaysToDueDate(90)}
-                  >
-                    +3 oy
-                  </button>
+                <div style={{ marginTop: 5 }}>
+                  {dueDate && (
+                    <div style={{ fontSize: "0.75rem", color: "var(--accent)", fontWeight: 600, marginBottom: 5 }}>
+                      🗓 {formatDateWithWeekday(dueDate)}
+                    </div>
+                  )}
+                  <div className="quick-date-chips" style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      className="quick-chip-btn"
+                      onClick={() => handleAddDaysToDueDate(7)}
+                    >
+                      +1 hafta
+                    </button>
+                    <button
+                      type="button"
+                      className="quick-chip-btn"
+                      onClick={() => handleAddDaysToDueDate(30)}
+                    >
+                      +1 oy
+                    </button>
+                    <button
+                      type="button"
+                      className="quick-chip-btn"
+                      onClick={() => handleAddDaysToDueDate(90)}
+                    >
+                      +3 oy
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

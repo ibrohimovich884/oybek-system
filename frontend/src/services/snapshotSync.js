@@ -76,18 +76,7 @@ export async function pullSnapshotFromDB() {
   const server = res.data;
   const local = readLocalSnapshot();
 
-  // 1. Qarzlar (pendingDebts)
-  const localDebts = Array.isArray(local.pendingDebts) ? local.pendingDebts : [];
-  const unsyncedDebts = localDebts.filter((d) => d.synced === false);
-
-  const serverDebts = Array.isArray(server.pendingDebts) ? server.pendingDebts : [];
-  const debtMap = new Map();
-  serverDebts.forEach((d) => debtMap.set(d.id, { ...d, synced: true }));
-  unsyncedDebts.forEach((d) => debtMap.set(d.id, d));
-  const mergedDebts = Array.from(debtMap.values());
-  writeJson("pendingDebts", mergedDebts);
-
-  // 2. Dollar kursi tarixi
+  // 1. Dollar kursi tarixi
   const localDollarHistory = Array.isArray(local.dollarRateHistory) ? local.dollarRateHistory : [];
   const unsyncedDollar = localDollarHistory.filter((d) => d.synced === false);
   const serverDollarHistory = Array.isArray(server.dollarRateHistory) ? server.dollarRateHistory : [];
@@ -97,7 +86,7 @@ export async function pullSnapshotFromDB() {
   const mergedDollarHistory = Array.from(dollarMap.values());
   writeJson("dollarRateHistory", mergedDollarHistory);
 
-  // 3. Rezervlar
+  // 2. Rezervlar
   if (server.reserves && typeof server.reserves === "object" && Object.keys(server.reserves).length > 0) {
     writeJson("reserves", server.reserves);
   }
@@ -107,7 +96,7 @@ export async function pullSnapshotFromDB() {
   return {
     reserves: readJson("reserves", {}),
     dollarRateHistory: mergedDollarHistory,
-    pendingDebts: mergedDebts,
+    pendingDebts: readJson("pendingDebts", []),
   };
 }
 

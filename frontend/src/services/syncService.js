@@ -341,10 +341,17 @@ class SyncService {
           localStorage.setItem(getUserStorageKey("oybek-system:wallets"), JSON.stringify(walletRes.data));
         }
 
-        // C) Control Panel snapshot (app_snapshot: reserves, pendingDebts, dollarRateHistory)
+        // C) Qarzlar (debts & debt_payments)
+        const debtRes = await apiClient.get(API_ENDPOINTS.DEBTS);
+        if (debtRes.ok && Array.isArray(debtRes.data)) {
+          pulledCount += debtRes.data.length;
+          this.mergeServerDebtsWithLocal(debtRes.data);
+        }
+
+        // D) Control Panel snapshot (app_snapshot: reserves, dollarRateHistory)
         const snapshotData = await pullSnapshotFromDB().catch(() => null);
         if (snapshotData) {
-          pulledCount += (snapshotData.pendingDebts?.length || 0) + (snapshotData.dollarRateHistory?.length || 0);
+          pulledCount += (snapshotData.dollarRateHistory?.length || 0);
         }
 
         // D) Mashqlar (exercises)
@@ -476,6 +483,46 @@ class SyncService {
       localStorage.setItem(storageKey, JSON.stringify(mergedList));
     } catch (err) {
       console.warn("Xarajatlarni birlashtirishda xato:", err);
+    }
+  }
+
+  mergeServerDebtsWithLocal(serverDebts) {
+    if (typeof window === "undefined" || !Array.isArray(serverDebts)) return;
+    try {
+      const storageKey = getUserStorageKey("oybek-system:pending_debts");
+      const raw = localStorage.getItem(storageKey);
+      const localList = raw ? JSON.parse(raw) : [];
+      const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
+
+      const debtMap = new Map();
+      serverDebts.forEach((d) => debtMap.set(d.id, { ...d, synced: true }));
+
+      unsyncedLocals.forEach((localD) => {
+        const serverD = debtMap.get(localD.id);
+        if (serverD) {
+          const serverPayments = serverD.payments || [];
+          const localPayments = localD.payments || [];
+          const payMap = new Map();
+          serverPayments.forEach((p) => payMap.set(p.id, p));
+          localPayments.forEach((p) => payMap.set(p.id, p));
+
+          debtMap.set(localD.id, {
+            ...serverD,
+            ...localD,
+            status: localD.status === "settled" || serverD.status === "settled" ? "settled" : (localD.status || serverD.status),
+            payments: Array.from(payMap.values()),
+            synced: false,
+          });
+        } else {
+          debtMap.set(localD.id, localD);
+        }
+      });
+
+      const merged = Array.from(debtMap.values());
+      merged.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+      localStorage.setItem(storageKey, JSON.stringify(merged));
+    } catch (err) {
+      console.warn("Qarzlarni birlashtirishda xato:", err);
     }
   }
 

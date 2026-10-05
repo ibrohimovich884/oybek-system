@@ -246,11 +246,28 @@ export async function recordDebtPayment(id, paymentData) {
   });
 
   try {
-    if (newPayment) {
+    if (status === "settled") {
+      const res = await apiClient.put(`/api/debts/${id}/settle`, {
+        ...paymentData,
+        id: newPayment?.id,
+        amount: paymentAmount,
+        debtData: debt,
+      });
+      if (res && res.ok) {
+        updatedDebt.synced = true;
+        updatedDebt.status = "settled";
+        syncService.removeFromQueue(queueEntry.queueId);
+        syncService.addLog("success", `Qarz to'liq yopildi: ${debt.personName}`);
+        markDebtSynced(id, true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
+        }
+      }
+    } else if (newPayment) {
       const res = await apiClient.post(`/api/debts/${id}/payments`, {
         ...newPayment,
         debtData: debt,
-        markSettled: status === "settled",
+        markSettled: false,
       });
       if (res && res.ok) {
         updatedDebt.synced = true;
@@ -279,6 +296,14 @@ export async function recordDebtPayment(id, paymentData) {
   pushSnapshot().catch(() => {});
 
   return { updatedDebt, payment: newPayment || { amount: 0, date: new Date().toISOString() } };
+}
+
+export async function settleDebtApi(id, customOpts = {}) {
+  return await recordDebtPayment(id, {
+    ...customOpts,
+    status: "settled",
+    markSettled: true,
+  });
 }
 
 export async function deleteDebtRecord(id) {
