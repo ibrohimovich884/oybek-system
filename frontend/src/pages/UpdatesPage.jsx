@@ -34,16 +34,11 @@ export default function UpdatesPage() {
   // Shikoyat yuborish modali
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [selectedUpdateForComplaint, setSelectedUpdateForComplaint] = useState(null);
-  const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false);
-  const [complaintForm, setComplaintForm] = useState({
-    subject: "",
-    message: "",
-    complaintType: "complaint", // 'complaint' | 'bug' | 'suggestion' | 'question'
-    priority: "normal",        // 'low' | 'normal' | 'high' | 'urgent'
-    contactName: user?.fullName || user?.name || "",
-    contactEmail: user?.email || "",
-    contactPhone: user?.phoneNumber || "",
-  });
+  const [complaintType, setComplaintType] = useState("complaint");
+  const [priority, setPriority] = useState("normal");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Admin yangilanish qo'shish modali
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -61,7 +56,7 @@ export default function UpdatesPage() {
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
-    setTimeout(() => setToast(null), 4500);
+    setTimeout(() => setToast(null), 4000);
   };
 
   // Ma'lumotlarni yuklash
@@ -86,63 +81,62 @@ export default function UpdatesPage() {
     loadUpdates();
   }, [loadUpdates]);
 
-  // Shikoyat yuborishni ochish (aniq bir yangilik bo'yicha)
-  const handleOpenComplaint = (update) => {
-    setSelectedUpdateForComplaint(update);
-    setComplaintForm((prev) => ({
-      ...prev,
-      subject: update ? `${update.version} yangilanishi haqida shikoyat / fikr` : "Tizim yangilanishlari boʻyicha fikr",
-      contactName: user?.fullName || user?.name || prev.contactName || "",
-      contactEmail: user?.email || prev.contactEmail || "",
-      contactPhone: user?.phoneNumber || prev.contactPhone || "",
-    }));
+  // Shikoyat modalini ochish (aniq bir yangilik bo'yicha yoki umumiy)
+  const handleOpenComplaint = (update = null) => {
+    setSelectedUpdateForComplaint(update || updates[0] || null);
+    setSubject(
+      update
+        ? `${update.version} yangilanishi haqida`
+        : updates[0]
+        ? `${updates[0].version} yangilanishi haqida`
+        : "Tizim yangilanishi haqida"
+    );
+    setMessage("");
+    setComplaintType("complaint");
+    setPriority("normal");
     setShowComplaintModal(true);
   };
 
-  // Shikoyatni jo'natish
+  // Shikoyatni jo'natish (Hisobdan ism va email olinadi)
   const handleSubmitComplaint = async (e) => {
     e.preventDefault();
-    if (!complaintForm.subject.trim() || !complaintForm.message.trim()) {
-      showToast("Mavzu va shikoyat matnini kiriting", "error");
+    if (!message.trim()) {
+      showToast("Murojaat matnini kiriting", "error");
       return;
     }
 
-    setIsSubmittingComplaint(true);
+    setIsSubmitting(true);
     try {
+      const targetUpdate = selectedUpdateForComplaint;
+      const userName = user?.fullName || user?.name || user?.username || "Foydalanuvchi";
+      const userEmail = user?.email || "noma'lum";
+
       const payload = {
         userId: user?.id,
-        updateId: selectedUpdateForComplaint?.id || null,
-        updateVersion: selectedUpdateForComplaint?.version || null,
-        updateTitle: selectedUpdateForComplaint?.title || null,
-        complaintType: complaintForm.complaintType,
-        priority: complaintForm.priority,
-        subject: complaintForm.subject.trim(),
-        message: complaintForm.message.trim(),
-        contactName: complaintForm.contactName.trim() || user?.fullName || "Foydalanuvchi",
-        contactEmail: complaintForm.contactEmail.trim() || user?.email || "",
-        contactPhone: complaintForm.contactPhone.trim() || null,
+        updateId: targetUpdate?.id || null,
+        updateVersion: targetUpdate?.version || null,
+        updateTitle: targetUpdate?.title || null,
+        complaintType,
+        priority,
+        subject: subject.trim() || `${targetUpdate?.version || "Tizim"} boʻyicha murojaat`,
+        message: message.trim(),
+        contactName: userName,
+        contactEmail: userEmail,
+        contactPhone: user?.phoneNumber || null,
       };
 
       const res = await updatesApi.submitComplaint(payload);
       if (res.ok) {
-        showToast(res.message || "Shikoyatingiz adminga muvaffaqiyatli yetkazildi!");
+        showToast(res.message || "Shikoyatingiz adminga yetkazildi!");
         setShowComplaintModal(false);
-        setComplaintForm({
-          subject: "",
-          message: "",
-          complaintType: "complaint",
-          priority: "normal",
-          contactName: user?.fullName || user?.name || "",
-          contactEmail: user?.email || "",
-          contactPhone: user?.phoneNumber || "",
-        });
+        setMessage("");
       } else {
         showToast(res.error || "Shikoyatni yuborib bo'lmadi", "error");
       }
     } catch (err) {
       showToast("Xatolik: " + err.message, "error");
     } finally {
-      setIsSubmittingComplaint(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -256,8 +250,8 @@ export default function UpdatesPage() {
         </div>
       )}
 
-      {/* Soddalashtirilgan Header (Keraksiz tugmalarsiz va faqat ma'lumotnoma) */}
-      <div style={{ marginBottom: 24 }}>
+      {/* Yuqori Header va Tezkor shikoyat qilish tugmasi */}
+      <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
@@ -286,6 +280,26 @@ export default function UpdatesPage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => handleOpenComplaint(null)}
+              className="btn btn--danger btn--sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                borderColor: "#f87171",
+                fontWeight: 600,
+                fontSize: "0.82rem",
+                padding: "7px 13px",
+              }}
+              title="Adminga shikoyat yoki taklif yuborish"
+            >
+              <AlertTriangle size={15} />
+              <span>Adminga shikoyat qilish</span>
+            </button>
+
             {isAdmin && (
               <button
                 type="button"
@@ -296,6 +310,8 @@ export default function UpdatesPage() {
                   alignItems: "center",
                   gap: 6,
                   background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  fontSize: "0.82rem",
+                  padding: "7px 12px",
                 }}
               >
                 <Plus size={15} />
@@ -311,7 +327,7 @@ export default function UpdatesPage() {
               style={{ padding: "7px 10px" }}
               title="Yangilash"
             >
-              <RefreshCw size={15} className={isRefreshing ? "animate-spin" : ""} />
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
@@ -344,7 +360,7 @@ export default function UpdatesPage() {
               : [];
 
             return (
-              <div
+              <article
                 key={upd.id}
                 className="card"
                 style={{
@@ -358,9 +374,9 @@ export default function UpdatesPage() {
                   boxShadow: isLatest ? "0 4px 20px rgba(56, 189, 248, 0.08)" : undefined,
                 }}
               >
-                {/* Yuqori qator: Versiya, Sana, Badge va Admin o'chirish */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                {/* Yuqori qator: Versiya, Sana, Badge va Shikoyat tugmasi */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span
                       style={{
                         fontSize: "1.1rem",
@@ -410,18 +426,38 @@ export default function UpdatesPage() {
                     </span>
                   </div>
 
-                  {isAdmin && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <button
                       type="button"
-                      onClick={() => handleDeleteUpdate(upd.id, upd.title)}
-                      className="btn btn--danger btn--xs"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-                      title="Ushbu yangilanishni o'chirish"
+                      onClick={() => handleOpenComplaint(upd)}
+                      className="btn btn--secondary btn--xs"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        borderColor: "rgba(239, 68, 68, 0.35)",
+                        color: "#f87171",
+                        background: "rgba(239, 68, 68, 0.06)",
+                        fontWeight: 600,
+                      }}
+                      title="Ushbu yangilik bo'yicha adminga shikoyat qilish"
                     >
-                      <Trash2 size={13} />
-                      <span>Oʻchirish</span>
+                      <AlertTriangle size={12} />
+                      <span>Shikoyat qilish</span>
                     </button>
-                  )}
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUpdate(upd.id, upd.title)}
+                        className="btn btn--danger btn--xs"
+                        style={{ padding: "4px 8px" }}
+                        title="Ushbu yangilanishni o'chirish"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Sarlavha va Qisqacha Tavsif */}
@@ -447,9 +483,6 @@ export default function UpdatesPage() {
                       gap: 8,
                     }}
                   >
-                    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                      Asosiy oʻzgarishlar va imkoniyatlar:
-                    </div>
                     {details.map((d, dIdx) => {
                       const text = typeof d === "string" ? d : d.text;
                       const type = typeof d === "string" ? "new" : d.type || "new";
@@ -472,37 +505,7 @@ export default function UpdatesPage() {
                     })}
                   </div>
                 )}
-
-                {/* Pastki qism: Adminga shikoyat / fikr bildirish tugmasi */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    alignItems: "center",
-                    paddingTop: 8,
-                    borderTop: "1px solid var(--border)",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleOpenComplaint(upd)}
-                    className="btn btn--secondary btn--xs"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      borderColor: "rgba(239, 68, 68, 0.35)",
-                      color: "#f87171",
-                      background: "rgba(239, 68, 68, 0.06)",
-                      fontWeight: 600,
-                    }}
-                    title="Ushbu yangilik bo'yicha adminga shikoyat yoki taklif yuborish"
-                  >
-                    <AlertTriangle size={13} />
-                    <span>Ushbu yangilik haqida adminga shikoyat qilish</span>
-                  </button>
-                </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -512,10 +515,10 @@ export default function UpdatesPage() {
       {/* SHIKOYAT / FIKR BILDIRISH MODALI                                   */}
       {/* =================================================================== */}
       {showComplaintModal && (
-        <div className="modal-backdrop" onClick={() => setShowComplaintModal(false)}>
+        <div className="modal-backdrop" onClick={() => !isSubmitting && setShowComplaintModal(false)}>
           <div
             className="modal-card"
-            style={{ maxWidth: 540, width: "95%" }}
+            style={{ maxWidth: 500, width: "95%" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
@@ -532,14 +535,14 @@ export default function UpdatesPage() {
                     justifyContent: "center",
                   }}
                 >
-                  <AlertTriangle size={20} />
+                  <AlertTriangle size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: "1.12rem", fontWeight: 700 }}>
-                    Adminga Shikoyat yoki Fikr yuborish
+                  <h3 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
+                    Adminga Shikoyat / Fikr yuborish
                   </h3>
-                  <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    {selectedUpdateForComplaint
+                  <p style={{ margin: 0, fontSize: "0.76rem", color: "var(--text-muted)" }}>
+                    {selectedUpdateForComplaint?.version
                       ? `${selectedUpdateForComplaint.version} (${selectedUpdateForComplaint.title}) boʻyicha`
                       : "Tizim yangilanishi boʻyicha murojaat"}
                   </p>
@@ -555,30 +558,61 @@ export default function UpdatesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitComplaint} style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <form onSubmit={handleSubmitComplaint} style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Qaysi yangilanish bo'yicha */}
+              {updates.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                    Qaysi yangilanish haqida:
+                  </label>
+                  <select
+                    value={selectedUpdateForComplaint?.id || ""}
+                    onChange={(e) => {
+                      const found = updates.find((u) => u.id === e.target.value);
+                      setSelectedUpdateForComplaint(found || null);
+                      if (found) setSubject(`${found.version} yangilanishi haqida`);
+                    }}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      background: "var(--surface-2)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text)",
+                      fontSize: "0.82rem",
+                    }}
+                  >
+                    {updates.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.version}: {u.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Murojaat turi */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)" }}>
                   Murojaat turi:
                 </label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 6 }}>
                   {[
                     { id: "complaint", label: "Shikoyat", icon: AlertTriangle, color: "#f87171" },
-                    { id: "bug", label: "Tizim xatosi", icon: Bug, color: "#fb923c" },
-                    { id: "suggestion", label: "Taklif / Fikr", icon: Lightbulb, color: "#34d399" },
+                    { id: "bug", label: "Xatolik", icon: Bug, color: "#fb923c" },
+                    { id: "suggestion", label: "Taklif", icon: Lightbulb, color: "#34d399" },
                     { id: "question", label: "Savol", icon: HelpCircle, color: "#38bdf8" },
                   ].map((type) => {
                     const Icon = type.icon;
-                    const isSelected = complaintForm.complaintType === type.id;
+                    const isSelected = complaintType === type.id;
                     return (
                       <button
                         key={type.id}
                         type="button"
-                        onClick={() => setComplaintForm({ ...complaintForm, complaintType: type.id })}
+                        onClick={() => setComplaintType(type.id)}
                         style={{
-                          padding: "8px 10px",
-                          borderRadius: 8,
-                          fontSize: "0.78rem",
+                          padding: "7px 8px",
+                          borderRadius: 7,
+                          fontSize: "0.76rem",
                           fontWeight: isSelected ? 700 : 500,
                           background: isSelected ? "var(--surface-2)" : "transparent",
                           border: `1.5px solid ${isSelected ? type.color : "var(--border)"}`,
@@ -586,11 +620,11 @@ export default function UpdatesPage() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: 6,
+                          gap: 5,
                           cursor: "pointer",
                         }}
                       >
-                        <Icon size={14} />
+                        <Icon size={13} />
                         <span>{type.label}</span>
                       </button>
                     );
@@ -598,143 +632,57 @@ export default function UpdatesPage() {
                 </div>
               </div>
 
-              {/* Muhimlik darajasi */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)" }}>
-                  Muhimlik darajasi:
-                </label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {[
-                    { id: "normal", label: "Oddiy" },
-                    { id: "high", label: "Muhim" },
-                    { id: "urgent", label: "Shoshilinch!" },
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setComplaintForm({ ...complaintForm, priority: p.id })}
-                      style={{
-                        padding: "5px 12px",
-                        borderRadius: 6,
-                        fontSize: "0.76rem",
-                        fontWeight: complaintForm.priority === p.id ? 700 : 500,
-                        background: complaintForm.priority === p.id ? "rgba(239, 68, 68, 0.15)" : "var(--surface-2)",
-                        border: `1px solid ${complaintForm.priority === p.id ? "#f87171" : "var(--border)"}`,
-                        color: complaintForm.priority === p.id ? "#f87171" : "var(--text-muted)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mavzu */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)" }}>
-                  Mavzu: <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Mavzuni kiriting..."
-                  value={complaintForm.subject}
-                  onChange={(e) => setComplaintForm({ ...complaintForm, subject: e.target.value })}
-                  style={{
-                    padding: "9px 12px",
-                    borderRadius: 8,
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text)",
-                    fontSize: "0.88rem",
-                  }}
-                  required
-                />
-              </div>
-
-              {/* Xabar matni */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)" }}>
+              {/* Shikoyat matni */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)" }}>
                   Shikoyat yoki taklifingiz matni: <span style={{ color: "#ef4444" }}>*</span>
                 </label>
                 <textarea
                   rows={4}
                   placeholder="Shikoyat, kamchilik yoki taklifingizni yozing..."
-                  value={complaintForm.message}
-                  onChange={(e) => setComplaintForm({ ...complaintForm, message: e.target.value })}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                   style={{
                     padding: "10px 12px",
                     borderRadius: 8,
                     background: "var(--surface-2)",
                     border: "1px solid var(--border)",
                     color: "var(--text)",
-                    fontSize: "0.86rem",
+                    fontSize: "0.85rem",
                     resize: "vertical",
                   }}
                   required
                 />
               </div>
 
-              {/* Aloqa ma'lumotlari */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Ismingiz:</label>
-                  <input
-                    type="text"
-                    value={complaintForm.contactName}
-                    onChange={(e) => setComplaintForm({ ...complaintForm, contactName: e.target.value })}
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 6,
-                      background: "var(--surface-2)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text)",
-                      fontSize: "0.82rem",
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Telefon (Ixtiyoriy):</label>
-                  <input
-                    type="text"
-                    placeholder="+998 90 123 45 67"
-                    value={complaintForm.contactPhone}
-                    onChange={(e) => setComplaintForm({ ...complaintForm, contactPhone: e.target.value })}
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 6,
-                      background: "var(--surface-2)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text)",
-                      fontSize: "0.82rem",
-                    }}
-                  />
-                </div>
+              {/* Bildirish: Hisob ma'lumoti */}
+              <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", background: "var(--surface-2)", padding: "7px 10px", borderRadius: 6 }}>
+                Hisobingiz: <strong>{user?.fullName || user?.name || user?.username || "Foydalanuvchi"}</strong> ({user?.email || "Gmail"}) orqali adminga yuboriladi.
               </div>
 
               {/* Pastki tugmalar */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
                 <button
                   type="button"
                   onClick={() => setShowComplaintModal(false)}
-                  className="btn btn--secondary"
+                  className="btn btn--secondary btn--sm"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingComplaint}
-                  className="btn btn--danger"
+                  disabled={isSubmitting}
+                  className="btn btn--danger btn--sm"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
                     background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    fontWeight: 600,
                   }}
                 >
-                  <Send size={15} />
-                  <span>{isSubmittingComplaint ? "Yuborilmoqda..." : "Adminga yuborish"}</span>
+                  <Send size={14} />
+                  <span>{isSubmitting ? "Yuborilmoqda..." : "Adminga yuborish"}</span>
                 </button>
               </div>
             </form>
@@ -746,14 +694,14 @@ export default function UpdatesPage() {
       {/* ADMIN YANGI YANGILIK QO'SHISH MODALI                                */}
       {/* =================================================================== */}
       {isAdmin && showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-backdrop" onClick={() => !isCreating && setShowCreateModal(false)}>
           <div
             className="modal-card"
-            style={{ maxWidth: 580, width: "95%" }}
+            style={{ maxWidth: 540, width: "95%" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
+              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>
                 Yangi Tizim Yangilanishini Eʼlon Qilish
               </h3>
               <button
@@ -766,74 +714,74 @@ export default function UpdatesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateUpdate} style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <form onSubmit={handleCreateUpdate} style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Versiya (masalan v5.3.0):</label>
+                  <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>Versiya (masalan v5.3.0):</label>
                   <input
                     type="text"
                     placeholder="v5.3.0"
                     value={createForm.version}
                     onChange={(e) => setCreateForm({ ...createForm, version: e.target.value })}
-                    style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
+                    style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.82rem" }}
                     required
                   />
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Nishon (Badge):</label>
+                  <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>Nishon (Badge):</label>
                   <input
                     type="text"
                     placeholder="Muhim yangilanish"
                     value={createForm.badge}
                     onChange={(e) => setCreateForm({ ...createForm, badge: e.target.value })}
-                    style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
+                    style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.82rem" }}
                   />
                 </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Sarlavha:</label>
+                <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>Sarlavha:</label>
                 <input
                   type="text"
                   placeholder="Yangilanish sarlavhasi..."
                   value={createForm.title}
                   onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                  style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)" }}
+                  style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.82rem" }}
                   required
                 />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Qisqacha tavsif:</label>
+                <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>Qisqacha tavsif:</label>
                 <textarea
                   rows={2}
                   placeholder="Yangilanish haqida umumiy mazmun..."
                   value={createForm.summary}
                   onChange={(e) => setCreateForm({ ...createForm, summary: e.target.value })}
-                  style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", resize: "vertical" }}
+                  style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.82rem", resize: "vertical" }}
                   required
                 />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>
+                <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>
                   Asosiy oʻzgarishlar bandlari (Har bir qator alohida band):
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   placeholder="Har bir yangi funksiyani alohida qatorda yozing..."
                   value={createForm.detailsText}
                   onChange={(e) => setCreateForm({ ...createForm, detailsText: e.target.value })}
-                  style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", resize: "vertical" }}
+                  style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.82rem", resize: "vertical" }}
                 />
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
-                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn--secondary">
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn--secondary btn--sm">
                   Bekor qilish
                 </button>
-                <button type="submit" disabled={isCreatingUpdate} className="btn btn--primary">
+                <button type="submit" disabled={isCreatingUpdate} className="btn btn--primary btn--sm">
                   {isCreatingUpdate ? "Saqlanmoqda..." : "Eʼlon qilish"}
                 </button>
               </div>

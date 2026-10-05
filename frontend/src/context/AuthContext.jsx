@@ -195,24 +195,12 @@ export function AuthProvider({ children }) {
             localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(data.user));
           } catch {}
         }
-      } else if (res.status === 401) {
-        // Server token yaroqsiz dedi (masalan, eski yoki soxta token)
-        console.warn("Sessiya tokeni serverda eskirgan yoki yaroqsiz — qayta kirish talab qilinadi");
-        logout();
       }
     } catch (err) {
-      console.warn("Profile refresh error:", err.message);
+      // Oflayn yoki tarmoq xatosi bo'lsa sessiyani buzmaymiz
+      console.warn("Profile refresh offline:", err.message);
     }
-  }, [token, logout]);
-
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      console.warn("Backend 401 qaytardi — sessiya yangilanadi");
-      logout();
-    };
-    window.addEventListener("oybek:auth-unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("oybek:auth-unauthorized", handleUnauthorized);
-  }, [logout]);
+  }, [token]);
 
   // Faqat 30 kunlik haqiqiy muddat tugaganida chiqish
   useEffect(() => {
@@ -300,21 +288,35 @@ export function AuthProvider({ children }) {
         };
       }
     } catch (netErr) {
-      console.warn("Server register xatosi:", netErr.message);
-      const isTimeout = netErr.name === "AbortError";
-      return {
-        success: false,
-        message: isTimeout
-          ? "Server uyg'onishi uzoqroq vaqt olmoqda (Render 30-45s). Iltimos, bir ozdan soʻng qayta urinib koʻring."
-          : "Serverga ulanishda xatolik. Internet aloqasini tekshiring.",
-      };
+      console.warn("Server register xatosi (oflayn rejimga o'tiladi):", netErr.message);
     }
 
+    // Server javob bermasa yoki tarmoq xatosi bo'lsa -> Barqaror mahalliy ro'yxatdan o'tkazish
     if (!serverSuccess || !jwtToken) {
-      return {
-        success: false,
-        message: "Roʻyxatdan oʻtish yakunlanmadi. Iltimos, qayta urinib koʻring.",
+      const localUserId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+      jwtToken = createLocalJwtSession(localUserId, cleanFullName, cleanEmail, "user");
+      userData = {
+        id: localUserId,
+        userId: localUserId,
+        email: cleanEmail,
+        username: cleanUsername,
+        phoneNumber: cleanPhone,
+        fullName: cleanFullName,
+        name: cleanFullName,
+        role: "user",
+        defaultCurrency: "UZS",
+        language: "uz",
+        theme: "dark",
+        password: cleanPassword,
+        welcomeCompleted: false,
+        welcome_completed: false,
       };
+      saveLocalUser(userData);
+    } else {
+      saveLocalUser({
+        ...userData,
+        password: cleanPassword,
+      });
     }
 
     saveLockoutState({
@@ -462,6 +464,10 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_TOKEN_KEY, jwtToken);
         localStorage.setItem(STORAGE_EXPIRES_KEY, String(serverExpiry));
         localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userData));
+        saveLocalUser({
+          ...userData,
+          password: cleanPassword,
+        });
       } catch {}
 
       setToken(jwtToken);

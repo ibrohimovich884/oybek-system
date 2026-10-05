@@ -450,44 +450,6 @@ export default function LoginScreen() {
                 </>
               )}
             </button>
-
-            {/* Tezkor Admin ma'lumoti */}
-            <div
-              style={{
-                marginTop: 14,
-                padding: "8px 12px",
-                background: "rgba(245, 158, 11, 0.08)",
-                border: "1px dashed rgba(245, 158, 11, 0.28)",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                fontSize: "0.74rem",
-                color: "#fbbf24",
-              }}
-            >
-              <span>Admin: <code>Admin</code> / <code>Oybe-SysteM</code></span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginIdentifier("Admin");
-                  setLoginPassword("Oybe-SysteM");
-                  if (errorMsg) setErrorMsg("");
-                }}
-                style={{
-                  background: "rgba(245, 158, 11, 0.18)",
-                  border: "1px solid rgba(245, 158, 11, 0.35)",
-                  color: "#fbbf24",
-                  borderRadius: 5,
-                  padding: "3px 8px",
-                  cursor: "pointer",
-                  fontSize: "0.7rem",
-                  fontWeight: 600,
-                }}
-              >
-                Kiritish
-              </button>
-            </div>
           </form>
         ) : (
           /* ========================================================= */
