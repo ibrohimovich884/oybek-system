@@ -594,16 +594,36 @@ export default function ExpenseForm({ initialType = "expense", initialFrom = "ha
           </div>
 
           <div className="expense-form__field">
-            <label htmlFor={locationId} className="expense-form__label">
-              <MapPin size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-              Joy / Muassasa (location)
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label htmlFor={locationId} className="expense-form__label" style={{ margin: 0 }}>
+                <MapPin size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                Joy / Muassasa (location)
+              </label>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className={`quick-chip-btn ${location === "Gulbahor" ? "is-active" : ""}`}
+                  onClick={() => setLocation(location === "Gulbahor" ? "" : "Gulbahor")}
+                  title="Gulbahor deb yozish"
+                >
+                  Gulbahor
+                </button>
+                <button
+                  type="button"
+                  className={`quick-chip-btn ${location === "40-maktab" ? "is-active" : ""}`}
+                  onClick={() => setLocation(location === "40-maktab" ? "" : "40-maktab")}
+                  title="40-maktab deb yozish"
+                >
+                  40-maktab
+                </button>
+              </div>
+            </div>
             <input
               id={locationId}
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Gulbahordagi Havas, Korzinka..."
+              placeholder="Masalan: Gulbahor, 40-maktab..."
               className="expense-form__input"
             />
           </div>

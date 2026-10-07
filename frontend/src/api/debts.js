@@ -90,7 +90,7 @@ export async function addDebtRecord(debtData) {
     contact: debtData.contact?.trim() || "",
     amount: Number(debtData.amount || 0),
     currency: debtData.currency || "UZS", // "UZS" | "USD"
-    wallet: debtData.wallet || "naqd",
+    wallet: debtData.wallet || "hamyon",
     affectBalance: Boolean(debtData.affectBalance),
     date: formatISOWithOffset(debtData.date || new Date()),
     location: debtData.location?.trim() || "",
@@ -194,7 +194,7 @@ export async function recordDebtPayment(id, paymentData) {
     id: generateId(),
     amount: paymentAmount,
     date: formatISOWithOffset(paymentData.date || new Date()),
-    wallet: paymentData.wallet || debt.wallet || "naqd",
+    wallet: paymentData.wallet || debt.wallet || "hamyon",
     affectBalance: Boolean(paymentData.affectBalance),
     note: paymentData.note?.trim() || "",
     createdAt: formatISOWithOffset(new Date()),

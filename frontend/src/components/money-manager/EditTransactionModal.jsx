@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Check, Trash2, History, Code, Copy, Layers, Tag } from "lucide-react";
+import { X, Check, Trash2, History, Code, Copy, Layers, Tag, MapPin } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import {
   EXPENSE_CATEGORIES,
@@ -393,12 +393,35 @@ export default function EditTransactionModal({ item, onClose }) {
 
           {/* Joy */}
           <div className="expense-form__field">
-            <label className="expense-form__label">Joy / Manzil (location)</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label className="expense-form__label" style={{ margin: 0 }}>
+                <MapPin size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                Joy / Manzil (location)
+              </label>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className={`quick-chip-btn ${location === "Gulbahor" ? "is-active" : ""}`}
+                  onClick={() => setLocation(location === "Gulbahor" ? "" : "Gulbahor")}
+                  title="Gulbahor deb yozish"
+                >
+                  Gulbahor
+                </button>
+                <button
+                  type="button"
+                  className={`quick-chip-btn ${location === "40-maktab" ? "is-active" : ""}`}
+                  onClick={() => setLocation(location === "40-maktab" ? "" : "40-maktab")}
+                  title="40-maktab deb yozish"
+                >
+                  40-maktab
+                </button>
+              </div>
+            </div>
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Masalan: Gulbahordagi Havas"
+              placeholder="Masalan: Gulbahor, 40-maktab..."
               className="expense-form__input"
             />
           </div>

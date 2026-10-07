@@ -30,8 +30,8 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
   const [contact, setContact] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("UZS");
-  const [wallet, setWallet] = useState("naqd");
-  const [affectBalance, setAffectBalance] = useState(true);
+  const [wallet, setWallet] = useState("hamyon");
+  const [affectBalance, setAffectBalance] = useState(false);
   const [date, setDate] = useState(() => toLocalDatetimeInput(new Date()));
   const [location, setLocation] = useState("");
   const [reason, setReason] = useState("");
@@ -221,7 +221,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
                   const curr = e.target.value;
                   setCurrency(curr);
                   if (curr === "USD") setWallet("dollar");
-                  else if (wallet === "dollar") setWallet("naqd");
+                  else if (wallet === "dollar") setWallet("hamyon");
                 }}
               >
                 <option value="UZS">So'm (UZS)</option>
@@ -344,14 +344,34 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
             </div>
 
             <div className="form-group">
-              <label className="field-label">
-                <MapPin size={14} style={{ marginRight: 4, display: "inline" }} />
-                <span>Joylashuv (Manzil)</span>
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label className="field-label" style={{ margin: 0 }}>
+                  <MapPin size={14} style={{ marginRight: 4, display: "inline" }} />
+                  <span>Joylashuv (Manzil)</span>
+                </label>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    type="button"
+                    className={`quick-chip-btn ${location === "Gulbahor" ? "is-active" : ""}`}
+                    onClick={() => setLocation(location === "Gulbahor" ? "" : "Gulbahor")}
+                    title="Gulbahor deb yozish"
+                  >
+                    Gulbahor
+                  </button>
+                  <button
+                    type="button"
+                    className={`quick-chip-btn ${location === "40-maktab" ? "is-active" : ""}`}
+                    onClick={() => setLocation(location === "40-maktab" ? "" : "40-maktab")}
+                    title="40-maktab deb yozish"
+                  >
+                    40-maktab
+                  </button>
+                </div>
+              </div>
               <input
                 type="text"
                 className="field-input"
-                placeholder="Chorsu, ofis yoki choyxona..."
+                placeholder="Masalan: Gulbahor, 40-maktab..."
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />

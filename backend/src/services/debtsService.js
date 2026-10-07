@@ -90,7 +90,7 @@ export async function createDebt(payload, userId) {
     reason = "",
     location = "",
     personalNote = "",
-    wallet = "naqd",
+    wallet = "hamyon",
     status = "pending",
     dueDate = null,
     isDueDateUnknown = false,
@@ -259,7 +259,7 @@ export async function addDebtPayment(debtId, payment, userId) {
       id: debtId,
       personName: payment.personName || "Noma'lum qarz",
       amount: Number(payment.amount || 0),
-      wallet: payment.wallet || "naqd",
+      wallet: payment.wallet || "hamyon",
       status: "partial",
     }, userId);
     debt = await getDebtById(debtId, userId);

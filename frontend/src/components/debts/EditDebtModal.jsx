@@ -29,7 +29,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   const [contact, setContact] = useState(debt.contact || "");
   const [amount, setAmount] = useState(debt.amount || "");
   const [currency, setCurrency] = useState(debt.currency || "UZS");
-  const [wallet, setWallet] = useState(debt.wallet || "naqd");
+  const [wallet, setWallet] = useState(debt.wallet || "hamyon");
   const [date, setDate] = useState(() =>
     debt.date ? toLocalDatetimeInput(debt.date) : toLocalDatetimeInput(new Date())
   );
@@ -51,7 +51,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
       setContact(debt.contact || "");
       setAmount(debt.amount || "");
       setCurrency(debt.currency || "UZS");
-      setWallet(debt.wallet || "naqd");
+      setWallet(debt.wallet || "hamyon");
       setDate(debt.date ? toLocalDatetimeInput(debt.date) : toLocalDatetimeInput(new Date()));
       setLocation(debt.location || "");
       setReason(debt.reason || "");
@@ -253,7 +253,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
                   const curr = e.target.value;
                   setCurrency(curr);
                   if (curr === "USD") setWallet("dollar");
-                  else if (wallet === "dollar") setWallet("naqd");
+                  else if (wallet === "dollar") setWallet("hamyon");
                 }}
               >
                 <option value="UZS">So'm (UZS)</option>
@@ -425,14 +425,34 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
           {/* 6. Joylashuv va Sababi */}
           <div className="form-row form-row--2col">
             <div className="form-group">
-              <label className="field-label">
-                <MapPin size={14} style={{ marginRight: 4, display: "inline" }} />
-                <span>Joylashuv / Manzil</span>
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label className="field-label" style={{ margin: 0 }}>
+                  <MapPin size={14} style={{ marginRight: 4, display: "inline" }} />
+                  <span>Joylashuv / Manzil</span>
+                </label>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    type="button"
+                    className={`quick-chip-btn ${location === "Gulbahor" ? "is-active" : ""}`}
+                    onClick={() => setLocation(location === "Gulbahor" ? "" : "Gulbahor")}
+                    title="Gulbahor deb yozish"
+                  >
+                    Gulbahor
+                  </button>
+                  <button
+                    type="button"
+                    className={`quick-chip-btn ${location === "40-maktab" ? "is-active" : ""}`}
+                    onClick={() => setLocation(location === "40-maktab" ? "" : "40-maktab")}
+                    title="40-maktab deb yozish"
+                  >
+                    40-maktab
+                  </button>
+                </div>
+              </div>
               <input
                 type="text"
                 className="field-input"
-                placeholder="Chorsu, ofis yoki manzil..."
+                placeholder="Masalan: Gulbahor, 40-maktab..."
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />

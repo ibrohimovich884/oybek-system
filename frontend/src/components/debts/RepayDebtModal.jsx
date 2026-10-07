@@ -20,8 +20,8 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
   const formatFn = isUsd ? formatDollar : formatSum;
 
   const [amount, setAmount] = useState(remaining);
-  const [wallet, setWallet] = useState(debt.wallet || (isUsd ? "dollar" : "naqd"));
-  const [affectBalance, setAffectBalance] = useState(true);
+  const [wallet, setWallet] = useState(debt.wallet || (isUsd ? "dollar" : "hamyon"));
+  const [affectBalance, setAffectBalance] = useState(false);
   const [date, setDate] = useState(() => toLocalDatetimeInput(new Date()));
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
