@@ -1,6 +1,5 @@
 import { generateId } from "../utils/id.js";
 import { formatISOWithOffset } from "../utils/format.js";
-import { scheduleSnapshotPush, pushSnapshot, pullSnapshotFromDB } from "../services/snapshotSync.js";
 import { syncService } from "../services/syncService.js";
 import { apiClient } from "./client.js";
 import { getUserStorageKey } from "../utils/storageKeys.js";
@@ -28,17 +27,16 @@ export function writeLocalDebts(debts) {
   if (typeof window === "undefined") return;
   const storageKey = getUserStorageKey(BASE_PENDING_DEBTS_KEY);
   localStorage.setItem(storageKey, JSON.stringify(debts));
-  scheduleSnapshotPush();
 }
 
 /**
- * Qarzlar ro'yxatini olish (Backend /api/debts yoki snapshot yoki lokal kesh)
+ * Qarzlar ro'yxatini olish (Backend /api/debts yoki lokal kesh)
  */
 export async function getDebts() {
   const localDebts = readLocalDebts();
   const unsyncedLocals = localDebts.filter((d) => d.synced === false);
 
-  // 1. Yangi REST /api/debts endpointi
+  // 1. REST /api/debts endpointi
   try {
     const res = await apiClient.get("/api/debts");
     if (res.ok && Array.isArray(res.data)) {
@@ -74,24 +72,14 @@ export async function getDebts() {
       return merged;
     }
   } catch (err) {
-    console.warn("/api/debts dan olishda xatolik, snapshot tekshiriladi:", err);
-  }
-
-  // 2. app_snapshot fallback
-  try {
-    const pulled = await pullSnapshotFromDB();
-    if (pulled && Array.isArray(pulled.pendingDebts)) {
-      return pulled.pendingDebts;
-    }
-  } catch (err) {
-    console.warn("DBdan qarzlarni olishda ogohlantirish (lokal xotira ishlatiladi):", err);
+    console.warn("/api/debts dan olishda ogohlantirish (lokal xotira ishlatiladi):", err);
   }
 
   return localDebts;
 }
 
 /**
- * Yangi qarz qo'shish (Sinxronizatsiya navbatiga olinadi va DB debts / app_snapshot ga yoziladi)
+ * Yangi qarz qo'shish (Sinxronizatsiya navbatiga olinadi va DB debts ga yoziladi)
  */
 export async function addDebtRecord(debtData) {
   const debts = readLocalDebts();
@@ -144,9 +132,6 @@ export async function addDebtRecord(debtData) {
     console.warn("Debt post error:", err);
   }
 
-  // Snapshotga ham zaxira uchun yuboramiz
-  pushSnapshot().catch(() => {});
-
   return newDebt;
 }
 
@@ -193,8 +178,6 @@ export async function updateDebtRecord(id, updates) {
   } catch (err) {
     console.warn("Debt update error:", err);
   }
-
-  pushSnapshot().catch(() => {});
 
   return updated;
 }
@@ -293,8 +276,6 @@ export async function recordDebtPayment(id, paymentData) {
     console.warn("Payment recording network error:", err);
   }
 
-  pushSnapshot().catch(() => {});
-
   return { updatedDebt, payment: newPayment || { amount: 0, date: new Date().toISOString() } };
 }
 
@@ -327,8 +308,6 @@ export async function deleteDebtRecord(id) {
   } catch (err) {
     console.warn("Delete debt network error:", err);
   }
-
-  pushSnapshot().catch(() => {});
 
   return true;
 }

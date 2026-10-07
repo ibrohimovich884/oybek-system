@@ -31,9 +31,7 @@ export default function MoneyManager() {
     expenses,
     isLoading,
     deleteExpense,
-    downloadBackup,
     downloadCSV,
-    importBackup,
     syncStatus,
     triggerManualSync,
   } = useExpenses();
@@ -46,42 +44,9 @@ export default function MoneyManager() {
   const [editingItem, setEditingItem] = useState(null);
   const [deleteTargetItem, setDeleteTargetItem] = useState(null);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
-  const fileInputRef = useRef(null);
 
   const handleOpenTransfer = (from, to) => {
     setTransferConfig({ from, to });
-  };
-
-  const handleFileImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target.result;
-        const res = await importBackup(text);
-        if (res.success) {
-          setFeedback({
-            type: "success",
-            message: "Ma'lumotlar muvaffaqiyatli tiklandi!",
-          });
-        } else {
-          setFeedback({
-            type: "error",
-            message: "Faylni yuklashda xatolik: " + res.error,
-          });
-        }
-      } catch (err) {
-        setFeedback({
-          type: "error",
-          message: "Faylni o'qishda xatolik yuz berdi.",
-        });
-      }
-      setTimeout(() => setFeedback(null), 4000);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
   };
 
   const unsyncedCount = (expenses || []).filter((e) => e.synced === false).length;
@@ -96,7 +61,7 @@ export default function MoneyManager() {
           </p>
         </div>
 
-        {/* Eksport & Import asboblar paneli */}
+        {/* Tarix & Eksport asboblar paneli */}
         <div className="backup-toolbar">
           <Link
             to="/history"
@@ -115,31 +80,6 @@ export default function MoneyManager() {
             <FileSpreadsheet size={15} />
             <span className="backup-btn__label">Excel</span>
           </button>
-          <button
-            type="button"
-            className="btn btn--subtle btn--sm backup-btn"
-            onClick={downloadBackup}
-            title="JSON nusxa yuklab olish"
-          >
-            <Download size={15} />
-            <span className="backup-btn__label">Zaxira</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn--subtle btn--sm backup-btn"
-            onClick={() => fileInputRef.current?.click()}
-            title="JSON zaxira faylidan tiklash"
-          >
-            <Upload size={15} />
-            <span className="backup-btn__label">Tiklash</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            style={{ display: "none" }}
-            onChange={handleFileImport}
-          />
         </div>
       </div>
 

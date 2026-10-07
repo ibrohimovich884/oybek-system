@@ -18,7 +18,6 @@ import {
   setBackendBaseUrl as saveBackendBaseUrl,
 } from "../config/apiConfig.js";
 import { syncService } from "../services/syncService.js";
-import { scheduleSnapshotPush, pushSnapshot, pullSnapshotFromDB } from "../services/snapshotSync.js";
 import { getUserStorageKey } from "../utils/storageKeys.js";
 
 const BASE_EXPENSES_KEY = "oybek-system:expenses";
@@ -551,21 +550,11 @@ export async function getReserves() {
     console.warn("DB wallets jadvalidan rezervlarni olishda ogohlantirish:", e);
   }
 
-  // 2. Snapshot orqali zaxira tekshiruvi
-  try {
-    const pulled = await pullSnapshotFromDB();
-    if (pulled && pulled.reserves && Object.keys(pulled.reserves).length > 0) {
-      return pulled.reserves;
-    }
-  } catch (e) {
-    console.warn("Snapshotdan olishda ogohlantirish:", e);
-  }
-
   return readLocalReserves();
 }
 
 /**
- * Asosiy balansni yangilash (APPEND-ONLY notes bilan va DBga snapshot yuborish)
+ * Asosiy balansni yangilash (APPEND-ONLY notes bilan va DBga to'g'ridan-to'g'ri yuborish)
  */
 export async function updateReserve(rawId, { amount, noteText, exchangeRateAtTime }) {
   const id = canonicalWalletId(rawId);
@@ -616,17 +605,17 @@ export async function updateReserve(rawId, { amount, noteText, exchangeRateAtTim
     payload: { id, amount: newAmount, noteText: cleanNote, exchangeRateAtTime },
   });
 
-  // DB wallets jadvaliga ham yuboramiz
-  apiClient.put(API_ENDPOINTS.WALLETS, { [id]: newAmount }).catch(() => {});
-  apiClient.post(`${API_ENDPOINTS.WALLETS}/${id}/notes`, {
-    text: cleanNote,
-    amountAtTime: newAmount,
-    editedAt: now,
-  }).catch(() => {});
-
-  pushSnapshot()
-    .then((res) => {
-      if (res && res.ok) {
+  // DB wallets va notes jadvaliga to'g'ridan-to'g'ri yuboramiz
+  Promise.all([
+    apiClient.put(API_ENDPOINTS.WALLETS, { [id]: newAmount }),
+    apiClient.post(`${API_ENDPOINTS.WALLETS}/${id}/notes`, {
+      text: cleanNote,
+      amountAtTime: newAmount,
+      editedAt: now,
+    }),
+  ])
+    .then(([resPut]) => {
+      if (resPut && resPut.ok) {
         syncService.removeFromQueue(queueEntry.queueId);
         syncService.addLog("success", `Rezerv balansi DBga saqlandi: ${id}`);
       }
@@ -707,61 +696,6 @@ export async function getPendingDebts() {
 export async function savePendingDebts(debts) {
   writeLocalPendingDebts(debts);
   return debts;
-}
-
-/**
- * Zaxira nusxa (Backup) eksporti
- */
-export async function exportBackup() {
-  const expenses = await getExpenses();
-  const wallets = await getWallets();
-  const reserves = await getReserves();
-  const dollarRateHistory = await getDollarRateHistory();
-  const pendingDebts = await getPendingDebts();
-
-  return {
-    version: "3.0.0",
-    exportedAt: new Date().toISOString(),
-    backendPort: getBackendPort(),
-    wallets,
-    reserves,
-    dollarRateHistory,
-    pendingDebts,
-    expenses,
-  };
-}
-
-/**
- * Zaxira nusxani tiklash (Import)
- */
-export async function importBackup(backupData) {
-  if (!backupData || !Array.isArray(backupData.expenses)) {
-    throw new Error("Noto'g'ri zaxira fayli formati");
-  }
-
-  if (backupData.wallets) {
-    writeLocalWallets(backupData.wallets);
-  }
-
-  if (backupData.reserves) {
-    writeLocalReserves(backupData.reserves);
-  }
-
-  if (Array.isArray(backupData.dollarRateHistory)) {
-    writeLocalDollarRateHistory(backupData.dollarRateHistory);
-  }
-
-  if (Array.isArray(backupData.pendingDebts)) {
-    writeLocalPendingDebts(backupData.pendingDebts);
-  }
-
-  const normalized = backupData.expenses.map(normalizeExpense);
-  writeLocalExpenses(normalized);
-
-  // Agar backend mavjud bo'lsa, zaxirani unga ham yuborish
-  apiClient.post(API_ENDPOINTS.BACKUP, backupData).catch(() => {});
-
-  return true;
 }
 
 /**

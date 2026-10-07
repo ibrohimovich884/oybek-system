@@ -1355,16 +1355,6 @@ export default function AdminPage() {
               </div>
 
               <div style={{ padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8, border: "1px solid var(--border)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: "0.85rem", color: "#a855f7" }}>
-                  <Clock size={16} />
-                  <span>Zaxira Nusxalar (Snapshot)</span>
-                </div>
-                <p style={{ margin: "4px 0 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  <code style={{ color: "#a855f7" }}>app_snapshot</code> (reserves, dollar history) tozalanadi.
-                </p>
-              </div>
-
-              <div style={{ padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8, border: "1px solid var(--border)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: "0.85rem", color: "#f59e0b" }}>
                   <Users size={16} />
                   <span>Foydalanuvchi hisobi (Users)</span>

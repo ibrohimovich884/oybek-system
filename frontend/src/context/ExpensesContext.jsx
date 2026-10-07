@@ -442,19 +442,6 @@ export function ExpensesProvider({ children }) {
     await loadCbuRate();
   }, [loadCbuRate]);
 
-  const downloadBackup = useCallback(async () => {
-    const backup = await expensesApi.exportBackup();
-    const blob = new Blob([JSON.stringify(backup, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `oybek-system-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, []);
-
   const downloadCSV = useCallback(() => {
     if (!expenses.length) return;
 
@@ -513,20 +500,6 @@ export function ExpensesProvider({ children }) {
     link.click();
     URL.revokeObjectURL(url);
   }, [expenses]);
-
-  const importBackup = useCallback(
-    async (fileContent) => {
-      try {
-        const parsed = JSON.parse(fileContent);
-        await expensesApi.importBackup(parsed);
-        await refresh();
-        return { success: true };
-      } catch (err) {
-        return { success: false, error: err.message };
-      }
-    },
-    [refresh]
-  );
 
   const addDebt = useCallback(
     async (debtData) => {
@@ -768,9 +741,7 @@ export function ExpensesProvider({ children }) {
     setManualUsdRate,
     resetManualUsdRate,
     loadCbuRate,
-    downloadBackup,
     downloadCSV,
-    importBackup,
     addDebt,
     repayDebt,
     settleDebt,

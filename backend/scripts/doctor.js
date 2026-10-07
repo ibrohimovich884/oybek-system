@@ -6,7 +6,7 @@ dotenv.config();
 import { pool } from "../db/pool.js";
 import { checkSchema } from "../db/ensureSchema.js";
 
-const tables = ["wallets", "transactions", "transaction_edits", "exercises", "exercise_logs", "app_snapshot"];
+const tables = ["wallets", "transactions", "transaction_edits", "exercises", "exercise_logs", "debts", "debt_payments"];
 
 async function tryInsert(client, label, sql, params) {
   await client.query("SAVEPOINT s");

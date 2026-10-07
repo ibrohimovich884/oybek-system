@@ -51,7 +51,6 @@ export default function HistoryPage() {
     regularExpenses,
     isLoading,
     deleteExpense,
-    downloadBackup,
     downloadCSV,
     syncStatus,
     triggerManualSync,
@@ -386,16 +385,6 @@ export default function HistoryPage() {
           >
             <FileSpreadsheet size={15} />
             <span className="backup-btn__label">Excel</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn btn--subtle btn--sm backup-btn"
-            onClick={downloadBackup}
-            title="JSON zaxira faylini yuklab olish"
-          >
-            <Download size={15} />
-            <span className="backup-btn__label">Zaxira</span>
           </button>
         </div>
       </div>

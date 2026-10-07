@@ -51,9 +51,7 @@ export default function SettingsPage() {
     clearSyncLogs,
     clearSyncQueue,
     clearLocalStorageData,
-    downloadBackup,
     downloadCSV,
-    importBackup,
     expenses,
     debts,
   } = useExpenses();
@@ -69,7 +67,6 @@ export default function SettingsPage() {
   const serverUrl = "https://oybek-system.onrender.com";
   const [syncFeedback, setSyncFeedback] = useState(null);
   const [isHealthTesting, setIsHealthTesting] = useState(false);
-  const [importStatus, setImportStatus] = useState(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [preserveBackendConfig, setPreserveBackendConfig] = useState(true);
@@ -213,26 +210,6 @@ export default function SettingsPage() {
     } finally {
       setIsClearing(false);
     }
-  };
-
-  const handleFileImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImportStatus({ loading: true, message: "Fayl o'qilmoqda va tekshirilmoqda..." });
-    try {
-      const text = await file.text();
-      const res = await importBackup(text);
-      if (res.success) {
-        setImportStatus({ success: true, message: "Zaxira nusxasi muvaffaqiyatli tiklandi!" });
-        calculateStorageStats();
-      } else {
-        setImportStatus({ success: false, message: res.error || "Fayl formati yaroqsiz." });
-      }
-    } catch (err) {
-      setImportStatus({ success: false, message: "Faylni o'qishda xatolik: " + err.message });
-    }
-    e.target.value = "";
   };
 
   const syncedExpensesCount = (expenses || []).filter((e) => e.synced !== false).length;
@@ -401,8 +378,8 @@ export default function SettingsPage() {
           className={`settings-tab-btn ${activeTab === "backup" ? "is-active" : ""}`}
           onClick={() => setActiveTab("backup")}
         >
-          <Archive size={15} style={{ color: activeTab === "backup" ? "var(--accent)" : "currentColor" }} />
-          <span>Zaxira va Eksport</span>
+          <FileSpreadsheet size={15} style={{ color: activeTab === "backup" ? "var(--accent)" : "currentColor" }} />
+          <span>Eksport (CSV)</span>
         </button>
 
         <button
@@ -1022,72 +999,26 @@ export default function SettingsPage() {
       )}
 
       {/* =========================================================================
-          TAB 3: ZAXIRA VA EKSPORT
-          - Barcha moliyaviy maʼlumotlarni JSON zaxira fayli sifatida yuklab olish.
+          TAB 3: EKSPORT (CSV / EXCEL)
           - Excel / CSV jadval formatida eksport qilish.
-          - JSON zaxira faylini tizimga qayta tiklash (Import).
          ========================================================================= */}
       {activeTab === "backup" && (
         <div className="tab-pane animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Sarlavha */}
           <div className="settings-card">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <Archive size={18} color="var(--accent)" />
+              <FileSpreadsheet size={18} color="var(--accent)" />
               <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
-                Zaxira Nusxa va Eksport
+                Moliyaviy Maʼlumotlarni Eksport Qilish
               </h2>
             </div>
             <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Moliyaviy maʼlumotlarni saqlab olish, Excel jadvali qilib yuklash yoki tiklash
+              Barcha kundalik xarajat va daromadlar tarixini Excel yoki Google Sheets dasturlarida tahlil qilish uchun yuklab olish
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-            {/* 1. JSON zaxira fayli */}
-            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 8,
-                      background: "rgba(78, 184, 150, 0.14)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--accent)",
-                    }}
-                  >
-                    <FileJson size={18} />
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
-                      JSON Zaxira Fayli
-                    </h3>
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                      Toʻliq arxiv (.json)
-                    </span>
-                  </div>
-                </div>
-
-                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
-                  Hamyonlar, amallar, qarzlar, zaxira rezervlar va kurslar toʻliq arxivi.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                onClick={downloadBackup}
-                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
-              >
-                <Download size={15} />
-                <span>JSON zaxirani yuklab olish</span>
-              </button>
-            </div>
-
-            {/* 2. Excel / CSV eksport */}
+          <div style={{ maxWidth: 520 }}>
+            {/* Excel / CSV eksport */}
             <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -1116,96 +1047,19 @@ export default function SettingsPage() {
                 </div>
 
                 <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
-                  Excel yoki Google Sheets dasturlarida tahlil qilish uchun jadval formatida eksport.
+                  Barcha kiritilgan xarajat va daromadlar tarixini universal CSV jadval fayli koʻrinishida yuklab oling.
                 </p>
               </div>
 
               <button
                 type="button"
-                className="btn btn--subtle btn--sm"
+                className="btn btn--primary btn--sm"
                 onClick={downloadCSV}
                 style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
               >
                 <FileSpreadsheet size={15} />
-                <span>Excel / CSV eksport</span>
+                <span>Excel / CSV faylni yuklab olish</span>
               </button>
-            </div>
-
-            {/* 3. Zaxirani qayta tiklash (Import) */}
-            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 8,
-                      background: "rgba(245, 158, 11, 0.14)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--warning)",
-                    }}
-                  >
-                    <Upload size={18} />
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
-                      Zaxirani Qayta Tiklash
-                    </h3>
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                      Avvalgi .json faylidan
-                    </span>
-                  </div>
-                </div>
-
-                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
-                  Saqlab olingan <code>.json</code> zaxira faylini tanlang. Tizim yozuvlarni qayta tiklaydi.
-                </p>
-              </div>
-
-              <div>
-                <label
-                  className="btn btn--ghost btn--sm"
-                  style={{
-                    width: "100%",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    border: "1px dashed var(--border)",
-                    minHeight: 40,
-                  }}
-                >
-                  <Upload size={15} />
-                  <span>JSON faylini tanlash...</span>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileImport}
-                    style={{ display: "none" }}
-                  />
-                </label>
-
-                {importStatus && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      fontSize: "0.76rem",
-                      background: importStatus.success
-                        ? "rgba(16, 185, 129, 0.12)"
-                        : "rgba(239, 68, 68, 0.12)",
-                      color: importStatus.success ? "var(--income)" : "var(--danger)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {importStatus.message}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

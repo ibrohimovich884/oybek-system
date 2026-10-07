@@ -333,10 +333,7 @@ router.delete("/users/:id", async (req, res) => {
     const delNotesRes = await client.query(`DELETE FROM wallet_notes WHERE user_id = $1`, [id]);
     const delWalletsRes = await client.query(`DELETE FROM wallets WHERE user_id = $1`, [id]);
 
-    // 5. Zaxira nusxa (snapshot)
-    const delSnapshotRes = await client.query(`DELETE FROM app_snapshot WHERE user_id = $1`, [id]);
-
-    // 6. Asosiy foydalanuvchini o'chirish
+    // 5. Asosiy foydalanuvchini o'chirish
     await client.query(`DELETE FROM users WHERE id = $1`, [id]);
 
     await client.query("COMMIT");
@@ -353,7 +350,6 @@ router.delete("/users/:id", async (req, res) => {
         debtPayments: delDebtPaymentsRes.rowCount,
         exercises: delExercisesRes.rowCount,
         exerciseLogs: delLogsRes.rowCount,
-        snapshot: delSnapshotRes.rowCount,
       },
     });
   } catch (err) {

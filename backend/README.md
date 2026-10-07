@@ -39,8 +39,8 @@ natijani `.env`dagi `ADMIN_PASSWORD_HASH`ga joylashtiring.
 | GET/POST | /api/exercises/logs | Kunlik bajarilish belgilari |
 | GET | /api/exchange-rate/usd | Oxirgi saqlangan CBU kursi (cbu_rate_log) |
 | POST | /api/exchange-rate/usd/sync-cbu | CBU.uz'dan yangi kursni olib yozadi |
-| GET/PUT | /api/snapshot | Rezervlar, qarzlar, dollar tarixi (tranzaksiyalarga tegmaydi) |
-| GET/POST | /api/backup | To'liq holat: wallets, reserves, dollarRateHistory, pendingDebts, expenses |
+| GET/POST/PUT/DELETE | /api/debts | Qarzlar va to'lovlar |
+| GET/POST | /api/updates | Tizim yangilanishlari va shikoyatlar |
 
 ## Control Panel (Rezervlar / Qarzlar / Dollar tarixi) haqida MUHIM eslatma
 

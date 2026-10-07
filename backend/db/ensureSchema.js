@@ -99,14 +99,6 @@ export const EXPECTED = {
     note: "text",
     paid_at: "timestamp with time zone",
   },
-  app_snapshot: {
-    id: "text",
-    user_id: "text",
-    reserves: "jsonb",
-    dollar_rate_history: "jsonb",
-    pending_debts: "jsonb",
-    updated_at: "timestamp with time zone",
-  },
   cbu_rate_log: {
     id: "integer",
     rate: "numeric",
@@ -194,10 +186,6 @@ const DEFAULTS = {
   "debts.created_at": "now()",
   "debts.updated_at": "now()",
   "debt_payments.paid_at": "now()",
-  "app_snapshot.reserves": "'{}'::jsonb",
-  "app_snapshot.dollar_rate_history": "'[]'::jsonb",
-  "app_snapshot.pending_debts": "'[]'::jsonb",
-  "app_snapshot.updated_at": "now()",
   "cbu_rate_log.recorded_at": "now()",
   "exercise_logs.completed": "true",
   "exercise_logs.details": "'{}'::jsonb",
@@ -287,6 +275,14 @@ export async function ensureSchema() {
       for (const t of group) await pool.query(`DROP TABLE IF EXISTS ${t} CASCADE`);
       log.push(`Bo'sh va eskirgan jadvallar qayta yaratiladi: ${group.join(", ")}`);
     }
+  }
+
+  // app_snapshot jadvalini bazadan to'liq o'chirib tashlash
+  try {
+    await pool.query("DROP TABLE IF EXISTS app_snapshot CASCADE");
+    log.push("app_snapshot jadvali bazadan o'chirildi (DROP TABLE)");
+  } catch (err) {
+    log.push(`app_snapshot o'chirishda ogohlantirish: ${err.message}`);
   }
 
   const sql = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf-8");

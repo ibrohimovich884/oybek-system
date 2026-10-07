@@ -2,7 +2,7 @@
  * OYBEK SysteM - Database Sync & Offline Resiliency Engine
  * 
  * Ushbu xizmat quyidagilarni ta'minlaydi:
- * 1. Barcha jadvallar (wallets, transactions, transaction_edits, app_snapshot,
+ * 1. Barcha jadvallar (wallets, transactions, transaction_edits, debts, debt_payments,
  *    cbu_rate_log, exercises, exercise_logs) uchun oflayn navbat (sync_queue).
  * 2. Internet tiklanganda yoki foydalanuvchi "Qo'lda sinxronizatsiya"
  *    tugmasini bosganda navbatdagi ma'lumotlarni DBga yozadi va
@@ -13,7 +13,6 @@
 import { apiClient } from "../api/client.js";
 import { API_ENDPOINTS } from "../config/apiConfig.js";
 import { generateId } from "../utils/id.js";
-import { pullSnapshotFromDB, readLocalSnapshot, pushSnapshot } from "./snapshotSync.js";
 import { getUserStorageKey, clearAllUserData } from "../utils/storageKeys.js";
 import { isCbuRateFresh } from "./exchangeRateService.js";
 
@@ -273,18 +272,21 @@ class SyncService {
               } else if (item.type === "delete") {
                 res = await apiClient.delete(API_ENDPOINTS.DEBT_DETAIL(item.targetId));
               }
-              await pushSnapshot().catch(() => {});
               if (res?.ok && item.targetId) {
                 this.markLocalDebtSynced(item.targetId, true);
               }
             }
-            // D) Zaxiralar, Dollar tarixi (app_snapshot jadvali)
-            else if (
-              item.entity === "reserves" ||
-              item.entity === "dollar_rate_history" ||
-              item.entity === "snapshot"
-            ) {
-              res = await pushSnapshot();
+            // D) Zaxira hisoblari (wallets & notes)
+            else if (item.entity === "reserves") {
+              if (item.payload?.id && item.payload?.amount !== undefined) {
+                res = await apiClient.put(API_ENDPOINTS.WALLETS, { [item.payload.id]: item.payload.amount });
+                if (item.payload.noteText) {
+                  await apiClient.post(`${API_ENDPOINTS.WALLETS}/${item.payload.id}/notes`, {
+                    text: item.payload.noteText,
+                    amountAtTime: item.payload.amount,
+                  }).catch(() => {});
+                }
+              }
             }
             // D) Mashqlar (exercises jadvali)
             else if (item.entity === "exercises") {
@@ -346,12 +348,6 @@ class SyncService {
         if (debtRes.ok && Array.isArray(debtRes.data)) {
           pulledCount += debtRes.data.length;
           this.mergeServerDebtsWithLocal(debtRes.data);
-        }
-
-        // D) Control Panel snapshot (app_snapshot: reserves, dollarRateHistory)
-        const snapshotData = await pullSnapshotFromDB().catch(() => null);
-        if (snapshotData) {
-          pulledCount += (snapshotData.dollarRateHistory?.length || 0);
         }
 
         // D) Mashqlar (exercises)

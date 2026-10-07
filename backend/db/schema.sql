@@ -128,17 +128,8 @@ CREATE TABLE IF NOT EXISTS debt_payments (
 
 ALTER TABLE debt_payments ADD COLUMN IF NOT EXISTS user_id TEXT;
 
--- ===== Zaxira nusxa (Snapshot) =====
-CREATE TABLE IF NOT EXISTS app_snapshot (
-  id TEXT PRIMARY KEY DEFAULT '1',
-  user_id TEXT,
-  reserves JSONB NOT NULL DEFAULT '{}',
-  dollar_rate_history JSONB NOT NULL DEFAULT '[]',
-  pending_debts JSONB NOT NULL DEFAULT '[]',
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE app_snapshot ADD COLUMN IF NOT EXISTS user_id TEXT;
+-- app_snapshot jadvalini butunlay o'chirish (keraksiz va xatolik manbai bo'lgani uchun)
+DROP TABLE IF EXISTS app_snapshot CASCADE;
 
 -- CBU kursi — kunlik jurnal
 CREATE TABLE IF NOT EXISTS cbu_rate_log (
@@ -221,7 +212,6 @@ CREATE INDEX IF NOT EXISTS idx_debt_payments_debt_id ON debt_payments (debt_id);
 CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises (user_id);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_id ON exercise_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_exercise_id ON exercise_logs (exercise_id);
-CREATE INDEX IF NOT EXISTS idx_app_snapshot_user_id ON app_snapshot (user_id);
 CREATE INDEX IF NOT EXISTS idx_system_updates_release_date ON system_updates (release_date DESC);
 CREATE INDEX IF NOT EXISTS idx_update_complaints_status ON update_complaints (status);
 CREATE INDEX IF NOT EXISTS idx_update_complaints_user_id ON update_complaints (user_id);

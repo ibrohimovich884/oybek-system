@@ -221,7 +221,7 @@ export const adminApi = {
         getUserStorageKey("oybek-system:expenses", userId),
         getUserStorageKey("oybek-system:debts", userId),
         getUserStorageKey("oybek-system:exercises", userId),
-        getUserStorageKey("oybek-system:snapshot", userId),
+        getUserStorageKey("oybek-system:reserves", userId),
       ];
       keysToRemove.forEach((k) => {
         try {

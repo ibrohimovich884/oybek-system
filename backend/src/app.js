@@ -11,8 +11,6 @@ import walletsRouter from "./routes/wallets.js";
 import debtsRouter from "./routes/debts.js";
 import exercisesRouter from "./routes/exercises.js";
 import exchangeRateRouter from "./routes/exchangeRate.js";
-import backupRouter from "./routes/backup.js";
-import snapshotRouter from "./routes/snapshot.js";
 import adminRouter from "./routes/admin.js";
 import updatesRouter from "./routes/updates.js";
 import { requireAuth } from "./middleware/auth.js";
@@ -20,7 +18,6 @@ import { requireAuth } from "./middleware/auth.js";
 export const app = express();
 
 app.use(cors());
-// Backup butun tranzaksiyalar tarixini yuboradi — default 100kb yetmaydi (413 xatosi)
 app.use(express.json({ limit: "10mb" }));
 
 // Ochiq yo'llar (Health va Login)
@@ -37,8 +34,6 @@ app.use("/api/wallets", requireAuth, walletsRouter);
 app.use("/api/debts", requireAuth, debtsRouter);
 app.use("/api/exercises", requireAuth, exercisesRouter);
 app.use("/api/exchange-rate", requireAuth, exchangeRateRouter);
-app.use("/api/backup", requireAuth, backupRouter);
-app.use("/api/snapshot", requireAuth, snapshotRouter);
 
 // /api/... dagi noma'lum yo'llar — JSON 404 (frontend HTML bilan aralashmasin)
 app.use("/api", (req, res) => {
