@@ -64,6 +64,16 @@ router.put("/:id/settle", async (req, res) => {
   }
 });
 
+router.put("/:id/forgive", async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const debt = await debtsService.forgiveDebt(req.params.id, req.body, userId);
+    res.json(debt);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.post("/:id/payments", async (req, res) => {
   try {
     const userId = req.user.userId;

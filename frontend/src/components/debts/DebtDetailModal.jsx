@@ -19,6 +19,8 @@ import {
   PlusCircle,
   Copy,
   Check,
+  HeartHandshake,
+  User,
 } from "lucide-react";
 import { formatSum, formatDollar } from "../../utils/format.js";
 import { DEBT_TYPES, DEBT_TYPE_LABELS, DEBT_STATUS_LABELS } from "../../constants/debts.js";
@@ -30,6 +32,8 @@ export default function DebtDetailModal({
   onClose,
   debt,
   onOpenRepay,
+  onOpenForgive,
+  onOpenPersonHistory,
   onOpenEdit,
   onDeleteDebt,
   onSettleDebt,
@@ -45,11 +49,13 @@ export default function DebtDetailModal({
 
   const totalAmount = Number(debt.amount || 0);
   const payments = debt.payments || [];
-  const paidAmount = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-  const remainingAmount = Math.max(0, totalAmount - paidAmount);
+  const paidAmount = payments.reduce((acc, p) => acc + (p.isForgiven ? 0 : Number(p.amount || 0)), 0);
+  const forgivenAmount = payments.reduce((acc, p) => acc + (p.isForgiven ? Number(p.amount || 0) : 0), 0);
+  const isForgiven = debt.status === "forgiven";
+  const isSettled = debt.status === "settled" || isForgiven || (totalAmount - paidAmount - forgivenAmount <= 0);
+  const remainingAmount = isSettled ? 0 : Math.max(0, totalAmount - paidAmount - forgivenAmount);
   const percentPaid =
-    totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0;
-  const isSettled = debt.status === "settled" || remainingAmount === 0;
+    totalAmount > 0 ? Math.min(100, Math.round(((paidAmount + forgivenAmount) / totalAmount) * 100)) : 0;
 
   // Qaytish muddati tekshiruvi
   let dueDateText = "Muddatsiz (belgilanmagan)";
@@ -112,6 +118,29 @@ export default function DebtDetailModal({
             <div className="debt-detail-header__text">
               <div className="debt-detail-header__name-row">
                 <h3 className="debt-detail-name">{debt.personName}</h3>
+                {onOpenPersonHistory && (
+                  <button
+                    type="button"
+                    className="btn btn--xs btn--ghost"
+                    style={{
+                      padding: "2px 8px",
+                      fontSize: "0.72rem",
+                      color: "var(--accent)",
+                      borderColor: "rgba(78, 184, 150, 0.3)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                    onClick={() => {
+                      onClose();
+                      onOpenPersonHistory(debt.personName);
+                    }}
+                    title="Ushbu shaxsning barcha qarzlari tarixini ko'rish"
+                  >
+                    <User size={11} />
+                    <span>Shaxs tarixi</span>
+                  </button>
+                )}
                 {debt.synced ? (
                   <span className="badge badge--db-synced debt-db-badge" title="Server bazasida saqlangan">
                     <Database size={9} />
@@ -163,6 +192,46 @@ export default function DebtDetailModal({
 
         {/* Modal Body (Scrollable) */}
         <div className="modal-body debt-detail-body">
+          {/* Voz kechilgan qarz uchun maxsus bildirishnoma banneri */}
+          {isForgiven && (
+            <div
+              style={{
+                background: "rgba(168, 85, 247, 0.12)",
+                border: "1px solid rgba(168, 85, 247, 0.35)",
+                borderRadius: "var(--radius-md)",
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "14px",
+              }}
+            >
+              <div
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  background: "rgba(168, 85, 247, 0.25)",
+                  color: "#c084fc",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <HeartHandshake size={18} />
+              </div>
+              <div style={{ fontSize: "0.82rem", lineHeight: 1.4 }}>
+                <strong style={{ color: "#c084fc", display: "block" }}>
+                  Ushbu qarzdan voz kechilgan (Kechib yuborilgan)
+                </strong>
+                <span style={{ color: "var(--text-muted)" }}>
+                  Qarz oluvchidan bu pul qaytib olinmaydi va qarz daftarda to'liq yopilgan.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* 1. Moliya Ko'rsatkichlari (Katta karta) */}
           <div
             className={`debt-detail-sum-card ${
@@ -443,6 +512,21 @@ export default function DebtDetailModal({
           <div className="debt-detail-footer-right">
             {!isSettled ? (
               <>
+                {onOpenForgive && (
+                  <button
+                    type="button"
+                    className="btn btn--sm debt-detail-btn-forgive"
+                    onClick={() => {
+                      onClose();
+                      onOpenForgive(debt);
+                    }}
+                    title="Qarzdan voz kechish (Kechvorish / Halol qilish)"
+                  >
+                    <HeartHandshake size={15} />
+                    <span>Voz kechish</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="btn btn--sm btn--ghost debt-detail-btn-settle"

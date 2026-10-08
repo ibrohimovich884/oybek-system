@@ -287,6 +287,72 @@ export async function settleDebtApi(id, customOpts = {}) {
   });
 }
 
+export async function forgiveDebtApi(id, customOpts = {}) {
+  const debts = readLocalDebts();
+  const index = debts.findIndex((d) => d.id === id);
+  if (index === -1) throw new Error("Qarz topilmadi");
+
+  const debt = debts[index];
+  const paid = (debt.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const remaining = Math.max(0, Number(debt.amount || 0) - paid);
+  const forgiveAmount = customOpts.amount !== undefined ? Number(customOpts.amount) : remaining;
+
+  const forgivePayment = forgiveAmount > 0 ? {
+    id: generateId(),
+    amount: forgiveAmount,
+    date: formatISOWithOffset(customOpts.date || new Date()),
+    wallet: debt.wallet || "hamyon",
+    affectBalance: false, // Voz kechilgan pul hamyonga kirmaydi!
+    note: customOpts.note?.trim() || "Qarzdan voz kechildi (Kechib yuborildi)",
+    isForgiven: true,
+    createdAt: formatISOWithOffset(new Date()),
+  } : null;
+
+  const payments = forgivePayment ? [forgivePayment, ...(debt.payments || [])] : [...(debt.payments || [])];
+
+  const updatedDebt = {
+    ...debt,
+    payments,
+    status: "forgiven",
+    isForgiven: true,
+    synced: false,
+    updatedAt: formatISOWithOffset(new Date()),
+  };
+
+  debts[index] = updatedDebt;
+  writeLocalDebts(debts);
+
+  const queueEntry = syncService.addToQueue({
+    entity: "debts",
+    type: "update",
+    targetId: id,
+    payload: updatedDebt,
+  });
+
+  try {
+    const res = await apiClient.put(`/api/debts/${id}/forgive`, {
+      ...customOpts,
+      id: forgivePayment?.id,
+      amount: forgiveAmount,
+      note: forgivePayment?.note,
+      debtData: debt,
+    });
+    if (res && res.ok) {
+      updatedDebt.synced = true;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Qarzdan voz kechildi (Kechildi): ${debt.personName}`);
+      markDebtSynced(id, true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:item-synced", { detail: { id } }));
+      }
+    }
+  } catch (err) {
+    console.warn("Forgive debt network error:", err);
+  }
+
+  return { updatedDebt, payment: forgivePayment };
+}
+
 export async function deleteDebtRecord(id) {
   const debts = readLocalDebts();
   const filtered = debts.filter((d) => d.id !== id);

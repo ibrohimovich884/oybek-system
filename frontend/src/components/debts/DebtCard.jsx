@@ -17,6 +17,7 @@ import {
   PlusCircle,
   AlertCircle,
   Info,
+  HeartHandshake,
 } from "lucide-react";
 import { formatSum, formatDollar } from "../../utils/format.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
@@ -24,6 +25,8 @@ import {
   DEBT_TYPES,
   DEBT_TYPE_LABELS,
   DEBT_STATUS_LABELS,
+  getDebtDueInfo,
+  DUE_STAGES,
 } from "../../constants/debts.js";
 import SecurityGate from "../security/SecurityGate.jsx";
 
@@ -31,6 +34,8 @@ export default function DebtCard({
   debt,
   onSelectDebt,
   onOpenRepay,
+  onOpenForgive,
+  onOpenPersonHistory,
   onDeleteDebt,
   onSettleDebt,
 }) {
@@ -43,32 +48,20 @@ export default function DebtCard({
 
   const totalAmount = Number(debt.amount || 0);
   const payments = debt.payments || [];
-  const paidAmount = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-  const remainingAmount = Math.max(0, totalAmount - paidAmount);
-  const percentPaid = totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0;
-  const isSettled = debt.status === "settled" || remainingAmount === 0;
+  const paidAmount = payments.reduce((acc, p) => acc + (p.isForgiven ? 0 : Number(p.amount || 0)), 0);
+  const forgivenAmount = payments.reduce((acc, p) => acc + (p.isForgiven ? Number(p.amount || 0) : 0), 0);
+  const isForgiven = debt.status === "forgiven";
+  const isSettled = debt.status === "settled" || isForgiven || (totalAmount - paidAmount - forgivenAmount <= 0);
+  const remainingAmount = isSettled ? 0 : Math.max(0, totalAmount - paidAmount - forgivenAmount);
+  const percentPaid = totalAmount > 0 ? Math.min(100, Math.round(((paidAmount + forgivenAmount) / totalAmount) * 100)) : 0;
 
   const statusInfo = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
   const typeLabels = DEBT_TYPE_LABELS[debt.type] || DEBT_TYPE_LABELS.given;
 
   // Qaytish muddati tekshiruvi
-  let dueDateText = "Muddatsiz";
-  let isOverdue = false;
-  let daysLeft = null;
-  if (!debt.isDueDateUnknown && debt.dueDate) {
-    const due = new Date(debt.dueDate);
-    const now = new Date();
-    dueDateText = due.toLocaleDateString("uz-UZ", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-    const diffTime = due.getTime() - now.getTime();
-    daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (!isSettled && daysLeft < 0) {
-      isOverdue = true;
-    }
-  }
+  const dueInfo = getDebtDueInfo(debt);
+  const isOverdue = dueInfo.isOverdue;
+  const dueDateText = dueInfo.text;
 
   const walletCfg = WALLET_CONFIG[debt.wallet];
 
@@ -92,7 +85,23 @@ export default function DebtCard({
             {debt.personName ? debt.personName.charAt(0).toUpperCase() : "?"}
           </div>
           <div className="debt-card__person-details">
-            <h4 className="debt-card__name">{debt.personName}</h4>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <h4 className="debt-card__name">{debt.personName}</h4>
+              {onOpenPersonHistory && (
+                <button
+                  type="button"
+                  className="debt-person-history-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenPersonHistory(debt.personName);
+                  }}
+                  title="Shaxsning barcha qarzlari tarixi"
+                >
+                  <User size={10} />
+                  <span>Tarixi</span>
+                </button>
+              )}
+            </div>
             {debt.contact ? (
               <span className="debt-card__contact">
                 <Phone size={11} />
@@ -108,7 +117,11 @@ export default function DebtCard({
         <div className="debt-card__amount-block">
           <div
             className={`debt-card__total mono ${
-              isGiven ? "debt-card__total--given" : "debt-card__total--taken"
+              isSettled
+                ? "debt-card__total--settled"
+                : isGiven
+                ? "debt-card__total--given"
+                : "debt-card__total--taken"
             }`}
           >
             {isGiven ? "+" : "-"}{formatFn(totalAmount)}
@@ -120,6 +133,10 @@ export default function DebtCard({
           ) : !isSettled ? (
             <div className="debt-card__remaining-sub">
               {walletCfg?.shortLabel || (isUsd ? "USD" : "UZS")}
+            </div>
+          ) : isForgiven ? (
+            <div className="debt-card__settled-label mono" style={{ color: "#c084fc", fontWeight: 700 }}>
+              Voz kechilgan
             </div>
           ) : (
             <div className="debt-card__settled-label mono">Yopilgan</div>
@@ -302,6 +319,18 @@ export default function DebtCard({
         <div className="debt-card__action-group">
           {!isSettled ? (
             <>
+              {onOpenForgive && (
+                <button
+                  type="button"
+                  className="debt-card__btn-settle debt-card__btn-forgive"
+                  onClick={() => onOpenForgive(debt)}
+                  title="Qarzdan voz kechish (Kechvorish)"
+                >
+                  <HeartHandshake size={14} />
+                  <span className="debt-btn-label">Voz kechish</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 className="debt-card__btn-settle"

@@ -6266,6 +6266,1537 @@ textarea.field-input {
 }
 
 /* =========================================================
+   QARZ DAFTARI: SHAXSLAR TARIXI & VOZ KECHISH STYLES
+   ========================================================= */
+
+/* Shaxs tarixi tugmasi (qator ichida) */
+.debt-person-history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.debt-person-history-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* Qidiruv natijalaridagi shaxslar qatori (Match highlight) */
+.debts-search-match-section {
+  background: var(--surface);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.debts-search-match-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.debts-search-match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.debts-search-match-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.debts-search-match-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.debts-search-match-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(78, 184, 150, 0.25) 0%, rgba(56, 189, 248, 0.25) 100%);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.debts-search-match-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.debts-search-match-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.debts-search-match-name {
+  font-size: 0.92rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debts-search-match-sub {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+.debts-search-match-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.debts-search-match-amount-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.debts-search-match-cta {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Shaxslar daftari grid (Persons View) */
+.debts-persons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 14px;
+}
+
+.person-ledger-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+}
+
+.person-ledger-card:hover {
+  border-color: var(--border-focus);
+  background: var(--surface-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.person-ledger-card--overdue {
+  border-left: 4px solid var(--expense);
+}
+
+.person-ledger-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.person-ledger-card__profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.person-ledger-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.person-ledger-card__avatar--active {
+  background: linear-gradient(135deg, rgba(78, 184, 150, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%);
+  color: var(--accent);
+  border: 1px solid rgba(78, 184, 150, 0.35);
+}
+
+.person-ledger-card__avatar--settled {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.person-ledger-card__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.person-ledger-card__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-ledger-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.person-ledger-card__contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.person-ledger-card__balance-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.person-ledger-card__bal-lbl {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.person-ledger-card__bal-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.person-ledger-card__bal-val--owed {
+  color: var(--income);
+}
+
+.person-ledger-card__bal-val--zero {
+  color: var(--text-muted);
+}
+
+.person-ledger-card__bal-sub {
+  font-size: 0.8rem;
+  color: var(--warning);
+}
+
+.person-ledger-card__badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.person-ledger-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+}
+
+/* Shaxs Tarixi Modali (PersonHistoryModal) */
+.person-history-modal {
+  width: 100%;
+}
+
+.person-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.person-history-header__profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.person-history-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4eb896 0%, #2563eb 100%);
+  color: #0b1c15;
+  font-weight: 900;
+  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(78, 184, 150, 0.3);
+}
+
+.person-history-header__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.person-history-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.person-history-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.person-history-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.person-history-contact-tag,
+.person-history-loc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.person-history-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Shaxs Tarixi KPI Kartalari */
+.person-history-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .person-history-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.person-kpi-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.person-kpi-card--active-debt {
+  background: rgba(78, 184, 150, 0.12);
+  border-color: rgba(78, 184, 150, 0.35);
+}
+
+.person-kpi-card--settled {
+  background: var(--surface-2);
+}
+
+.person-kpi-card__lbl {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+.person-kpi-card__val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.person-kpi-card--active-debt .person-kpi-card__val {
+  color: var(--income);
+}
+
+.person-kpi-card__sub {
+  font-size: 0.82rem;
+  color: var(--warning);
+}
+
+.person-kpi-card__hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Shaxs Tablari */
+.person-tabs-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+
+.person-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.person-tab-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.person-tab-btn.is-active {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Barcha qarzlar ro'yxati */
+.person-debts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.person-debt-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.person-debt-item:hover {
+  border-color: var(--border-focus);
+  background: var(--surface-hover);
+}
+
+.person-debt-item--overdue {
+  border-left: 3px solid var(--expense);
+}
+
+.person-debt-item--settled {
+  opacity: 0.65;
+}
+
+.person-debt-item--forgiven {
+  border-left: 3px solid #a855f7;
+  background: rgba(168, 85, 247, 0.06);
+}
+
+.person-debt-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.person-debt-item__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.person-debt-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.person-debt-item__amount-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.person-debt-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.person-debt-amount--given {
+  color: var(--income);
+}
+
+.person-debt-amount--taken {
+  color: var(--warning);
+}
+
+.person-debt-amount--settled {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.person-debt-amount--forgiven {
+  color: #c084fc;
+}
+
+.person-debt-remaining {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.person-debt-item__details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.person-debt-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.person-debt-reason {
+  color: var(--text-dim);
+}
+
+.person-debt-item__paid-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+
+.person-paid-badge {
+  color: var(--income);
+  font-weight: 600;
+}
+
+.person-forgiven-badge {
+  color: #c084fc;
+  font-weight: 600;
+}
+
+.person-debt-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-subtle);
+  margin-top: 2px;
+}
+
+/* Timeline ro'yxati */
+.person-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.person-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+}
+
+.person-timeline-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.person-timeline-icon--create {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.person-timeline-icon--pay {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--income);
+}
+
+.person-timeline-icon--forgive {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+
+.person-timeline-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.person-timeline-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.person-timeline-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.person-timeline-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.person-timeline-amount--debt {
+  color: #38bdf8;
+}
+
+.person-timeline-amount--pay {
+  color: var(--income);
+}
+
+.person-timeline-amount--forgive {
+  color: #c084fc;
+}
+
+.person-timeline-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.person-history-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* =========================================================
+   VOZ KECHISH (FORGIVE DEBT) MODAL & BUTTON STYLES
+   ========================================================= */
+
+.debt-action-btn--forgive {
+  background: rgba(168, 85, 247, 0.12) !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+  color: #c084fc !important;
+}
+
+.debt-action-btn--forgive:hover {
+  background: rgba(168, 85, 247, 0.22) !important;
+  border-color: #a855f7 !important;
+  color: #e9d5ff !important;
+}
+
+.debt-card__btn-forgive {
+  background: rgba(168, 85, 247, 0.12) !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+  color: #c084fc !important;
+}
+
+.debt-card__btn-forgive:hover {
+  background: rgba(168, 85, 247, 0.22) !important;
+  border-color: #a855f7 !important;
+  color: #e9d5ff !important;
+}
+
+.debt-detail-btn-forgive {
+  background: rgba(168, 85, 247, 0.14) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(168, 85, 247, 0.35) !important;
+  font-weight: 600 !important;
+}
+
+.debt-detail-btn-forgive:hover {
+  background: rgba(168, 85, 247, 0.25) !important;
+  color: #f3e8ff !important;
+  border-color: #a855f7 !important;
+}
+
+.debt-forgive-modal {
+  max-width: 480px;
+  width: 100%;
+}
+
+.debt-forgive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.debt-forgive-title-wrap,
+.debt-forgive-header__info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.debt-forgive-icon-box,
+.debt-forgive-header__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: rgba(168, 85, 247, 0.16);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.debt-forgive-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.debt-forgive-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.debt-forgive-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.debt-forgive-person-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.debt-forgive-person-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.debt-forgive-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.debt-forgive-person-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.debt-forgive-person-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debt-forgive-person-contact {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.debt-forgive-amount-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.debt-forgive-amount-lbl {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.debt-forgive-amount-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #c084fc;
+}
+
+.debt-forgive-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.debt-forgive-metric-item {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.debt-forgive-metric-lbl {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.debt-forgive-metric-val {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.debt-forgive-metric-val--paid {
+  color: var(--income);
+}
+
+.debt-forgive-rule-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+}
+
+.debt-forgive-rule-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.debt-forgive-rule-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text);
+}
+
+.debt-forgive-rule-text ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-muted);
+}
+
+.debt-forgive-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.debt-forgive-cancel-btn {
+  font-size: 0.85rem;
+}
+
+.debt-forgive-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35) !important;
+  font-weight: 700 !important;
+  padding: 8px 16px !important;
+  font-size: 0.85rem !important;
+  border-radius: var(--radius-sm) !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.debt-forgive-submit-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 18px rgba(168, 85, 247, 0.45) !important;
+}
+
+/* =========================================================
+   QARZ DAFTARI: ULTRA-RESPONSIVE 375PX MOBILE ARCHITECTURE
+   Optimizatsiyalangan telefon formati (iPhone SE, 375px)
+   ========================================================= */
+
+@media (max-width: 480px) {
+  /* 1. Page Header & Switcher */
+  .debts-page {
+    gap: 10px !important;
+    padding: 0 2px !important;
+  }
+
+  .debts-page__header {
+    gap: 8px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .debts-page__title-row {
+    gap: 8px !important;
+  }
+
+  .debts-page__logo-badge {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .debts-page__title {
+    font-size: 1.15rem !important;
+  }
+
+  .debts-page__subtitle {
+    font-size: 0.7rem !important;
+  }
+
+  .debt-view-toggle {
+    width: 100% !important;
+    display: flex !important;
+    padding: 2px !important;
+    gap: 2px !important;
+  }
+
+  .debt-view-toggle__btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    padding: 6px 4px !important;
+    font-size: 0.74rem !important;
+    gap: 4px !important;
+    min-height: 32px !important;
+  }
+
+  /* 2. KPI Statistika kartalari (Telefon uchun ixcham va 3-tali) */
+  .debts-stats-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .debts-stat-card {
+    padding: 9px 10px !important;
+    gap: 4px !important;
+  }
+
+  .debts-stat-card--net {
+    grid-column: span 2 !important;
+  }
+
+  .debts-stat-card__label {
+    font-size: 0.74rem !important;
+    gap: 4px !important;
+  }
+
+  .debts-stat-card__badge {
+    font-size: 0.65rem !important;
+    padding: 1px 4px !important;
+  }
+
+  .debts-stat-card__val {
+    font-size: 1.1rem !important;
+  }
+
+  .debts-stat-card__usd-val {
+    font-size: 0.72rem !important;
+  }
+
+  .debts-stat-card__meta {
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+  }
+
+  /* 3. Filtr va Qidiruv (375px) */
+  .debts-filter-card {
+    padding: 8px 10px !important;
+    gap: 8px !important;
+  }
+
+  .debts-filter-scroll {
+    gap: 4px !important;
+  }
+
+  .debts-filter-tab {
+    padding: 5px 9px !important;
+    font-size: 0.72rem !important;
+    min-height: 28px !important;
+  }
+
+  .debts-search-box {
+    width: 100% !important;
+  }
+
+  .debts-search-input {
+    font-size: 14px !important;
+    height: 36px !important;
+  }
+
+  /* 4. Topilgan shaxslar (Dossier Match Box) */
+  .debts-search-match-section {
+    padding: 10px 12px !important;
+    gap: 8px !important;
+  }
+
+  .debts-search-match-header {
+    font-size: 0.74rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .debts-search-match-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .debts-search-match-card {
+    padding: 8px 10px !important;
+    gap: 10px !important;
+  }
+
+  .debts-search-match-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.88rem !important;
+  }
+
+  .debts-search-match-name {
+    font-size: 0.86rem !important;
+  }
+
+  .debts-search-match-amount-val {
+    font-size: 0.86rem !important;
+  }
+
+  /* 5. Daftar Ko'rinishi (Samsung Notes Ledger) 375px Optimizatsiyasi */
+  .debt-ledger-container {
+    border-radius: var(--radius-sm) !important;
+    overflow: hidden !important;
+    margin: 0 -2px !important;
+  }
+
+  .debt-stage-divider {
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+    gap: 6px !important;
+  }
+
+  .debt-ledger-row {
+    grid-template-columns: 20px 1fr auto !important;
+    row-gap: 4px !important;
+    column-gap: 8px !important;
+    padding: 9px 10px !important;
+  }
+
+  .debt-num-badge {
+    font-size: 0.76rem !important;
+  }
+
+  .debt-person-info {
+    gap: 7px !important;
+  }
+
+  .debt-person-avatar {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .debt-person-name {
+    font-size: 0.88rem !important;
+    max-width: 140px !important;
+  }
+
+  .debt-person-history-btn {
+    padding: 1px 4px !important;
+    font-size: 0.65rem !important;
+    gap: 2px !important;
+  }
+
+  .debt-person-sub {
+    font-size: 0.68rem !important;
+    gap: 4px !important;
+  }
+
+  .debt-person-loc {
+    max-width: 80px !important;
+  }
+
+  .debt-type-pill {
+    padding: 2px 5px !important;
+    font-size: 0.67rem !important;
+  }
+
+  .debt-amount-val {
+    font-size: 0.95rem !important;
+  }
+
+  .debt-remaining-tag {
+    font-size: 0.66rem !important;
+  }
+
+  .debt-wallet-tag,
+  .debt-settled-tag {
+    font-size: 0.65rem !important;
+  }
+
+  /* Amallar qatori: 375px telefonda bitta toza panel */
+  .debt-ledger-cell--actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    margin-top: 4px !important;
+    padding-top: 6px !important;
+  }
+
+  .debt-row-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 5px !important;
+    width: 100% !important;
+  }
+
+  .debt-row-mobile-status {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  .debt-row-buttons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    width: 100% !important;
+  }
+
+  .debt-action-btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    padding: 5px 4px !important;
+    min-height: 32px !important;
+    font-size: 0.7rem !important;
+    gap: 3px !important;
+    border-radius: var(--radius-xs) !important;
+  }
+
+  .debt-action-btn--settle {
+    flex: 0 0 32px !important;
+    padding: 5px 0 !important;
+  }
+
+  /* 6. Shaxslar (Persons Dossier) Ko'rinishi (375px) */
+  .debts-persons-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .person-ledger-card {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+
+  .person-ledger-card__profile {
+    gap: 8px !important;
+  }
+
+  .person-ledger-card__avatar {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 0.95rem !important;
+  }
+
+  .person-ledger-card__name {
+    font-size: 0.92rem !important;
+  }
+
+  .person-ledger-card__bal-val {
+    font-size: 1.05rem !important;
+  }
+
+  .person-ledger-card__badges {
+    gap: 4px !important;
+  }
+
+  .person-ledger-card__footer {
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding-top: 8px !important;
+  }
+
+  .person-ledger-card__footer .btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    font-size: 0.75rem !important;
+    padding: 6px 8px !important;
+  }
+
+  /* 7. Kartalar (Cards Grid) Ko'rinishi (375px) */
+  .debts-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .debt-card {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+
+  .debt-card__actions-footer {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding-top: 8px !important;
+  }
+
+  .debt-card__action-group {
+    display: flex !important;
+    width: 100% !important;
+    gap: 4px !important;
+  }
+
+  .debt-card__action-group button {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 32px !important;
+    padding: 5px 3px !important;
+    font-size: 0.71rem !important;
+    gap: 3px !important;
+  }
+
+  .debt-card__btn-delete {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 30px !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* 8. Shaxs Tarixi Modali (PersonHistoryModal) 375px Optimizatsiyasi */
+  .person-history-modal {
+    max-height: 94vh !important;
+    border-radius: 18px 18px 0 0 !important;
+    padding: 12px 10px 20px 10px !important;
+  }
+
+  .person-history-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding-bottom: 10px !important;
+    position: relative !important;
+  }
+
+  .person-history-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.1rem !important;
+  }
+
+  .person-history-name {
+    font-size: 1.1rem !important;
+  }
+
+  .person-history-header__actions {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+  }
+
+  .person-history-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .person-kpi-card {
+    padding: 7px 8px !important;
+    gap: 2px !important;
+  }
+
+  .person-kpi-card__lbl {
+    font-size: 0.65rem !important;
+  }
+
+  .person-kpi-card__val {
+    font-size: 0.95rem !important;
+  }
+
+  .person-kpi-card__sub {
+    font-size: 0.72rem !important;
+  }
+
+  .person-kpi-card__hint {
+    font-size: 0.63rem !important;
+  }
+
+  .person-tabs-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 10px !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .person-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .person-tab-btn {
+    padding: 5px 8px !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+    gap: 4px !important;
+  }
+
+  .person-debts-list {
+    max-height: 380px !important;
+    gap: 8px !important;
+    padding-right: 2px !important;
+  }
+
+  .person-debt-item {
+    padding: 9px 10px !important;
+    gap: 6px !important;
+  }
+
+  .person-debt-amount {
+    font-size: 0.95rem !important;
+  }
+
+  .person-debt-item__actions {
+    display: flex !important;
+    gap: 4px !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+  }
+
+  .person-debt-item__actions button {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 30px !important;
+    font-size: 0.7rem !important;
+    padding: 4px 4px !important;
+    gap: 3px !important;
+  }
+
+  /* 9. Voz Kechish Modali (ForgiveDebtModal) 375px Optimizatsiyasi */
+  .debt-forgive-modal {
+    max-height: 94vh !important;
+    border-radius: 18px 18px 0 0 !important;
+    padding: 12px 12px 20px 12px !important;
+  }
+
+  .debt-forgive-body {
+    padding: 12px 6px !important;
+    gap: 10px !important;
+  }
+
+  .debt-forgive-person-card {
+    padding: 10px 12px !important;
+  }
+
+  .debt-forgive-amount-val {
+    font-size: 1.15rem !important;
+  }
+
+  .debt-forgive-footer {
+    display: flex !important;
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+    padding: 10px 6px !important;
+  }
+
+  .debt-forgive-submit-btn,
+  .debt-forgive-cancel-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 42px !important;
+  }
+
+  /* 10. Qarz Detali Modali (DebtDetailModal) 375px Optimizatsiyasi */
+  .debt-detail-body {
+    padding: 12px 10px !important;
+    gap: 10px !important;
+  }
+
+  .debt-detail-footer {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    padding: 10px 12px !important;
+  }
+
+  .debt-detail-footer-left,
+  .debt-detail-footer-right {
+    display: flex !important;
+    width: 100% !important;
+    gap: 4px !important;
+  }
+
+  .debt-detail-footer-left button,
+  .debt-detail-footer-right button {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 36px !important;
+    font-size: 0.74rem !important;
+    padding: 6px 4px !important;
+  }
+}
+
+/* Specific 375px fine-tuning for Qarz Daftari */
+@media (max-width: 375px) {
+  .debts-page__title {
+    font-size: 1.05rem !important;
+  }
+
+  .debt-view-toggle__btn span {
+    font-size: 0.7rem !important;
+  }
+
+  .debts-stat-card__val {
+    font-size: 1.02rem !important;
+  }
+
+  .debts-stat-card__label {
+    font-size: 0.7rem !important;
+  }
+
+  .debt-action-btn-text {
+    font-size: 0.68rem !important;
+  }
+
+  .person-kpi-card__val {
+    font-size: 0.88rem !important;
+  }
+
+  .debt-amount-val {
+    font-size: 0.9rem !important;
+  }
+}
+
+/* =========================================================
    SETTINGS PAGE TABS & 375PX MOBILE ARCHITECTURE STYLES
    ========================================================= */
 .settings-page {

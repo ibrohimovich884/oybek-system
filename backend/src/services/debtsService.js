@@ -328,6 +328,44 @@ export async function settleDebt(debtId, payload = {}, userId) {
   return await getDebtById(debtId, userId);
 }
 
+export async function forgiveDebt(debtId, payload = {}, userId) {
+  let debt = await getDebtById(debtId, userId);
+  if (!debt) {
+    if (payload.debtData) {
+      await createDebt({ id: debtId, ...payload.debtData }, userId);
+      debt = await getDebtById(debtId, userId);
+    }
+  }
+
+  const paid = (debt?.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const remaining = Math.max(0, Number(debt?.amount || 0) - paid);
+  const forgiveAmount = payload.amount !== undefined ? Number(payload.amount) : remaining;
+
+  if (forgiveAmount > 0) {
+    const paymentId = payload.paymentId || payload.id || `pay_forgive_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await pool.query(
+      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
+       ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at`,
+      [
+        paymentId,
+        debtId,
+        userId || null,
+        forgiveAmount,
+        payload.note || "Qarzdan voz kechildi (Kechib yuborildi)",
+        payload.date || null,
+      ]
+    ).catch(() => {});
+  }
+
+  await pool.query(
+    "UPDATE debts SET status = 'forgiven', updated_at = now() WHERE id = $1",
+    [debtId]
+  );
+
+  return await getDebtById(debtId, userId);
+}
+
 export async function deleteDebt(id, userId) {
   if (userId) {
     await pool.query("DELETE FROM debts WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", [id, userId]);

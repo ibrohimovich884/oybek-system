@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   User,
@@ -22,12 +22,12 @@ import {
   formatDateWithWeekday,
 } from "../../utils/format.js";
 
-export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
+export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData = null }) {
   if (!isOpen) return null;
 
-  const [type, setType] = useState(DEBT_TYPES.GIVEN); // "given" | "taken"
-  const [personName, setPersonName] = useState("");
-  const [contact, setContact] = useState("");
+  const [type, setType] = useState(initialData?.type || DEBT_TYPES.GIVEN); // "given" | "taken"
+  const [personName, setPersonName] = useState(initialData?.personName || "");
+  const [contact, setContact] = useState(initialData?.contact || "");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("UZS");
   const [wallet, setWallet] = useState("hamyon");
@@ -43,6 +43,14 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt }) {
   });
   const [personalNote, setPersonalNote] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.personName) setPersonName(initialData.personName);
+      if (initialData.contact) setContact(initialData.contact);
+      if (initialData.type) setType(initialData.type);
+    }
+  }, [initialData]);
 
   const handleAddDaysToDueDate = (days) => {
     const d = new Date();

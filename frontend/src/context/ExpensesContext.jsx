@@ -622,6 +622,17 @@ export function ExpensesProvider({ children }) {
     [refresh]
   );
 
+  const forgiveDebt = useCallback(
+    async (debtId, customOpts = {}) => {
+      const { updatedDebt } = await debtsApi.forgiveDebtApi(debtId, customOpts);
+      // Qarzdan voz kechilganda (kechib yuborilganda) hamyon balanslariga pul kirmaydi!
+      // Bu pul olinmaydi, faqat qarz yopilgan va voz kechilgan hisoblanadi.
+      await refresh();
+      return updatedDebt;
+    },
+    [refresh]
+  );
+
   const deleteDebt = useCallback(
     async (debtId) => {
       await debtsApi.deleteDebtRecord(debtId);
@@ -745,6 +756,7 @@ export function ExpensesProvider({ children }) {
     addDebt,
     repayDebt,
     settleDebt,
+    forgiveDebt,
     deleteDebt,
     updateDebt,
     refresh,
