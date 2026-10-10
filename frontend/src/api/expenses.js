@@ -115,7 +115,6 @@ export function writeLocalReserves(reserves) {
   if (typeof window === "undefined") return;
   const storageKey = getUserStorageKey(BASE_RESERVES_KEY);
   localStorage.setItem(storageKey, JSON.stringify(reserves));
-  scheduleSnapshotPush();
 }
 
 /**
@@ -138,7 +137,6 @@ export function writeLocalDollarRateHistory(history) {
   if (typeof window === "undefined") return;
   const storageKey = getUserStorageKey(BASE_DOLLAR_RATES_KEY);
   localStorage.setItem(storageKey, JSON.stringify(history));
-  scheduleSnapshotPush();
 }
 
 export function readLocalPendingDebts() {
@@ -158,7 +156,6 @@ export function writeLocalPendingDebts(debts) {
   if (typeof window === "undefined") return;
   const storageKey = getUserStorageKey(BASE_PENDING_DEBTS_KEY);
   localStorage.setItem(storageKey, JSON.stringify(debts));
-  scheduleSnapshotPush();
 }
 
 /**
@@ -174,6 +171,15 @@ export function normalizeExpense(item) {
   const edits = Array.isArray(item.edits) ? item.edits : [];
   const currency = item.currency || (wallet === "dollar" || wallet === "dollar_reserve" ? "USD" : "UZS");
   const exchangeRateAtTime = item.exchangeRateAtTime || item.exchangeRate || null;
+  const targetAmount =
+    item.targetAmount !== undefined && item.targetAmount !== null
+      ? Number(item.targetAmount)
+      : item.target_amount !== undefined && item.target_amount !== null
+      ? Number(item.target_amount)
+      : item.type === "transfer"
+      ? Number(item.amount || 0)
+      : null;
+  const debtId = item.debtId || item.debt_id || null;
 
   let category = item.category || "Qorin uchun";
   let subcategory = item.subcategory || "";
@@ -204,6 +210,8 @@ export function normalizeExpense(item) {
   return {
     id: item.id || generateId(),
     amount: Number(item.amount || 0),
+    targetAmount,
+    debtId,
     category,
     subcategory,
     reason: item.reason || "",
@@ -320,9 +328,21 @@ export async function addExpense(payload) {
   const category = payload.category?.trim() || (type === "income" ? "Oylik maosh" : type === "transfer" ? "O'tkazma" : "Qorin uchun");
   const subcategory = payload.subcategory?.trim() || (type === "income" ? "Oylik" : type === "transfer" ? "O'tkazma" : "Ichimlik");
 
+  const resolvedTargetAmount =
+    payload.targetAmount !== undefined && payload.targetAmount !== null
+      ? Number(payload.targetAmount)
+      : payload.target_amount !== undefined && payload.target_amount !== null
+      ? Number(payload.target_amount)
+      : type === "transfer"
+      ? Number(payload.amount || 0)
+      : null;
+  const resolvedDebtId = payload.debtId || payload.debt_id || null;
+
   const newRecord = {
     id: payload.id || generateId(),
     amount: Number(payload.amount || 0),
+    targetAmount: resolvedTargetAmount,
+    debtId: resolvedDebtId,
     category,
     subcategory,
     reason: payload.reason?.trim() || "",
@@ -390,12 +410,14 @@ export async function updateExpense(id, updates) {
   const trackedFields = [
     "reason",
     "amount",
+    "targetAmount",
     "category",
     "subcategory",
     "location",
     "paymentMethod",
     "quantity",
     "spentAt",
+    "debtId",
   ];
 
   trackedFields.forEach((field) => {
@@ -642,14 +664,6 @@ export async function updateReserve(rawId, { amount, noteText, exchangeRateAtTim
  * Dollar kursi tarixi
  */
 export async function getDollarRateHistory() {
-  try {
-    const pulled = await pullSnapshotFromDB();
-    if (pulled && Array.isArray(pulled.dollarRateHistory)) {
-      return pulled.dollarRateHistory;
-    }
-  } catch (e) {
-    console.warn("DBdan dollar tarixini olishda ogohlantirish:", e);
-  }
   return readLocalDollarRateHistory();
 }
 
@@ -667,21 +681,12 @@ export function addDollarRateRecord(record) {
   history.unshift(newRecord);
   writeLocalDollarRateHistory(history);
 
-  const queueEntry = syncService.addToQueue({
+  syncService.addToQueue({
     entity: "dollar_rate_history",
     type: "create",
     targetId: newRecord.id,
     payload: newRecord,
   });
-
-  pushSnapshot()
-    .then((res) => {
-      if (res && res.ok) {
-        syncService.removeFromQueue(queueEntry.queueId);
-        syncService.addLog("success", `Dollar tarixi DBga saqlandi: ${newRecord.direction} ${newRecord.amount}$`);
-      }
-    })
-    .catch(() => {});
 
   return newRecord;
 }

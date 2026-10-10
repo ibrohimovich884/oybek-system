@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   user_id TEXT,
   type TEXT NOT NULL DEFAULT 'expense',
   amount NUMERIC NOT NULL,
+  target_amount NUMERIC,
   currency TEXT NOT NULL DEFAULT 'UZS',
   category TEXT,
   subcategory TEXT,
@@ -61,11 +62,15 @@ CREATE TABLE IF NOT EXISTS transactions (
   to_wallet TEXT,
   quantity INTEGER NOT NULL DEFAULT 1,
   exchange_rate_at_time NUMERIC,
+  debt_id TEXT,
   spent_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS target_amount NUMERIC;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS debt_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_transactions_debt_id ON transactions (debt_id);
 
 -- Tahrir tarixi
 CREATE TABLE IF NOT EXISTS transaction_edits (

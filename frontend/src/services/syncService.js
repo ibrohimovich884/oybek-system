@@ -95,7 +95,7 @@ class SyncService {
 
   /**
    * Navbatga har qanday jadval amalni qo'shish
-   * entity: 'expenses' | 'wallets' | 'debts' | 'reserves' | 'dollar_rate_history' | 'exercises' | 'exercise_logs' | 'exchange_rate' | 'snapshot'
+   * entity: 'expenses' | 'wallets' | 'debts' | 'reserves' | 'dollar_rate_history' | 'exercises' | 'exercise_logs' | 'exchange_rate'
    */
   addToQueue(action) {
     const queue = this.getQueue();
@@ -572,7 +572,12 @@ class SyncService {
       const expenses = rawExpenses ? JSON.parse(rawExpenses) : [];
       const rawWallets = localStorage.getItem(getUserStorageKey("oybek-system:wallets"));
       const wallets = rawWallets ? JSON.parse(rawWallets) : {};
-      const { reserves, dollarRateHistory, pendingDebts } = readLocalSnapshot();
+      const rawReserves = localStorage.getItem(getUserStorageKey("oybek-system:reserves"));
+      const reserves = rawReserves ? JSON.parse(rawReserves) : {};
+      const rawDollar = localStorage.getItem(getUserStorageKey("oybek-system:dollar_rate_history"));
+      const dollarRateHistory = rawDollar ? JSON.parse(rawDollar) : [];
+      const rawDebts = localStorage.getItem(getUserStorageKey("oybek-system:pending_debts"));
+      const pendingDebts = rawDebts ? JSON.parse(rawDebts) : [];
 
       // 1. Zaxira endpointi orqali yuborish (wallets, expenses, reserves, dollar, debts)
       const backupPayload = {

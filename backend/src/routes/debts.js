@@ -47,7 +47,9 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const userId = req.user.userId;
-    await debtsService.deleteDebt(req.params.id, userId);
+    const revertTransactions =
+      req.query.revertTransactions === "true" || req.body?.revertTransactions === true;
+    await debtsService.deleteDebt(req.params.id, userId, { revertTransactions });
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });

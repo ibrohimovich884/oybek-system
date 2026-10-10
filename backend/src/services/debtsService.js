@@ -1,5 +1,6 @@
 import { pool } from "../../db/pool.js";
 import { cleanWalletKey } from "./walletsService.js";
+import { deleteExpense } from "./expensesService.js";
 
 function mapDebtRow(row, payments = []) {
   return {
@@ -366,7 +367,27 @@ export async function forgiveDebt(debtId, payload = {}, userId) {
   return await getDebtById(debtId, userId);
 }
 
-export async function deleteDebt(id, userId) {
+export async function deleteDebt(id, userId, { revertTransactions = false } = {}) {
+  if (revertTransactions) {
+    try {
+      const debt = await getDebtById(id, userId);
+      const txQuery = userId
+        ? `SELECT id FROM transactions 
+           WHERE (user_id = $1 OR user_id IS NULL) 
+             AND (debt_id = $2 OR (debt_id IS NULL AND ($3::text IS NOT NULL AND position(lower($3) in lower(reason)) > 0 AND subcategory IN ('Qarz berish', 'Qarz olish', 'Qarz qaytishi', 'Qarz to''lash'))))`
+        : `SELECT id FROM transactions 
+           WHERE debt_id = $1 
+              OR (debt_id IS NULL AND ($2::text IS NOT NULL AND position(lower($2) in lower(reason)) > 0 AND subcategory IN ('Qarz berish', 'Qarz olish', 'Qarz qaytishi', 'Qarz to''lash')))`;
+      const txParams = userId ? [userId, id, debt?.personName || null] : [id, debt?.personName || null];
+      const { rows: linkedTxs } = await pool.query(txQuery, txParams);
+      for (const tx of linkedTxs) {
+        await deleteExpense(tx.id, userId);
+      }
+    } catch (err) {
+      console.warn("Reverting linked transactions error:", err.message);
+    }
+  }
+
   if (userId) {
     await pool.query("DELETE FROM debts WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", [id, userId]);
   } else {

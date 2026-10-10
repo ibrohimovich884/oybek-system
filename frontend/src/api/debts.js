@@ -353,7 +353,7 @@ export async function forgiveDebtApi(id, customOpts = {}) {
   return { updatedDebt, payment: forgivePayment };
 }
 
-export async function deleteDebtRecord(id) {
+export async function deleteDebtRecord(id, options = {}) {
   const debts = readLocalDebts();
   const filtered = debts.filter((d) => d.id !== id);
   writeLocalDebts(filtered);
@@ -362,11 +362,12 @@ export async function deleteDebtRecord(id) {
     entity: "debts",
     type: "delete",
     targetId: id,
-    payload: { id },
+    payload: { id, revertTransactions: Boolean(options.revertTransactions) },
   });
 
   try {
-    const res = await apiClient.delete(`/api/debts/${id}`);
+    const query = options.revertTransactions ? "?revertTransactions=true" : "";
+    const res = await apiClient.delete(`/api/debts/${id}${query}`);
     if (res && res.ok) {
       syncService.removeFromQueue(queueEntry.queueId);
       syncService.addLog("success", `Qarz DBdan ham o'chirildi (ID: ${id})`);

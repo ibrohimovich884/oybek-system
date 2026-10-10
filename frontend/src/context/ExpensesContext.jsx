@@ -391,7 +391,16 @@ export function ExpensesProvider({ children }) {
     async ({ from, to, amount, targetAmount, exchangeRate, note }) => {
       const numAmount = Number(amount);
       const currentRate = exchangeRate || rateInfo?.rate || 12850;
-      const finalTargetAmount = Number(targetAmount || numAmount);
+
+      const isFromDollar = from === "dollar" || from.includes("dollar");
+      const isToDollar = to === "dollar" || to.includes("dollar");
+
+      let finalTargetAmount = targetAmount !== undefined && targetAmount !== null ? Number(targetAmount) : numAmount;
+      if (isFromDollar && !isToDollar && (!targetAmount || targetAmount === numAmount)) {
+        finalTargetAmount = Math.round(numAmount * currentRate);
+      } else if (!isFromDollar && isToDollar && (!targetAmount || targetAmount === numAmount)) {
+        finalTargetAmount = Number((numAmount / currentRate).toFixed(2));
+      }
 
       const isFromAsosiy = from.endsWith("-asosiy") || from.endsWith("_reserve");
       const isToAsosiy = to.endsWith("-asosiy") || to.endsWith("_reserve");
@@ -402,10 +411,11 @@ export function ExpensesProvider({ children }) {
         type: "transfer",
         amount: numAmount,
         targetAmount: finalTargetAmount,
+        currency: isFromDollar ? "USD" : "UZS",
         wallet: from,
         fromWallet: from,
         toWallet: to,
-        exchangeRateAtTime: from === "dollar" || to === "dollar" ? currentRate : null,
+        exchangeRateAtTime: isFromDollar || isToDollar ? currentRate : null,
         category: "O‘tkazma",
         subcategory: "Balanslararo",
         reason: note?.trim() || `${from} dan ${to} ga o'tkazma`,
@@ -414,10 +424,10 @@ export function ExpensesProvider({ children }) {
       });
 
       // Agar Dollar ishtirok etgan bo'lsa, dollar tarixini saqlash
-      if (from === "dollar" || to === "dollar") {
+      if (isFromDollar || isToDollar) {
         expensesApi.addDollarRateRecord({
-          amount: from === "dollar" ? numAmount : finalTargetAmount,
-          direction: from === "dollar" ? "chiqim" : "kirim",
+          amount: isFromDollar ? numAmount : finalTargetAmount,
+          direction: isFromDollar ? "chiqim" : "kirim",
           target: isFromAsosiy || isToAsosiy ? "asosiy" : "oddiy",
           exchangeRateAtTime: currentRate,
           occurredAt: new Date().toISOString(),
@@ -501,6 +511,30 @@ export function ExpensesProvider({ children }) {
     URL.revokeObjectURL(url);
   }, [expenses]);
 
+  const getLinkedDebtTransactions = useCallback(
+    (debt) => {
+      if (!debt) return [];
+      const debtId = debt.id;
+      const pName = (debt.personName || "").trim().toLowerCase();
+      return expenses.filter((tx) => {
+        if (tx.debtId === debtId) return true;
+        if (
+          (tx.subcategory === "Qarz berish" ||
+            tx.subcategory === "Qarz olish" ||
+            tx.subcategory === "Qarz qaytishi" ||
+            tx.subcategory === "Qarz to'lash") &&
+          tx.reason &&
+          pName &&
+          tx.reason.toLowerCase().includes(pName)
+        ) {
+          return true;
+        }
+        return false;
+      });
+    },
+    [expenses]
+  );
+
   const addDebt = useCallback(
     async (debtData) => {
       const created = await debtsApi.addDebtRecord(debtData);
@@ -515,6 +549,7 @@ export function ExpensesProvider({ children }) {
             wallet: debtData.wallet,
             paymentMethod: debtData.wallet,
             currency: debtData.currency || "UZS",
+            debtId: created.id,
             category: "Boshqa",
             subcategory: "Qarz berish",
             reason: `${debtData.personName}ga qarz berildi: ${debtData.reason || ""}`.trim(),
@@ -529,6 +564,7 @@ export function ExpensesProvider({ children }) {
             wallet: debtData.wallet,
             paymentMethod: debtData.wallet,
             currency: debtData.currency || "UZS",
+            debtId: created.id,
             category: "Boshqa",
             subcategory: "Qarz olish",
             reason: `${debtData.personName}dan qarz olindi: ${debtData.reason || ""}`.trim(),
@@ -557,6 +593,7 @@ export function ExpensesProvider({ children }) {
             wallet: payment.wallet || updatedDebt.wallet,
             paymentMethod: payment.wallet || updatedDebt.wallet,
             currency: updatedDebt.currency || "UZS",
+            debtId: updatedDebt.id,
             category: "Boshqa",
             subcategory: "Qarz qaytishi",
             reason: `${updatedDebt.personName} qarzni qaytardi: ${payment.note || ""}`.trim(),
@@ -570,6 +607,7 @@ export function ExpensesProvider({ children }) {
             wallet: payment.wallet || updatedDebt.wallet,
             paymentMethod: payment.wallet || updatedDebt.wallet,
             currency: updatedDebt.currency || "UZS",
+            debtId: updatedDebt.id,
             category: "Boshqa",
             subcategory: "Qarz to'lash",
             reason: `${updatedDebt.personName}ga qarz qaytarildi: ${payment.note || ""}`.trim(),
@@ -596,6 +634,7 @@ export function ExpensesProvider({ children }) {
             wallet: payment.wallet || updatedDebt.wallet,
             paymentMethod: payment.wallet || updatedDebt.wallet,
             currency: updatedDebt.currency || "UZS",
+            debtId: updatedDebt.id,
             category: "Boshqa",
             subcategory: "Qarz qaytishi",
             reason: `${updatedDebt.personName} qarzni to'liq yopdi: ${customOpts.note || ""}`.trim(),
@@ -608,6 +647,7 @@ export function ExpensesProvider({ children }) {
             wallet: payment.wallet || updatedDebt.wallet,
             paymentMethod: payment.wallet || updatedDebt.wallet,
             currency: updatedDebt.currency || "UZS",
+            debtId: updatedDebt.id,
             category: "Boshqa",
             subcategory: "Qarz to'lash",
             reason: `${updatedDebt.personName}ga qarz to'liq yopildi: ${customOpts.note || ""}`.trim(),
@@ -625,8 +665,6 @@ export function ExpensesProvider({ children }) {
   const forgiveDebt = useCallback(
     async (debtId, customOpts = {}) => {
       const { updatedDebt } = await debtsApi.forgiveDebtApi(debtId, customOpts);
-      // Qarzdan voz kechilganda (kechib yuborilganda) hamyon balanslariga pul kirmaydi!
-      // Bu pul olinmaydi, faqat qarz yopilgan va voz kechilgan hisoblanadi.
       await refresh();
       return updatedDebt;
     },
@@ -634,20 +672,52 @@ export function ExpensesProvider({ children }) {
   );
 
   const deleteDebt = useCallback(
-    async (debtId) => {
-      await debtsApi.deleteDebtRecord(debtId);
+    async (debtId, { revertTransactions = false } = {}) => {
+      const debt = debts.find((d) => d.id === debtId);
+      if (revertTransactions && debt) {
+        const linkedTxs = getLinkedDebtTransactions(debt);
+        for (const tx of linkedTxs) {
+          await expensesApi.deleteExpense(tx.id).catch(() => {});
+        }
+      }
+      await debtsApi.deleteDebtRecord(debtId, { revertTransactions });
       await refresh();
     },
-    [refresh]
+    [debts, getLinkedDebtTransactions, refresh]
   );
 
   const updateDebt = useCallback(
-    async (debtId, updates) => {
+    async (debtId, updates, { syncLinkedTransaction = false } = {}) => {
+      const debt = debts.find((d) => d.id === debtId);
+      if (syncLinkedTransaction && debt) {
+        const linkedTxs = getLinkedDebtTransactions(debt);
+        const initialTx =
+          linkedTxs.find((t) => t.subcategory === "Qarz berish" || t.subcategory === "Qarz olish") ||
+          linkedTxs[0];
+
+        if (initialTx) {
+          const newAmount = updates.amount !== undefined ? Number(updates.amount) : initialTx.amount;
+          const newWallet = updates.wallet || initialTx.wallet;
+          const newPerson = updates.personName || debt.personName;
+          const newReason = `${newPerson}ga ${(updates.type || debt.type) === "taken" ? "dan qarz olindi" : "qarz berildi"}: ${updates.reason || ""}`.trim();
+
+          await expensesApi.updateExpense(initialTx.id, {
+            amount: newAmount,
+            wallet: newWallet,
+            paymentMethod: newWallet,
+            currency: updates.currency || initialTx.currency || "UZS",
+            reason: newReason,
+            location: updates.location !== undefined ? updates.location : initialTx.location,
+            spentAt: updates.date || initialTx.spentAt,
+          }).catch(() => {});
+        }
+      }
+
       const updated = await debtsApi.updateDebtRecord(debtId, updates);
       await refresh();
       return updated;
     },
-    [refresh]
+    [debts, getLinkedDebtTransactions, refresh]
   );
 
   /**
@@ -753,6 +823,7 @@ export function ExpensesProvider({ children }) {
     resetManualUsdRate,
     loadCbuRate,
     downloadCSV,
+    getLinkedDebtTransactions,
     addDebt,
     repayDebt,
     settleDebt,

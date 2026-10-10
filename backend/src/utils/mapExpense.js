@@ -5,6 +5,7 @@ export function mapExpenseRow(row, edits = []) {
     id: row.id,
     type: row.type,
     amount: Number(row.amount),
+    targetAmount: row.target_amount != null ? Number(row.target_amount) : (row.type === "transfer" ? Number(row.amount) : null),
     currency: row.currency,
     category: row.category,
     subcategory: row.subcategory,
@@ -16,6 +17,7 @@ export function mapExpenseRow(row, edits = []) {
     toWallet: row.to_wallet,
     quantity: row.quantity,
     exchangeRateAtTime: row.exchange_rate_at_time ? Number(row.exchange_rate_at_time) : null,
+    debtId: row.debt_id || null,
     spentAt: row.spent_at,
     createdAt: row.created_at,
     edits: edits.map((edit) => ({

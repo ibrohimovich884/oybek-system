@@ -26,6 +26,7 @@ import { formatSum, formatDollar } from "../../utils/format.js";
 import { DEBT_TYPES, DEBT_TYPE_LABELS, DEBT_STATUS_LABELS } from "../../constants/debts.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
 import SecurityGate from "../security/SecurityGate.jsx";
+import DeleteDebtModal from "./DeleteDebtModal.jsx";
 
 export default function DebtDetailModal({
   isOpen,
@@ -568,19 +569,16 @@ export default function DebtDetailModal({
           </div>
         </div>
 
-        {/* Xavfsiz Parol bilan O'chirish Modali */}
-        <SecurityGate
-          isModal={true}
+        {/* Xavfsiz O'chirish va Balansni qaytarish Modali */}
+        <DeleteDebtModal
           isOpen={showSecurityDelete}
-          isDanger={true}
-          title="Qarzni Oʻchirish"
-          subtitle={`"${debt.personName}"ga tegishli ${formatFn(totalAmount)} miqdoridagi qarzni oʻchirish uchun 4 xonali PIN parolni kiriting`}
-          onSuccess={() => {
-            onDeleteDebt(debt.id);
+          onClose={() => setShowSecurityDelete(false)}
+          debt={debt}
+          onConfirmDelete={(id, opts) => {
+            onDeleteDebt(id, opts);
             setShowSecurityDelete(false);
             onClose();
           }}
-          onCancel={() => setShowSecurityDelete(false)}
         />
       </div>
     </div>

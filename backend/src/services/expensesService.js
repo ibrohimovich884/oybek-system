@@ -5,6 +5,8 @@ import { canonicalWalletId, cleanWalletKey, ensureUserWallets } from "./walletsS
 const TRACKED_FIELDS = [
   "reason",
   "amount",
+  "targetAmount",
+  "target_amount",
   "category",
   "subcategory",
   "location",
@@ -15,11 +17,15 @@ const TRACKED_FIELDS = [
   "wallet",
   "fromWallet",
   "toWallet",
+  "debtId",
+  "debt_id",
 ];
 
 const FIELD_TO_COLUMN = {
   reason: "reason",
   amount: "amount",
+  targetAmount: "target_amount",
+  target_amount: "target_amount",
   category: "category",
   subcategory: "subcategory",
   location: "location",
@@ -30,6 +36,8 @@ const FIELD_TO_COLUMN = {
   wallet: "wallet",
   fromWallet: "from_wallet",
   toWallet: "to_wallet",
+  debtId: "debt_id",
+  debt_id: "debt_id",
 };
 
 function sameValue(field, a, b) {
@@ -139,6 +147,8 @@ export async function createExpense(payload, userId) {
     id,
     type = "expense",
     amount,
+    targetAmount,
+    target_amount,
     currency = "UZS",
     category,
     subcategory,
@@ -150,9 +160,21 @@ export async function createExpense(payload, userId) {
     toWallet,
     quantity = 1,
     exchangeRateAtTime,
+    debtId,
+    debt_id,
     spentAt,
     createdAt,
   } = payload;
+
+  const resolvedTargetAmount =
+    targetAmount !== undefined && targetAmount !== null
+      ? Number(targetAmount)
+      : target_amount !== undefined && target_amount !== null
+      ? Number(target_amount)
+      : type === "transfer"
+      ? Number(amount)
+      : null;
+  const resolvedDebtId = debtId || debt_id || null;
 
   const cleanWallet = cleanWalletKey(wallet || paymentMethod);
   const cleanFromWallet = fromWallet ? cleanWalletKey(fromWallet) : null;
@@ -170,8 +192,8 @@ export async function createExpense(payload, userId) {
 
     const { rows } = await client.query(
       `INSERT INTO transactions
-        (id, user_id, type, amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, spent_at, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, COALESCE($17, now()))
+        (id, user_id, type, amount, target_amount, currency, category, subcategory, reason, location, payment_method, wallet, from_wallet, to_wallet, quantity, exchange_rate_at_time, debt_id, spent_at, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, COALESCE($19, now()))
        ON CONFLICT (id) DO NOTHING
        RETURNING *`,
       [
@@ -179,6 +201,7 @@ export async function createExpense(payload, userId) {
         userId || null,
         type,
         amount,
+        resolvedTargetAmount,
         currency,
         category,
         subcategory,
@@ -190,6 +213,7 @@ export async function createExpense(payload, userId) {
         resolvedToWallet,
         quantity,
         exchangeRateAtTime || null,
+        resolvedDebtId,
         spentAt,
         createdAt,
       ]
@@ -205,10 +229,11 @@ export async function createExpense(payload, userId) {
 
         if (isReserveWallet(resolvedToWallet)) {
           const dbToWallet = canonicalWalletId(resolvedToWallet, userId);
+          const toAmt = resolvedTargetAmount !== null ? resolvedTargetAmount : amount;
           pool.query(
             `INSERT INTO wallet_notes (wallet_id, user_id, text, amount_at_time, edited_at)
              VALUES ($1, $2, $3, (SELECT balance FROM wallets WHERE id = $1 LIMIT 1), now())`,
-            [dbToWallet, userId || null, `O'tkazma: +${amount} (${transferNote})`]
+            [dbToWallet, userId || null, `O'tkazma: +${toAmt} (${transferNote})`]
           ).catch((e) => console.warn("To-reserve note error:", e.message));
         }
 

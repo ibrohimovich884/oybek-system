@@ -13,7 +13,10 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Clock,
+  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
+import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { DEBT_TYPES, DEBT_TYPE_LABELS } from "../../constants/debts.js";
 import {
   toLocalDatetimeInput,
@@ -23,6 +26,10 @@ import {
 
 export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   if (!isOpen || !debt) return null;
+
+  const { getLinkedDebtTransactions } = useExpenses();
+  const linkedTxs = getLinkedDebtTransactions ? getLinkedDebtTransactions(debt) : [];
+  const hasLinkedTxs = linkedTxs.length > 0 || Boolean(debt.affectBalance);
 
   const [type, setType] = useState(debt.type || DEBT_TYPES.GIVEN);
   const [personName, setPersonName] = useState(debt.personName || "");
@@ -42,6 +49,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
     debt.dueDate ? toLocalDateInput(debt.dueDate) : toLocalDateInput(new Date())
   );
   const [personalNote, setPersonalNote] = useState(debt.personalNote || "");
+  const [syncLinkedTransaction, setSyncLinkedTransaction] = useState(hasLinkedTxs);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -62,6 +70,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
         debt.dueDate ? toLocalDateInput(debt.dueDate) : toLocalDateInput(new Date())
       );
       setPersonalNote(debt.personalNote || "");
+      setSyncLinkedTransaction(Boolean(debt.affectBalance) || linkedTxs.length > 0);
       setError("");
     }
   }, [debt]);
@@ -93,20 +102,24 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
       return;
     }
 
-    onUpdateDebt(debt.id, {
-      type,
-      personName: personName.trim(),
-      contact: contact.trim(),
-      amount: numAmount,
-      currency,
-      wallet,
-      date,
-      location: location.trim(),
-      reason: reason.trim(),
-      isDueDateUnknown,
-      dueDate: isDueDateUnknown ? null : dueDate,
-      personalNote: personalNote.trim(),
-    });
+    onUpdateDebt(
+      debt.id,
+      {
+        type,
+        personName: personName.trim(),
+        contact: contact.trim(),
+        amount: numAmount,
+        currency,
+        wallet,
+        date,
+        location: location.trim(),
+        reason: reason.trim(),
+        isDueDateUnknown,
+        dueDate: isDueDateUnknown ? null : dueDate,
+        personalNote: personalNote.trim(),
+      },
+      { syncLinkedTransaction }
+    );
 
     onClose();
   };
@@ -487,6 +500,50 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
               onChange={(e) => setPersonalNote(e.target.value)}
             />
           </div>
+
+          {/* 8. Bog'liq hamyon balansi va tranzaksiyasini yangilash ogohlantirishi */}
+          {(hasLinkedTxs || debt.affectBalance) && (
+            <div
+              style={{
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.35)",
+                borderRadius: "var(--radius-md)",
+                padding: "12px 14px",
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <AlertTriangle size={18} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: "0.82rem", lineHeight: 1.4, flex: 1 }}>
+                  <strong style={{ color: "#f59e0b", display: "block" }}>
+                    Hamyon balansi bilan bogʻlangan qarz
+                  </strong>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    Ushbu qarz yaratilganda yoki toʻlanganda hisobingiz balansiga taʼsir qilgan. Qarz summasi yoki hisobi oʻzgarganda, hamyon balansini ham avtomatik qayta hisoblash tavsiya etiladi.
+                  </span>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginTop: 8,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={syncLinkedTransaction}
+                      onChange={(e) => setSyncLinkedTransaction(e.target.checked)}
+                      style={{ accentColor: "var(--accent)", width: 16, height: 16 }}
+                    />
+                    <span>Bogʻliq hamyon tranzaksiyasi va balansini ham mos ravishda yangilash</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Pastki amallar tugmalari (Telefonda katta va qulay) */}
           <div className="modal-actions debt-modal-actions">
