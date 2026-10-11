@@ -1,6 +1,7 @@
 @import "./styles/tokens.css";
 @import "./styles/security.css";
 @import "./styles/loader.css";
+@import "./styles/people.css";
 
 .layout {
   display: flex;

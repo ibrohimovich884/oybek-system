@@ -221,3 +221,72 @@ CREATE INDEX IF NOT EXISTS idx_system_updates_release_date ON system_updates (re
 CREATE INDEX IF NOT EXISTS idx_update_complaints_status ON update_complaints (status);
 CREATE INDEX IF NOT EXISTS idx_update_complaints_user_id ON update_complaints (user_id);
 CREATE INDEX IF NOT EXISTS idx_update_complaints_created_at ON update_complaints (created_at DESC);
+
+-- ============================================================
+-- ODAMLAR moduli (tanishlar kartalari)
+-- ============================================================
+
+-- 1) Asosiy karta: har bir tanish uchun bitta qator
+CREATE TABLE IF NOT EXISTS people (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  nickname TEXT NOT NULL,                   -- Ro'yxatda ko'rinadigan ism/laqab
+  full_name TEXT,
+  gender TEXT,                              -- 'female' | 'male' | 'other' (backend tekshiradi)
+  category TEXT NOT NULL DEFAULT 'acquaintance',
+                                            -- 'friend' | 'acquaintance' | 'classmate'
+                                            -- | 'coworker' | 'relative' | 'other'
+  status TEXT NOT NULL DEFAULT 'active',    -- 'active' | 'lost_contact'
+  is_crush BOOLEAN NOT NULL DEFAULT false,  -- true bo'lsa "Yoqtirganlar" sahifasida chiqadi
+  crush_status TEXT,                        -- his-tuyg'u bosqichi (faqat is_crush=true bo'lganda):
+                                            -- 'interest' | 'liked' | 'talking' | 'close' | 'dating'
+                                            -- | 'unclear' | 'cooled' | 'ended' | 'became_friend'
+                                            -- Yangi status qo'shish uchun bazani o'zgartirish SHART EMAS
+  crush_started_on DATE,                    -- yoqtira boshlagan sana
+  met_on DATE,                              -- qachon tanishgan
+  met_place TEXT,                           -- qayerda tanishgan
+  met_via TEXT,                             -- kim orqali / qanday
+  birthday DATE,
+  phone TEXT,
+  telegram TEXT,
+  instagram TEXT,
+  other_contacts TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 2) Kengaytirilgan karta: yaqin kategoriyalar uchun (1 odam = 1 qator)
+CREATE TABLE IF NOT EXISTS person_profiles (
+  person_id TEXT PRIMARY KEY REFERENCES people(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  area TEXT,                                -- yashash joyi (hudud)
+  interests TEXT,                           -- qiziqishlari
+  likes TEXT,                               -- yoqtirgan narsalari
+  dislikes TEXT,                            -- yoqtirmagan narsalari
+  personality TEXT,                         -- xarakteri
+  how_we_talk TEXT,                         -- qaysi platformada, qanday gaplashamiz
+  meaning_to_me TEXT,                       -- men uchun nimani anglatadi
+  my_feelings TEXT,                         -- unga bo'lgan his-tuyg'um
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 3) Tashqi ko'rinish tarixi: har safar yozilgan vaqti bilan saqlanadi
+CREATE TABLE IF NOT EXISTS person_appearances (
+  id TEXT PRIMARY KEY,
+  person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),  -- shu ma'lumot yozilgan vaqt
+  height_cm_est INTEGER,                    -- taxminiy bo'yi (sm)
+  eye_color TEXT,
+  hair_color TEXT,
+  face_notes TEXT,                          -- yuz tuzilishi (qisqa matn)
+  other_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_people_user_id ON people (user_id);
+CREATE INDEX IF NOT EXISTS idx_people_user_crush ON people (user_id) WHERE is_crush;
+CREATE INDEX IF NOT EXISTS idx_person_profiles_user_id ON person_profiles (user_id);
+CREATE INDEX IF NOT EXISTS idx_person_appearances_person ON person_appearances (person_id, recorded_at DESC);

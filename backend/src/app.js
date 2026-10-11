@@ -13,6 +13,7 @@ import exercisesRouter from "./routes/exercises.js";
 import exchangeRateRouter from "./routes/exchangeRate.js";
 import adminRouter from "./routes/admin.js";
 import updatesRouter from "./routes/updates.js";
+import peopleRouter from "./routes/people.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
@@ -34,6 +35,7 @@ app.use("/api/wallets", requireAuth, walletsRouter);
 app.use("/api/debts", requireAuth, debtsRouter);
 app.use("/api/exercises", requireAuth, exercisesRouter);
 app.use("/api/exchange-rate", requireAuth, exchangeRateRouter);
+app.use("/api/people", requireAuth, peopleRouter);
 
 // /api/... dagi noma'lum yo'llar — JSON 404 (frontend HTML bilan aralashmasin)
 app.use("/api", (req, res) => {

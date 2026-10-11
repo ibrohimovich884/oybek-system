@@ -333,7 +333,10 @@ router.delete("/users/:id", async (req, res) => {
     const delNotesRes = await client.query(`DELETE FROM wallet_notes WHERE user_id = $1`, [id]);
     const delWalletsRes = await client.query(`DELETE FROM wallets WHERE user_id = $1`, [id]);
 
-    // 5. Asosiy foydalanuvchini o'chirish
+    // 5. Odamlar moduli (person_profiles va person_appearances CASCADE orqali o'chadi)
+    const delPeopleRes = await client.query(`DELETE FROM people WHERE user_id = $1`, [id]);
+
+    // 6. Asosiy foydalanuvchini o'chirish
     await client.query(`DELETE FROM users WHERE id = $1`, [id]);
 
     await client.query("COMMIT");

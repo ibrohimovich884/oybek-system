@@ -10,6 +10,8 @@ import SettingsPage from "./pages/SettingsPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
 import UpdatesPage from "./pages/UpdatesPage.jsx";
+import PeoplePage from "./pages/PeoplePage.jsx";
+import CrushesPage from "./pages/CrushesPage.jsx";
 import SecurityGate from "./components/security/SecurityGate.jsx";
 import LoginScreen from "./components/auth/LoginScreen.jsx";
 import WelcomeOnboarding from "./components/auth/WelcomeOnboarding.jsx";
@@ -54,6 +56,10 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/people" element={<PeoplePage />} />
+        <Route path="/odamlar" element={<Navigate to="/people" replace />} />
+        <Route path="/crushes" element={<CrushesPage />} />
+        <Route path="/yoqtirganlar" element={<Navigate to="/crushes" replace />} />
         <Route path="/money" element={<MoneyManager />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/transactions" element={<Navigate to="/history" replace />} />

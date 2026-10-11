@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   User,
   Sparkles,
+  Users,
+  Heart,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import { useSecurity } from "../../context/SecurityContext.jsx";
@@ -53,6 +55,14 @@ export default function Sidebar({ isOpen, onClose }) {
           },
         ]
       : []),
+    { to: "/people", label: "Odamlar", icon: Users },
+    {
+      to: "/crushes",
+      label: "Yoqtirganlar",
+      icon: Heart,
+      badge: "Crush",
+      badgeType: "crush",
+    },
     { to: "/money", label: "Money manager", icon: Wallet },
     {
       to: "/history",
@@ -191,6 +201,17 @@ export default function Sidebar({ isOpen, onClose }) {
                             background: "rgba(56, 189, 248, 0.18)",
                             border: "1px solid rgba(56, 189, 248, 0.35)",
                             color: "#38bdf8",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "6px",
+                            fontSize: "0.68rem",
+                            letterSpacing: "0.02em",
+                          }
+                        : item.badgeType === "crush"
+                        ? {
+                            background: "rgba(244, 114, 182, 0.18)",
+                            border: "1px solid rgba(244, 114, 182, 0.4)",
+                            color: "#f472b6",
                             fontWeight: 700,
                             padding: "2px 6px",
                             borderRadius: "6px",

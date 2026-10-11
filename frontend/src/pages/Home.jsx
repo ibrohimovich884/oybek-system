@@ -23,6 +23,8 @@ import {
   Lightbulb,
   HelpCircle,
   MessageSquare,
+  Users,
+  Heart,
 } from "lucide-react";
 
 export default function Home() {
@@ -278,6 +280,63 @@ export default function Home() {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Odamlar & Yoqtirganlar Tezkor Paneli (Yashil Blur Dizayn) */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 18 }}>
+        <Link
+          to="/people"
+          style={{
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "13px 16px",
+            borderRadius: 14,
+            background: "rgba(34, 33, 30, 0.75)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            border: "1px solid rgba(78, 184, 150, 0.25)",
+            color: "var(--text)",
+            transition: "all 0.2s ease",
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(78, 184, 150, 0.15)", border: "1px solid rgba(78, 184, 150, 0.3)", color: "#4eb896", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Users size={20} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "#f5f3ec" }}>Odamlar moduli</div>
+            <div style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>Tanishlar kartalari & profillar</div>
+          </div>
+          <ArrowRight size={15} style={{ marginLeft: "auto", color: "#4eb896", flexShrink: 0 }} />
+        </Link>
+
+        <Link
+          to="/crushes"
+          style={{
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "13px 16px",
+            borderRadius: 14,
+            background: "rgba(34, 33, 30, 0.75)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            border: "1px solid rgba(244, 114, 182, 0.25)",
+            color: "var(--text)",
+            transition: "all 0.2s ease",
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(244, 114, 182, 0.15)", border: "1px solid rgba(244, 114, 182, 0.3)", color: "#f472b6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Heart size={20} fill="#f472b6" />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "#f5f3ec" }}>Yoqtirganlar</div>
+            <div style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>Tuyg'ular & munosabat bosqichlari</div>
+          </div>
+          <ArrowRight size={15} style={{ marginLeft: "auto", color: "#f472b6", flexShrink: 0 }} />
+        </Link>
       </div>
 
       {/* Muhim bildirishnoma bo'lsa */}
