@@ -722,10 +722,10 @@ export default function UpdatesPage() {
             <form onSubmit={handleCreateUpdate} style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>Versiya (masalan v5.3.0):</label>
+                  <label style={{ fontSize: "0.76rem", fontWeight: 600 }}>Versiya (masalan v5.4.0):</label>
                   <input
                     type="text"
-                    placeholder="v5.3.0"
+                    placeholder="v5.4.0"
                     value={createForm.version}
                     onChange={(e) => setCreateForm({ ...createForm, version: e.target.value })}
                     style={{ padding: "8px 10px", borderRadius: 6, background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.82rem" }}

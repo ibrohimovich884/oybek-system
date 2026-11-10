@@ -190,7 +190,7 @@ export const EXPENSE_CATEGORIES = [
     emoji: "🍔",
     icon: "Utensils",
     color: "#f59e0b",
-    subcategories: ["Ovqat", "Fast food", "Non", "Shirinlik", "Ichimlik"],
+    subcategories: ["Yegulik", "Fast food", "Non", "Shirinlik", "Ichimlik"],
   },
   {
     id: "Transport",
@@ -198,7 +198,7 @@ export const EXPENSE_CATEGORIES = [
     emoji: "🚌",
     icon: "Bus",
     color: "#38bdf8",
-    subcategories: ["Avtobus", "Taksi", "Metro", "Yoqilg‘i"],
+    subcategories: ["Avtobus", "Taksi", "Metro", "Damas"],
   },
   {
     id: "Ta’lim",
@@ -206,7 +206,7 @@ export const EXPENSE_CATEGORIES = [
     emoji: "📚",
     icon: "GraduationCap",
     color: "#a78bfa",
-    subcategories: ["Kurs", "Kitob", "Daftar", "Kantselyariya"],
+    subcategories: ["Kurs", "Kitob", "Daftar", "Kanstavar"],
   },
   {
     id: "Texnologiya",
@@ -238,7 +238,13 @@ export const EXPENSE_CATEGORIES = [
     emoji: "🎮",
     icon: "Gamepad2",
     color: "#8b5cf6",
-    subcategories: ["O‘yin", "Kino", "Hordiq"],
+    subcategories: [
+      "O‘yin",
+      "Kino",
+      "Hordiq",
+      "Playstation",
+      "Bilyard",
+    ],
   },
   {
     id: "Sport",
@@ -300,12 +306,12 @@ export const INCOME_CATEGORIES = [
     subcategories: ["Bank keshbek", "Ilova bonusi"],
   },
   {
-    id: "Frilans",
-    label: "Frilans / Loyiha",
-    emoji: "💻",
-    icon: "Laptop",
+    id: "Yoʻlkira",
+    label: "Yoʻlkira",
+    emoji: "🚕",
+    icon: "Car",
     color: "#38bdf8",
-    subcategories: ["Buyurtma", "Loyiha to'lovi"],
+    subcategories: ["Kunlik", "Haftalik", "Oylik"],
   },
   {
     id: "Sovg‘a",
@@ -313,7 +319,7 @@ export const INCOME_CATEGORIES = [
     emoji: "🎁",
     icon: "Gift",
     color: "#f472b6",
-    subcategories: ["Hadya", "Mukofot"],
+    subcategories: ["Sovgʻa", "Mukofot"],
   },
   {
     id: "Divident",
@@ -356,7 +362,7 @@ export const QUICK_TEMPLATES = [
     amount: 25000,
     quantity: 1,
     category: "Qorin uchun",
-    subcategory: "Ovqat",
+    subcategory: "Yegulik",
     paymentMethod: "naqd",
     wallet: "naqd",
     reason: "Tushlik taomi",

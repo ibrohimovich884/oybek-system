@@ -104,7 +104,7 @@ export default function Sidebar({ isOpen, onClose }) {
       to: "/updates",
       label: "Yangilanishlar",
       icon: Sparkles,
-      badge: "v5.2",
+      badge: "v5.3",
       badgeType: "update",
     },
     { to: "/exercises", label: "Mashqlar", icon: Dumbbell, badge: "Tez kunda" },

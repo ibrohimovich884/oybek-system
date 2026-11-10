@@ -1,0 +1,130 @@
+# ==============================================================================
+# OYBEK-SYSTEM: ALL CATEGORIES & SUBCATEGORIES
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. EXPENSE CATEGORIES
+# ------------------------------------------------------------------------------
+
+[EXPENSE] Qorin uchun | emoji: 🍔 | icon: Utensils | color: #f59e0b
+- Yegulik
+- Fast food
+- Non
+- Shirinlik
+- Ichimlik
+
+[EXPENSE] Transport | emoji: 🚌 | icon: Bus | color: #38bdf8
+- Avtobus
+- Taksi
+- Metro
+- Damas
+
+[EXPENSE] Ta’lim | emoji: 📚 | icon: GraduationCap | color: #a78bfa
+- Kurs
+- Kitob
+- Daftar
+- Kanstavar
+
+[EXPENSE] Texnologiya | emoji: 💻 | icon: Laptop | color: #06b6d4
+- Telefon
+- Aksessuar
+- Dastur
+- Internet
+
+[EXPENSE] Kiyim-kechak | emoji: 👕 | icon: Shirt | color: #ec4899
+- Kiyim
+- Oyoq kiyim
+- Aksessuar
+
+[EXPENSE] Uy-ro‘zg‘or | emoji: 🏠 | icon: Home | color: #10b981
+- Uy buyumlari
+- Tozalash
+- Ta’mirlash
+
+[EXPENSE] Ko‘ngilochar | emoji: 🎮 | icon: Gamepad2 | color: #8b5cf6
+- O‘yin
+- Kino
+- Hordiq
+- Playstation
+- Bilyard
+
+[EXPENSE] Sport | emoji: 💪 | icon: Dumbbell | color: #ef4444
+- Sport anjomlari
+- Zal
+- Mashg‘ulot
+
+[EXPENSE] Sog‘liq | emoji: 🩺 | icon: HeartPulse | color: #14b8a6
+- Dori
+- Shifokor
+- Gigiyena
+
+[EXPENSE] Sovg‘alar | emoji: 🎁 | icon: Gift | color: #f43f5e
+- Sovg‘a
+- Gullar
+- Bayram
+
+[EXPENSE] Do‘stlar | emoji: 👥 | icon: Users | color: #3b82f6
+- Uchrashuv
+- Mehmondorchilik
+- Qarz / Yordam
+- Boshqa
+
+[EXPENSE] Boshqa | emoji: 📦 | icon: Package | color: #6b7280
+- Kutilmagan
+- Xizmat haqi
+- Mayda-chuyda
+- Boshqa
+
+
+# ------------------------------------------------------------------------------
+# 2. INCOME CATEGORIES
+# ------------------------------------------------------------------------------
+
+[INCOME] Oylik maosh | emoji: 💼 | icon: Briefcase | color: #34d399
+- Oylik
+- Avans
+- Bonus
+
+[INCOME] Keshbek & Bonus | emoji: ✨ | icon: Sparkles | color: #fbbf24
+- Bank keshbek
+- Ilova bonusi
+
+[INCOME] Yoʻlkira | emoji: 🚕 | icon: Car | color: #38bdf8
+- Kunlik
+- Haftalik
+- Oylik
+
+[INCOME] Hadya & Sovg'a | emoji: 🎁 | icon: Gift | color: #f472b6
+- Sovgʻa
+- Mukofot
+
+[INCOME] Foyda / Divident | emoji: 📈 | icon: TrendingUp | color: #a78bfa
+- Investitsiya
+- Foiz
+
+[INCOME] Boshqa daromad | emoji: 🪙 | icon: Coins | color: #2dd4bf
+- Boshqa
+
+
+# ------------------------------------------------------------------------------
+# 3. EXERCISE CATEGORIES
+# ------------------------------------------------------------------------------
+
+[EXERCISE] Kuch
+[EXERCISE] Kardio
+[EXERCISE] Oyoq & Qorin
+[EXERCISE] Matonat
+[EXERCISE] Moslashuvchanlik
+[EXERCISE] Umumiy
+
+
+# ------------------------------------------------------------------------------
+# 4. PEOPLE CATEGORIES
+# ------------------------------------------------------------------------------
+
+[PEOPLE] Do'st (friend)
+[PEOPLE] Tanish (acquaintance)
+[PEOPLE] Sinfdosh / Kursdosh (classmate)
+[PEOPLE] Hamkasb (coworker)
+[PEOPLE] Qarindosh (relative)
+[PEOPLE] Boshqa (other)

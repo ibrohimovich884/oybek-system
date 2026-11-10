@@ -423,11 +423,28 @@ export async function ensureSchema() {
     if (countRes.rows[0]?.count === 0) {
       const defaultUpdates = [
         {
+          id: "upd_v5_3_0",
+          version: "v5.3.0",
+          title: "Kengaytirilgan Kategoriyalar va Yangi Daromad Turlari",
+          category: "feature",
+          badge: "Eng soʻnggi yangilik",
+          summary: "Xarajat va daromad toifalari toʻliq yangilandi, yangi kichik toifalar (Playstation, Bilyard, Damas, Kanstavar) va Yoʻlkira daromad turi qoʻshildi hamda barcha toifalar categories.json va categories.txt standartiga keltirildi.",
+          details: JSON.stringify([
+            { text: "Kategoriyalar va kichik toifalar tizimi kengaytirildi va tartibga solindi", type: "new" },
+            { text: "Koʻngilochar boʻlimiga 'Playstation' va 'Bilyard' toifalari qoʻshildi", type: "new" },
+            { text: "Transport boʻlimiga 'Damas', Ta'lim boʻlimiga 'Kanstavar', Qorin uchun boʻlimiga 'Yegulik' qoʻshildi", type: "improved" },
+            { text: "Yangi daromad toifasi: 'Yoʻlkira' (Kunlik, Haftalik, Oylik) kiritildi", type: "new" },
+            { text: "Barcha toifalar categories.json va categories.txt fayllari orqali xalqaro formatda standartlashtirildi", type: "improved" }
+          ]),
+          release_date: "2026-11-10",
+          is_pinned: true,
+        },
+        {
           id: "upd_v5_2_0",
           version: "v5.2.0",
           title: "Tizim Yangilanishlari (Changelog) va Adminga Shikoyat Tizimi",
           category: "feature",
-          badge: "Eng soʻnggi yangilik",
+          badge: "Oldingi versiya",
           summary: "Tizimning barcha yangilanishlarini qulay koʻrish, har bir yangilik yuzasidan adminga bevosita shikoyat, fikr yoki taklif yuborish imkoniyati qoʻshildi.",
           details: JSON.stringify([
             { text: "Tizim yangilanishlari (Changelog) sahifasi: versiyalar tarixi va batafsil yangiliklar", type: "new" },
@@ -437,7 +454,7 @@ export async function ensureSchema() {
             { text: "Oflayn rejimda ham xabarlarni xavfsiz saqlash va sinxronizatsiya kafolati", type: "fix" }
           ]),
           release_date: "2026-10-04",
-          is_pinned: true,
+          is_pinned: false,
         },
         {
           id: "upd_v5_1_0",

@@ -1,5 +1,5 @@
 {
-  "xarajatlar": [
+  "expenses": [
     {
       "id": "Qorin uchun",
       "label": "Qorin uchun",
@@ -7,7 +7,7 @@
       "icon": "Utensils",
       "color": "#f59e0b",
       "subcategories": [
-        "Ovqat",
+        "Yegulik",
         "Fast food",
         "Non",
         "Shirinlik",
@@ -24,7 +24,7 @@
         "Avtobus",
         "Taksi",
         "Metro",
-        "Yoqilg‘i"
+        "Damas"
       ]
     },
     {
@@ -37,7 +37,7 @@
         "Kurs",
         "Kitob",
         "Daftar",
-        "Kantselyariya"
+        "Kanstavar"
       ]
     },
     {
@@ -86,7 +86,9 @@
       "subcategories": [
         "O‘yin",
         "Kino",
-        "Hordiq"
+        "Hordiq",
+        "Playstation",
+        "Bilyard"
       ]
     },
     {
@@ -152,7 +154,7 @@
       ]
     }
   ],
-  "daromadlar": [
+  "income": [
     {
       "id": "Oylik maosh",
       "label": "Oylik maosh",
@@ -177,14 +179,15 @@
       ]
     },
     {
-      "id": "Frilans",
-      "label": "Frilans / Loyiha",
-      "emoji": "💻",
-      "icon": "Laptop",
+      "id": "Yoʻlkira",
+      "label": "Yoʻlkira",
+      "emoji": "🚕",
+      "icon": "Car",
       "color": "#38bdf8",
       "subcategories": [
-        "Buyurtma",
-        "Loyiha to'lovi"
+        "Kunlik",
+        "Haftalik",
+        "Oylik"
       ]
     },
     {
@@ -194,7 +197,7 @@
       "icon": "Gift",
       "color": "#f472b6",
       "subcategories": [
-        "Hadya",
+        "Sovgʻa",
         "Mukofot"
       ]
     },
@@ -220,7 +223,7 @@
       ]
     }
   ],
-  "mashqlar": [
+  "exercises": [
     "Kuch",
     "Kardio",
     "Oyoq & Qorin",
@@ -228,7 +231,7 @@
     "Moslashuvchanlik",
     "Umumiy"
   ],
-  "odamlar": [
+  "people": [
     { "id": "friend", "label": "Do'st" },
     { "id": "acquaintance", "label": "Tanish" },
     { "id": "classmate", "label": "Sinfdosh / Kursdosh" },

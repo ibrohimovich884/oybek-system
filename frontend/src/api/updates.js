@@ -3,19 +3,36 @@
  */
 import { apiClient } from "./client.js";
 
-const STORAGE_UPDATES_KEY = "oybek_system:updates_cache_v1";
-const STORAGE_UPDATES_META_KEY = "oybek_system:updates_meta_v1";
+const STORAGE_UPDATES_KEY = "oybek_system:updates_cache_v2";
+const STORAGE_UPDATES_META_KEY = "oybek_system:updates_meta_v2";
 const STORAGE_COMPLAINTS_KEY = "oybek_system:complaints_cache_v1";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // Default tizim yangilanishlari (oflayn yoki birinchi yuklanishda)
 export const DEFAULT_SYSTEM_UPDATES = [
   {
+    id: "upd_v5_3_0",
+    version: "v5.3.0",
+    title: "Kengaytirilgan Kategoriyalar va Yangi Daromad Turlari",
+    category: "feature",
+    badge: "Eng soʻnggi yangilik",
+    summary: "Xarajat va daromad toifalari toʻliq yangilandi, yangi kichik toifalar (Playstation, Bilyard, Damas, Kanstavar) va Yoʻlkira daromad turi qoʻshildi hamda barcha toifalar categories.json va categories.txt standartiga keltirildi.",
+    details: [
+      { text: "Kategoriyalar va kichik toifalar tizimi kengaytirildi va tartibga solindi", type: "new" },
+      { text: "Koʻngilochar boʻlimiga 'Playstation' va 'Bilyard' toifalari qoʻshildi", type: "new" },
+      { text: "Transport boʻlimiga 'Damas', Ta'lim boʻlimiga 'Kanstavar', Qorin uchun boʻlimiga 'Yegulik' qoʻshildi", type: "improved" },
+      { text: "Yangi daromad toifasi: 'Yoʻlkira' (Kunlik, Haftalik, Oylik) kiritildi", type: "new" },
+      { text: "Barcha toifalar categories.json va categories.txt fayllari orqali xalqaro formatda standartlashtirildi", type: "improved" },
+    ],
+    release_date: "2026-11-10",
+    is_pinned: true,
+  },
+  {
     id: "upd_v5_2_0",
     version: "v5.2.0",
     title: "Tizim Yangilanishlari (Changelog) va Adminga Shikoyat Tizimi",
     category: "feature",
-    badge: "Eng soʻnggi yangilik",
+    badge: "Oldingi versiya",
     summary: "Tizimning barcha yangilanishlarini qulay koʻrish, har bir yangilik yuzasidan adminga bevosita shikoyat, fikr yoki taklif yuborish imkoniyati qoʻshildi.",
     details: [
       { text: "Tizim yangilanishlari (Changelog) sahifasi: versiyalar tarixi va batafsil yangiliklar", type: "new" },
@@ -25,7 +42,7 @@ export const DEFAULT_SYSTEM_UPDATES = [
       { text: "Oflayn rejimda ham xabarlarni xavfsiz saqlash va sinxronizatsiya kafolati", type: "fix" },
     ],
     release_date: "2026-10-04",
-    is_pinned: true,
+    is_pinned: false,
   },
   {
     id: "upd_v5_1_0",
