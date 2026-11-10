@@ -23,6 +23,7 @@ import {
   CATEGORY_LABELS,
   CRUSH_STATUS_LABELS,
 } from "../../constants/people.js";
+import { cleanSocialHandle } from "../../utils/format.js";
 
 export default function PersonCard({ person, onClick, onToggleCrush }) {
   const {
@@ -187,28 +188,28 @@ export default function PersonCard({ person, onClick, onToggleCrush }) {
             <div className="person-contacts-row">
               {telegram && (
                 <a
-                  href={`https://t.me/${telegram}`}
+                  href={`https://t.me/${cleanSocialHandle(telegram)}`}
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="person-contact-chip"
-                  title={`Telegram: @${telegram}`}
+                  title={`Telegram: @${cleanSocialHandle(telegram)}`}
                 >
                   <Send size={11} color="#38bdf8" />
-                  <span>@{telegram}</span>
+                  <span>@{cleanSocialHandle(telegram)}</span>
                 </a>
               )}
               {instagram && (
                 <a
-                  href={`https://instagram.com/${instagram}`}
+                  href={`https://instagram.com/${cleanSocialHandle(instagram)}`}
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="person-contact-chip"
-                  title={`Instagram: @${instagram}`}
+                  title={`Instagram: @${cleanSocialHandle(instagram)}`}
                 >
                   <InstagramIcon size={11} color="#e879f9" />
-                  <span>@{instagram}</span>
+                  <span>@{cleanSocialHandle(instagram)}</span>
                 </a>
               )}
               {phone && (

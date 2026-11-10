@@ -56,9 +56,33 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/people" element={<PeoplePage />} />
+        <Route
+          path="/people"
+          element={
+            <SecurityGate
+              scope="people"
+              title="Odamlar Bo'limi Qulflangan"
+              subtitle="Tanishlar kartalarini ko'rish uchun 4 xonali PIN parolni tering"
+              backUrl="/"
+            >
+              <PeoplePage />
+            </SecurityGate>
+          }
+        />
         <Route path="/odamlar" element={<Navigate to="/people" replace />} />
-        <Route path="/crushes" element={<CrushesPage />} />
+        <Route
+          path="/crushes"
+          element={
+            <SecurityGate
+              scope="crushes"
+              title="Yoqtirganlar Bo'limi Qulflangan"
+              subtitle="Shaxsiy his-tuyg'ular bo'limiga kirish uchun 4 xonali PIN parolni tering"
+              backUrl="/"
+            >
+              <CrushesPage />
+            </SecurityGate>
+          }
+        />
         <Route path="/yoqtirganlar" element={<Navigate to="/crushes" replace />} />
         <Route path="/money" element={<MoneyManager />} />
         <Route path="/history" element={<HistoryPage />} />

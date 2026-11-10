@@ -1,0 +1,239 @@
+{
+  "xarajatlar": [
+    {
+      "id": "Qorin uchun",
+      "label": "Qorin uchun",
+      "emoji": "🍔",
+      "icon": "Utensils",
+      "color": "#f59e0b",
+      "subcategories": [
+        "Ovqat",
+        "Fast food",
+        "Non",
+        "Shirinlik",
+        "Ichimlik"
+      ]
+    },
+    {
+      "id": "Transport",
+      "label": "Transport",
+      "emoji": "🚌",
+      "icon": "Bus",
+      "color": "#38bdf8",
+      "subcategories": [
+        "Avtobus",
+        "Taksi",
+        "Metro",
+        "Yoqilg‘i"
+      ]
+    },
+    {
+      "id": "Ta’lim",
+      "label": "Ta’lim",
+      "emoji": "📚",
+      "icon": "GraduationCap",
+      "color": "#a78bfa",
+      "subcategories": [
+        "Kurs",
+        "Kitob",
+        "Daftar",
+        "Kantselyariya"
+      ]
+    },
+    {
+      "id": "Texnologiya",
+      "label": "Texnologiya",
+      "emoji": "💻",
+      "icon": "Laptop",
+      "color": "#06b6d4",
+      "subcategories": [
+        "Telefon",
+        "Aksessuar",
+        "Dastur",
+        "Internet"
+      ]
+    },
+    {
+      "id": "Kiyim-kechak",
+      "label": "Kiyim-kechak",
+      "emoji": "👕",
+      "icon": "Shirt",
+      "color": "#ec4899",
+      "subcategories": [
+        "Kiyim",
+        "Oyoq kiyim",
+        "Aksessuar"
+      ]
+    },
+    {
+      "id": "Uy-ro‘zg‘or",
+      "label": "Uy-ro‘zg‘or",
+      "emoji": "🏠",
+      "icon": "Home",
+      "color": "#10b981",
+      "subcategories": [
+        "Uy buyumlari",
+        "Tozalash",
+        "Ta’mirlash"
+      ]
+    },
+    {
+      "id": "Ko‘ngilochar",
+      "label": "Ko‘ngilochar",
+      "emoji": "🎮",
+      "icon": "Gamepad2",
+      "color": "#8b5cf6",
+      "subcategories": [
+        "O‘yin",
+        "Kino",
+        "Hordiq"
+      ]
+    },
+    {
+      "id": "Sport",
+      "label": "Sport",
+      "emoji": "💪",
+      "icon": "Dumbbell",
+      "color": "#ef4444",
+      "subcategories": [
+        "Sport anjomlari",
+        "Zal",
+        "Mashg‘ulot"
+      ]
+    },
+    {
+      "id": "Sog‘liq",
+      "label": "Sog‘liq",
+      "emoji": "🩺",
+      "icon": "HeartPulse",
+      "color": "#14b8a6",
+      "subcategories": [
+        "Dori",
+        "Shifokor",
+        "Gigiyena"
+      ]
+    },
+    {
+      "id": "Sovg‘alar",
+      "label": "Sovg‘alar",
+      "emoji": "🎁",
+      "icon": "Gift",
+      "color": "#f43f5e",
+      "subcategories": [
+        "Sovg‘a",
+        "Gullar",
+        "Bayram"
+      ]
+    },
+    {
+      "id": "Do‘stlar",
+      "label": "Do‘stlar",
+      "emoji": "👥",
+      "icon": "Users",
+      "color": "#3b82f6",
+      "subcategories": [
+        "Uchrashuv",
+        "Mehmondorchilik",
+        "Qarz / Yordam",
+        "Boshqa"
+      ]
+    },
+    {
+      "id": "Boshqa",
+      "label": "Boshqa",
+      "emoji": "📦",
+      "icon": "Package",
+      "color": "#6b7280",
+      "subcategories": [
+        "Kutilmagan",
+        "Xizmat haqi",
+        "Mayda-chuyda",
+        "Boshqa"
+      ]
+    }
+  ],
+  "daromadlar": [
+    {
+      "id": "Oylik maosh",
+      "label": "Oylik maosh",
+      "emoji": "💼",
+      "icon": "Briefcase",
+      "color": "#34d399",
+      "subcategories": [
+        "Oylik",
+        "Avans",
+        "Bonus"
+      ]
+    },
+    {
+      "id": "Keshbek",
+      "label": "Keshbek & Bonus",
+      "emoji": "✨",
+      "icon": "Sparkles",
+      "color": "#fbbf24",
+      "subcategories": [
+        "Bank keshbek",
+        "Ilova bonusi"
+      ]
+    },
+    {
+      "id": "Frilans",
+      "label": "Frilans / Loyiha",
+      "emoji": "💻",
+      "icon": "Laptop",
+      "color": "#38bdf8",
+      "subcategories": [
+        "Buyurtma",
+        "Loyiha to'lovi"
+      ]
+    },
+    {
+      "id": "Sovg‘a",
+      "label": "Hadya & Sovg'a",
+      "emoji": "🎁",
+      "icon": "Gift",
+      "color": "#f472b6",
+      "subcategories": [
+        "Hadya",
+        "Mukofot"
+      ]
+    },
+    {
+      "id": "Divident",
+      "label": "Foyda / Divident",
+      "emoji": "📈",
+      "icon": "TrendingUp",
+      "color": "#a78bfa",
+      "subcategories": [
+        "Investitsiya",
+        "Foiz"
+      ]
+    },
+    {
+      "id": "Boshqa daromad",
+      "label": "Boshqa daromad",
+      "emoji": "🪙",
+      "icon": "Coins",
+      "color": "#2dd4bf",
+      "subcategories": [
+        "Boshqa"
+      ]
+    }
+  ],
+  "mashqlar": [
+    "Kuch",
+    "Kardio",
+    "Oyoq & Qorin",
+    "Matonat",
+    "Moslashuvchanlik",
+    "Umumiy"
+  ],
+  "odamlar": [
+    { "id": "friend", "label": "Do'st" },
+    { "id": "acquaintance", "label": "Tanish" },
+    { "id": "classmate", "label": "Sinfdosh / Kursdosh" },
+    { "id": "coworker", "label": "Hamkasb" },
+    { "id": "relative", "label": "Qarindosh" },
+    { "id": "other", "label": "Boshqa" }
+  ]
+}

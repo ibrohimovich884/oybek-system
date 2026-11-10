@@ -8,6 +8,7 @@ import {
   Clock,
   User,
   Users,
+  X,
 } from "lucide-react";
 import {
   fetchCrushes,
@@ -172,6 +173,26 @@ export default function CrushesPage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ism, telefon, @telegram, @instagram orqali qidirish..."
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  padding: "4px",
+                }}
+                title="Qidiruvni tozalash"
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>

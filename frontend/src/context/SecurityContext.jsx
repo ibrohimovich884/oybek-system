@@ -9,6 +9,7 @@ const BASE_PIN_KEY = "oybek_system_security_pin";
 const BASE_CUSTOM_FLAG = "oybek_system_has_custom_pin";
 const BASE_CP_LOCK_KEY = "oybek_sec_control_panel_enabled"; // default false (o'chiq)
 const BASE_TX_LOCK_KEY = "oybek_sec_transactions_enabled";   // default false (o'chiq)
+const BASE_PEOPLE_LOCK_KEY = "oybek_sec_people_enabled";     // default false (o'chiq)
 const BASE_SESSION_UNLOCKED_KEY = "oybek_unlocked_scopes";
 
 export function SecurityProvider({ children }) {
@@ -29,6 +30,16 @@ export function SecurityProvider({ children }) {
   const [isTransactionsLockEnabled, setIsTransactionsLockEnabledState] = useState(() => {
     try {
       const key = getUserStorageKey(BASE_TX_LOCK_KEY, userId);
+      return localStorage.getItem(key) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  // 3. Odamlar va Yoqtirganlar bo'limini qulflash holati (DEFAULT: false - o'chiq)
+  const [isPeopleLockEnabled, setIsPeopleLockEnabledState] = useState(() => {
+    try {
+      const key = getUserStorageKey(BASE_PEOPLE_LOCK_KEY, userId);
       return localStorage.getItem(key) === "true";
     } catch {
       return false;
@@ -77,6 +88,9 @@ export function SecurityProvider({ children }) {
 
       const txKey = getUserStorageKey(BASE_TX_LOCK_KEY, userId);
       setIsTransactionsLockEnabledState(localStorage.getItem(txKey) === "true");
+
+      const peopleKey = getUserStorageKey(BASE_PEOPLE_LOCK_KEY, userId);
+      setIsPeopleLockEnabledState(localStorage.getItem(peopleKey) === "true");
 
       const pinKey = getUserStorageKey(BASE_PIN_KEY, userId);
       const savedPin = localStorage.getItem(pinKey);
@@ -132,6 +146,21 @@ export function SecurityProvider({ children }) {
         localStorage.setItem(key, String(val));
       } catch (e) {
         console.warn("TX lock saqlashda xato:", e);
+      }
+    },
+    [userId]
+  );
+
+  // Odamlar bo'limi qulfini yoqish/o'chirish
+  const setPeopleLockEnabled = useCallback(
+    (enabled) => {
+      const val = Boolean(enabled);
+      setIsPeopleLockEnabledState(val);
+      try {
+        const key = getUserStorageKey(BASE_PEOPLE_LOCK_KEY, userId);
+        localStorage.setItem(key, String(val));
+      } catch (e) {
+        console.warn("People lock saqlashda xato:", e);
       }
     },
     [userId]
@@ -273,6 +302,8 @@ export function SecurityProvider({ children }) {
     setControlPanelLockEnabled,
     isTransactionsLockEnabled,
     setTransactionsLockEnabled,
+    isPeopleLockEnabled,
+    setPeopleLockEnabled,
     verifyPin,
     setPinDirectly,
     changePin,

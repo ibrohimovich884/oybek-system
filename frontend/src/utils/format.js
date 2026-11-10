@@ -153,4 +153,91 @@ export function formatTimeShort(date = new Date()) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/**
+ * Tug'ilgan kundan yoshni va keyingi tug'ilgan kungacha bo'lgan kunlarni hisoblash
+ */
+export function calculateAgeAndNextBirthday(birthdayStr) {
+  if (!birthdayStr) return null;
+  const birthDate = new Date(birthdayStr);
+  if (isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  // Keyingi tug'ilgan kun
+  const nextBday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+  if (nextBday < today) {
+    nextBday.setFullYear(today.getFullYear() + 1);
+  }
+
+  const diffTime = nextBday.getTime() - today.getTime();
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  let daysText = "";
+  if (daysLeft === 0 || (today.getDate() === birthDate.getDate() && today.getMonth() === birthDate.getMonth())) {
+    daysText = "Bugun tug'ilgan kuni! 🎉";
+  } else if (daysLeft === 1) {
+    daysText = "Ertaga tug'ilgan kuni!";
+  } else {
+    daysText = `Tug'ilgan kuniga ${daysLeft} kun qoldi`;
+  }
+
+  return {
+    age,
+    daysLeft,
+    daysText,
+    formattedDate: birthDate.toLocaleDateString("uz-UZ", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+  };
+}
+
+/**
+ * Berilgan sanadan beri o'tgan vaqtni insoniy tilda hisoblash (masalan: yoqtira boshlagan vaqt)
+ */
+export function formatDurationSince(dateStr) {
+  if (!dateStr) return "";
+  const past = new Date(dateStr);
+  if (isNaN(past.getTime())) return "";
+
+  const now = new Date();
+  const diffMs = now.getTime() - past.getTime();
+  if (diffMs < 0) return "Yaqinda";
+
+  const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (totalDays === 0) return "Bugun boshlandi";
+  if (totalDays === 1) return "1 kun bo'ldi";
+  if (totalDays < 30) return `${totalDays} kun bo'ldi`;
+
+  const months = Math.floor(totalDays / 30.44);
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+
+  if (years > 0) {
+    return remMonths > 0
+      ? `${years} yil ${remMonths} oy (${totalDays} kun)`
+      : `${years} yil (${totalDays} kun)`;
+  }
+
+  return `${months} oy (${totalDays} kun)`;
+}
+
+/**
+ * Telegram va Instagram username'larini tozalash
+ */
+export function cleanSocialHandle(handle = "") {
+  if (!handle) return "";
+  return String(handle)
+    .trim()
+    .replace(/^https?:\/\/(www\.)?(t\.me|telegram\.me|instagram\.com)\//i, "")
+    .replace(/^@/, "")
+    .replace(/\/+$/, "");
+}
+
 

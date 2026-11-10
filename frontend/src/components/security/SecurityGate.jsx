@@ -50,6 +50,7 @@ export default function SecurityGate({
     unlockScope,
     isControlPanelLockEnabled,
     isTransactionsLockEnabled,
+    isPeopleLockEnabled,
   } = useSecurity();
 
   const [inputPin, setInputPin] = useState("");
@@ -66,6 +67,9 @@ export default function SecurityGate({
   const isGuarded = (() => {
     if (scope === "control_panel") {
       return Boolean(isControlPanelLockEnabled);
+    }
+    if (scope === "people" || scope === "crushes") {
+      return Boolean(isPeopleLockEnabled);
     }
     if (scope === "transactions" || isDanger) {
       return Boolean(isTransactionsLockEnabled);

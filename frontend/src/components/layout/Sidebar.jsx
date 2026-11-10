@@ -25,12 +25,15 @@ import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Sidebar({ isOpen, onClose }) {
   const { syncStatus, debts, regularExpenses } = useExpenses();
-  const { isUnlocked, isControlPanelLockEnabled } = useSecurity();
+  const { isUnlocked, isControlPanelLockEnabled, isPeopleLockEnabled } = useSecurity();
   const { unreadCount } = useNotifications();
   const { user, logout, daysRemaining } = useAuth();
 
   const isControlUnlocked = isUnlocked("control_panel");
   const isControlLocked = isControlPanelLockEnabled && !isControlUnlocked;
+
+  const isPeopleUnlocked = isUnlocked("people");
+  const isPeopleLocked = isPeopleLockEnabled && !isPeopleUnlocked;
 
   const pendingDebtsCount = (debts || []).filter(
     (d) => d.status !== "settled"
@@ -55,13 +58,19 @@ export default function Sidebar({ isOpen, onClose }) {
           },
         ]
       : []),
-    { to: "/people", label: "Odamlar", icon: Users },
+    {
+      to: "/people",
+      label: "Odamlar",
+      icon: Users,
+      badge: isPeopleLocked ? <Lock size={12} style={{ color: "#34d399" }} /> : null,
+      badgeType: isPeopleLocked ? "lock" : null,
+    },
     {
       to: "/crushes",
       label: "Yoqtirganlar",
       icon: Heart,
-      badge: "Crush",
-      badgeType: "crush",
+      badge: isPeopleLocked ? <Lock size={12} style={{ color: "#f472b6" }} /> : "Crush",
+      badgeType: isPeopleLocked ? "lock" : "crush",
     },
     { to: "/money", label: "Money manager", icon: Wallet },
     {

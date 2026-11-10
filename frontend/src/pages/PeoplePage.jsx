@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   UserCheck,
@@ -9,6 +10,7 @@ import {
   Filter,
   RefreshCw,
   Sparkles,
+  X,
 } from "lucide-react";
 import {
   fetchPeople,
@@ -24,6 +26,7 @@ import AddPersonModal from "../components/people/AddPersonModal.jsx";
 import EditPersonModal from "../components/people/EditPersonModal.jsx";
 
 export default function PeoplePage() {
+  const navigate = useNavigate();
   const [people, setPeople] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -161,9 +164,17 @@ export default function PeoplePage() {
         </div>
       </div>
 
-      {/* Statistika kartalari (Frosted glass + blur) */}
+      {/* Statistika kartalari (Frosted glass + blur, bosganda tezkor filtrlaydi) */}
       <div className="people-stats-grid">
-        <div className="people-stat-card">
+        <div
+          className="people-stat-card"
+          onClick={() => {
+            setSelectedCategory("all");
+            setSelectedStatus("all");
+          }}
+          style={{ cursor: "pointer" }}
+          title="Barcha tanishlarni ko'rsatish"
+        >
           <div className="people-stat-icon">
             <Users size={20} />
           </div>
@@ -173,7 +184,16 @@ export default function PeoplePage() {
           </div>
         </div>
 
-        <div className="people-stat-card">
+        <div
+          className="people-stat-card"
+          onClick={() => setSelectedStatus(selectedStatus === "active" ? "all" : "active")}
+          style={{
+            cursor: "pointer",
+            borderColor: selectedStatus === "active" ? "rgba(52, 211, 153, 0.6)" : undefined,
+            background: selectedStatus === "active" ? "rgba(52, 211, 153, 0.12)" : undefined,
+          }}
+          title="Faqat faol aloqadagilarni filtrlash"
+        >
           <div className="people-stat-icon people-stat-icon--active">
             <UserCheck size={20} />
           </div>
@@ -183,7 +203,16 @@ export default function PeoplePage() {
           </div>
         </div>
 
-        <div className="people-stat-card">
+        <div
+          className="people-stat-card"
+          onClick={() => setSelectedStatus(selectedStatus === "lost_contact" ? "all" : "lost_contact")}
+          style={{
+            cursor: "pointer",
+            borderColor: selectedStatus === "lost_contact" ? "rgba(167, 139, 250, 0.6)" : undefined,
+            background: selectedStatus === "lost_contact" ? "rgba(167, 139, 250, 0.12)" : undefined,
+          }}
+          title="Aloqa uzilganlarni filtrlash"
+        >
           <div className="people-stat-icon people-stat-icon--lost">
             <UserX size={20} />
           </div>
@@ -193,7 +222,12 @@ export default function PeoplePage() {
           </div>
         </div>
 
-        <div className="people-stat-card">
+        <div
+          className="people-stat-card"
+          onClick={() => navigate("/crushes")}
+          style={{ cursor: "pointer" }}
+          title="Yoqtirganlar sahifasiga o'tish"
+        >
           <div className="people-stat-icon people-stat-icon--crush">
             <Heart size={20} fill="#f472b6" />
           </div>
@@ -216,6 +250,26 @@ export default function PeoplePage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ism, to'liq ism, telefon, @telegram, @instagram..."
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  padding: "4px",
+                }}
+                title="Qidiruvni tozalash"
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>

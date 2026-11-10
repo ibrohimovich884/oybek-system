@@ -18,6 +18,8 @@ import {
   ToggleLeft,
   ToggleRight,
   User,
+  Users,
+  Heart,
 } from "lucide-react";
 import { useSecurity } from "../../context/SecurityContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -31,6 +33,8 @@ export default function SecuritySettingsTab() {
     setControlPanelLockEnabled,
     isTransactionsLockEnabled,
     setTransactionsLockEnabled,
+    isPeopleLockEnabled,
+    setPeopleLockEnabled,
     setPinDirectly,
     changePin,
     resetPinToDefault,
@@ -148,6 +152,19 @@ export default function SecuritySettingsTab() {
           ? "Tranzaksiyalar va qarzlarni oʻchirish himoyasi yoqildi! Oʻchirishda shaxsiy PIN soʻraladi."
           : "Oʻchirish himoyasi yoqildi! Standart PIN: 2580. Quyida oʻzingiz uchun shaxsiy PIN oʻrnatib olishingiz mumkin."
         : "Oʻchirish himoyasi oʻchirildi. Tranzaksiya va qarzlar oddiy tasdiqlash bilan oʻchiriladi (PIN talab etilmaydi).",
+    });
+  };
+
+  const handleTogglePeopleLock = () => {
+    const nextVal = !isPeopleLockEnabled;
+    setPeopleLockEnabled(nextVal);
+    setFeedback({
+      type: "success",
+      message: nextVal
+        ? hasCustomPin
+          ? "Odamlar va Yoqtirganlar bo'limi uchun shaxsiy PIN himoyasi yoqildi!"
+          : "Odamlar va Yoqtirganlar bo'limi uchun PIN himoyasi yoqildi! Standart PIN: 2580."
+        : "Odamlar va Yoqtirganlar bo'limi qulfi o'chirildi (Erkin kirish mumkin).",
     });
   };
 
@@ -422,6 +439,75 @@ export default function SecuritySettingsTab() {
 
           <p style={{ margin: "10px 0 0 0", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.45 }}>
             Kundalik xarajatlar, oʻtkazmalar, zaxira amallari yoki qarzlarni oʻchirishda 4 xonali PIN talab qilish.
+          </p>
+        </div>
+
+        {/* 3. Odamlar & Yoqtirganlar Bo'limi Qulfi */}
+        <div
+          className="security-settings-card"
+          style={{
+            borderColor: isPeopleLockEnabled ? "rgba(52, 211, 153, 0.45)" : "rgba(255, 255, 255, 0.08)",
+            boxShadow: isPeopleLockEnabled ? "0 0 25px rgba(16, 185, 129, 0.12)" : undefined,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: isPeopleLockEnabled ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                  border: `1px solid ${isPeopleLockEnabled ? "rgba(52, 211, 153, 0.4)" : "rgba(255, 255, 255, 0.1)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: isPeopleLockEnabled ? "#34d399" : "var(--text-muted)",
+                }}
+              >
+                <Users size={18} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "#f5f3ec" }}>
+                  Odamlar & Yoqtirganlar Qulfi
+                </h3>
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    color: isPeopleLockEnabled ? "#34d399" : "var(--text-muted)",
+                  }}
+                >
+                  {isPeopleLockEnabled ? "Faol (Maxfiy kirish)" : "Oʻchirilgan (Erkin kirish)"}
+                </span>
+              </div>
+            </div>
+
+            {/* Toggle switch tugmasi */}
+            <button
+              type="button"
+              onClick={handleTogglePeopleLock}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: 4,
+                color: isPeopleLockEnabled ? "#34d399" : "rgba(255, 255, 255, 0.3)",
+                transition: "all 0.2s ease",
+              }}
+              title={isPeopleLockEnabled ? "Qulfni o'chirish" : "Qulfni yoqish"}
+              aria-label="Odamlar qulfi"
+            >
+              {isPeopleLockEnabled ? (
+                <ToggleRight size={38} className="text-accent" />
+              ) : (
+                <ToggleLeft size={38} />
+              )}
+            </button>
+          </div>
+
+          <p style={{ margin: "10px 0 0 0", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.45 }}>
+            Tanishlar kartalari, shaxsiy profillar va his-tuyg'ular tarixini 4 xonali PIN kod bilan begona ko'zlardan himoyalash.
           </p>
         </div>
       </div>

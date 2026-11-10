@@ -40,6 +40,11 @@ import {
   deleteAppearance,
   updateCrushStatus,
 } from "../../api/people.js";
+import {
+  calculateAgeAndNextBirthday,
+  formatDurationSince,
+  cleanSocialHandle,
+} from "../../utils/format.js";
 
 export default function PersonDetailModal({
   person,
@@ -303,8 +308,9 @@ export default function PersonDetailModal({
                     </h4>
 
                     {person.crushStartedOn && (
-                      <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                        Boshlangan: {person.crushStartedOn}
+                      <span style={{ fontSize: "0.78rem", color: "#fbcfe8", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <Clock size={12} />
+                        <span>Boshlangan: {person.crushStartedOn} ({formatDurationSince(person.crushStartedOn)})</span>
                       </span>
                     )}
                   </div>
@@ -361,9 +367,23 @@ export default function PersonDetailModal({
 
                   <div className="person-detail-item">
                     <span className="person-detail-label">Tug'ilgan kuni</span>
-                    <span className="person-detail-val">
-                      {person.birthday || "Kiritilmagan"}
-                    </span>
+                    {person.birthday ? (
+                      (() => {
+                        const bdayInfo = calculateAgeAndNextBirthday(person.birthday);
+                        return (
+                          <div>
+                            <span className="person-detail-val">{bdayInfo ? bdayInfo.formattedDate : person.birthday}</span>
+                            {bdayInfo && (
+                              <div style={{ fontSize: "0.76rem", color: bdayInfo.daysLeft <= 7 ? "#34d399" : "var(--text-muted)", marginTop: "2px", fontWeight: 500 }}>
+                                {bdayInfo.age} yoshda · {bdayInfo.daysText}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="person-detail-val">Kiritilmagan</span>
+                    )}
                   </div>
                 </div>
               </div>
