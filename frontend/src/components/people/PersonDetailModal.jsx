@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   Edit2,
@@ -16,6 +17,10 @@ import {
   Clock,
   Save,
   Check,
+  ShieldCheck,
+  HandCoins,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react";
 
 function InstagramIcon({ size = 14, color = "currentColor" }) {
@@ -33,8 +38,16 @@ import {
   GENDER_LABELS,
   CRUSH_STATUSES,
   CRUSH_STATUS_LABELS,
+  TRUST_LEVEL_OPTIONS,
+  getTrustLevelInfo,
 } from "../../constants/people.js";
 import {
+  DEBT_TYPES,
+  DEBT_STATUS_LABELS,
+  getDebtDueInfo,
+} from "../../constants/debts.js";
+import {
+  updatePerson,
   updateProfile,
   addAppearance,
   deleteAppearance,
@@ -44,7 +57,10 @@ import {
   calculateAgeAndNextBirthday,
   formatDurationSince,
   cleanSocialHandle,
+  formatSum,
+  formatDollar,
 } from "../../utils/format.js";
+import { useExpenses } from "../../context/ExpensesContext.jsx";
 
 export default function PersonDetailModal({
   person,
@@ -53,7 +69,9 @@ export default function PersonDetailModal({
   onDelete,
   onRefresh,
 }) {
-  const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'profile' | 'appearances'
+  const navigate = useNavigate();
+  const { debts } = useExpenses();
+  const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'debts' | 'profile' | 'appearances'
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
     area: person.profile?.area || "",
@@ -81,6 +99,54 @@ export default function PersonDetailModal({
 
   // Crush statusini tezkor yangilash
   const [isUpdatingCrush, setIsUpdatingCrush] = useState(false);
+  const [isUpdatingTrust, setIsUpdatingTrust] = useState(false);
+
+  const trustInfo = getTrustLevelInfo(person.trustLevel);
+
+  // Ushbu shaxsga bog'langan barcha qarzlar (personId yoki ism mosligi orqali)
+  const personDebts = useMemo(() => {
+    const nick = (person.nickname || "").trim().toLowerCase();
+    const full = (person.fullName || "").trim().toLowerCase();
+    return (debts || []).filter((d) => {
+      if (d.personId && d.personId === person.id) return true;
+      const dName = (d.personName || "").trim().toLowerCase();
+      return Boolean(dName && (dName === nick || (full && dName === full)));
+    });
+  }, [debts, person.id, person.nickname, person.fullName]);
+
+  const debtTotals = useMemo(() => {
+    let remainingUzs = 0;
+    let remainingUsd = 0;
+    let activeCount = 0;
+    personDebts.forEach((d) => {
+      if (d.status === "settled" || d.status === "forgiven") return;
+      const paid = (d.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
+      const rem = Math.max(0, Number(d.amount || 0) - paid);
+      if (rem > 0) {
+        activeCount += 1;
+        if (d.currency === "USD") remainingUsd += rem;
+        else remainingUzs += rem;
+      }
+    });
+    return { remainingUzs, remainingUsd, activeCount };
+  }, [personDebts]);
+
+  const handleQuickTrustChange = async (newTrustLevel) => {
+    setIsUpdatingTrust(true);
+    try {
+      await updatePerson(person.id, { trustLevel: newTrustLevel });
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Ishonish darajasini yangilashda xatolik:", err);
+    } finally {
+      setIsUpdatingTrust(false);
+    }
+  };
+
+  const handleOpenAddDebtForPerson = () => {
+    onClose();
+    navigate(`/debts?addForPerson=${encodeURIComponent(person.id)}`);
+  };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
@@ -249,7 +315,7 @@ export default function PersonDetailModal({
         </div>
 
         {/* Tab navigatsiyasi */}
-        <div className="people-tab-bar">
+        <div className="people-tab-bar" style={{ overflowX: "auto" }}>
           <button
             type="button"
             className={`people-tab-btn ${activeTab === "overview" ? "is-active" : ""}`}
@@ -257,6 +323,14 @@ export default function PersonDetailModal({
           >
             <User size={15} />
             <span>Asosiy karta</span>
+          </button>
+          <button
+            type="button"
+            className={`people-tab-btn ${activeTab === "debts" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("debts")}
+          >
+            <HandCoins size={15} />
+            <span>Qarz daftari ({personDebts.length})</span>
           </button>
           <button
             type="button"
@@ -349,6 +423,31 @@ export default function PersonDetailModal({
                     <span className="person-detail-val" style={{ color: "#6ee7b7" }}>
                       {CATEGORY_LABELS[person.category] || person.category}
                     </span>
+                  </div>
+
+                  <div className="person-detail-item">
+                    <span className="person-detail-label">Ishonish darajasi</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginTop: "2px" }}>
+                      <select
+                        value={person.trustLevel || "medium"}
+                        onChange={(e) => handleQuickTrustChange(e.target.value)}
+                        disabled={isUpdatingTrust}
+                        className="people-form-select"
+                        style={{
+                          maxWidth: "220px",
+                          padding: "0.35rem 0.65rem",
+                          fontSize: "0.84rem",
+                          color: trustInfo.color,
+                          borderColor: trustInfo.border,
+                        }}
+                      >
+                        {TRUST_LEVEL_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.fullLabel}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="person-detail-item">
@@ -492,6 +591,114 @@ export default function PersonDetailModal({
                 </div>
               )}
             </>
+          )}
+
+          {/* TAB 1.5: QARZ DAFTARI TARIXI */}
+          {activeTab === "debts" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div
+                className="person-detail-section"
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "0.75rem",
+                }}
+              >
+                <div>
+                  <span className="person-detail-label">Faol qarz qoldig'i</span>
+                  <div className="person-detail-val mono" style={{ fontSize: "1.15rem", color: debtTotals.activeCount > 0 ? "#f59e0b" : "#34d399", marginTop: "2px" }}>
+                    {debtTotals.remainingUzs > 0
+                      ? formatSum(debtTotals.remainingUzs)
+                      : debtTotals.remainingUsd > 0
+                      ? formatDollar(debtTotals.remainingUsd)
+                      : "0 so'm (Qarz yo'q)"}
+                    {debtTotals.remainingUzs > 0 && debtTotals.remainingUsd > 0 && (
+                      <span style={{ marginLeft: "8px", fontSize: "0.9rem" }}>+ {formatDollar(debtTotals.remainingUsd)}</span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddDebtForPerson}
+                  className="people-btn-primary"
+                  style={{ padding: "0.5rem 0.95rem", fontSize: "0.84rem" }}
+                >
+                  <Plus size={15} />
+                  <span>Yangi qarz yozish</span>
+                </button>
+              </div>
+
+              {personDebts.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                  {personDebts.map((debt) => {
+                    const isGiven = debt.type === DEBT_TYPES.GIVEN;
+                    const isUsd = debt.currency === "USD";
+                    const fmt = isUsd ? formatDollar : formatSum;
+                    const paid = (debt.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
+                    const rem = debt.status === "settled" || debt.status === "forgiven" ? 0 : Math.max(0, Number(debt.amount || 0) - paid);
+                    const statusCfg = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
+                    const dueInfo = getDebtDueInfo(debt);
+
+                    return (
+                      <div
+                        key={debt.id}
+                        className="person-detail-section"
+                        style={{ padding: "0.9rem 1rem", gap: "0.45rem", cursor: "pointer" }}
+                        onClick={() => {
+                          onClose();
+                          navigate(`/debts?personId=${encodeURIComponent(person.id)}`);
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                            {isGiven ? <ArrowUpRight size={14} color="#38bdf8" /> : <ArrowDownLeft size={14} color="#f59e0b" />}
+                            <strong style={{ fontSize: "0.88rem" }}>
+                              {isGiven ? "Berilgan qarz" : "Olingan qarz"}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: "0.72rem",
+                                padding: "2px 7px",
+                                borderRadius: "6px",
+                                color: statusCfg.color,
+                                background: statusCfg.bg,
+                                border: `1px solid ${statusCfg.border}`,
+                              }}
+                            >
+                              {statusCfg.label}
+                            </span>
+                          </div>
+                          <span className="mono" style={{ fontWeight: 700, color: isGiven ? "#38bdf8" : "#f59e0b" }}>
+                            {fmt(debt.amount)}
+                            {rem > 0 && rem < debt.amount && (
+                              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginLeft: "6px" }}>
+                                (Qoldiq: {fmt(rem)})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.78rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                          <span>{new Date(debt.date || debt.createdAt).toLocaleDateString("uz-UZ")}</span>
+                          <span>• {dueInfo.text}</span>
+                          {debt.reason && <span>• {debt.reason}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="people-empty-state" style={{ padding: "2rem" }}>
+                  <HandCoins size={32} color="#4eb896" />
+                  <h3>Qarz yozuvlari topilmadi</h3>
+                  <p>{person.nickname} bilan bog'liq birorta qarz hali kiritilmagan.</p>
+                </div>
+              )}
+            </div>
           )}
 
           {/* TAB 2: KENGAYTIRILGAN PROFIL */}
@@ -932,7 +1139,17 @@ export default function PersonDetailModal({
         </div>
 
         {/* Modal pastki qismi */}
-        <div className="people-modal-footer">
+        <div className="people-modal-footer" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleOpenAddDebtForPerson}
+            className="people-btn-primary"
+            style={{ padding: "0.55rem 1rem", fontSize: "0.85rem" }}
+          >
+            <HandCoins size={15} />
+            <span>+ Qarz yozish</span>
+          </button>
+
           <button type="button" onClick={onClose} className="people-btn-secondary">
             Yopish
           </button>

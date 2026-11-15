@@ -12,14 +12,18 @@ import {
   Calendar,
   HeartHandshake,
   User,
+  Send,
+  ShieldCheck,
 } from "lucide-react";
-import { formatSum, formatDollar } from "../../utils/format.js";
+import { formatSum, formatDollar, cleanSocialHandle } from "../../utils/format.js";
 import {
   DEBT_TYPES,
   DEBT_STATUS_LABELS,
   getDebtDueInfo,
   DUE_STAGES,
+  getRepaymentProbabilityInfo,
 } from "../../constants/debts.js";
+import { getTrustLevelInfo } from "../../constants/people.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
 
 export default function DebtLedgerList({
@@ -83,6 +87,13 @@ export default function DebtLedgerList({
           }
 
           const statusCfg = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
+          const probInfo = getRepaymentProbabilityInfo(debt.repaymentProbability);
+          const linkedPerson = debt.linkedPerson || null;
+          const targetPersonId = debt.personId || linkedPerson?.id || null;
+          const trustInfo = linkedPerson?.trustLevel ? getTrustLevelInfo(linkedPerson.trustLevel) : null;
+          const igHandle = cleanSocialHandle(debt.instagram || linkedPerson?.instagram || "");
+          const tgHandle = cleanSocialHandle(debt.telegram || linkedPerson?.telegram || "");
+          const displayContact = debt.contact || linkedPerson?.phone || "";
           const walletCfg = WALLET_CONFIG[debt.wallet];
           const stageConfig = STAGE_TITLES[dueInfo.stage];
 
@@ -135,7 +146,7 @@ export default function DebtLedgerList({
                       onClick={(e) => {
                         if (onOpenPersonHistory) {
                           e.stopPropagation();
-                          onOpenPersonHistory(debt.personName);
+                          onOpenPersonHistory(debt.personName, targetPersonId);
                         }
                       }}
                       title="Ushbu shaxsning barcha qarzlari tarixini ko'rish"
@@ -144,13 +155,13 @@ export default function DebtLedgerList({
                       {debt.personName ? debt.personName.charAt(0).toUpperCase() : "?"}
                     </div>
                     <div className="debt-person-text">
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                         <span
                           className="debt-person-name"
                           onClick={(e) => {
                             if (onOpenPersonHistory) {
                               e.stopPropagation();
-                              onOpenPersonHistory(debt.personName);
+                              onOpenPersonHistory(debt.personName, targetPersonId);
                             }
                           }}
                           style={{
@@ -162,13 +173,28 @@ export default function DebtLedgerList({
                           {debt.personName}
                         </span>
 
+                        {trustInfo && (
+                          <span
+                            className="debt-trust-pill"
+                            style={{
+                              color: trustInfo.color,
+                              background: trustInfo.bg,
+                              borderColor: trustInfo.border,
+                            }}
+                            title={`Ishonish darajasi: ${trustInfo.fullLabel}`}
+                          >
+                            <ShieldCheck size={9} />
+                            <span>{trustInfo.shortLabel}</span>
+                          </span>
+                        )}
+
                         {onOpenPersonHistory && (
                           <button
                             type="button"
                             className="debt-person-history-btn"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onOpenPersonHistory(debt.personName);
+                              onOpenPersonHistory(debt.personName, targetPersonId);
                             }}
                             title="Barcha olingan va yopilgan qarzlar tarixi"
                           >
@@ -179,9 +205,19 @@ export default function DebtLedgerList({
                       </div>
 
                       <div className="debt-person-sub">
-                        {debt.contact && (
+                        {displayContact && (
                           <span className="debt-person-contact">
-                            <Phone size={10} /> {debt.contact}
+                            <Phone size={10} /> {displayContact}
+                          </span>
+                        )}
+                        {igHandle && (
+                          <span className="debt-person-contact" style={{ color: "#e879f9" }}>
+                            IG: @{igHandle}
+                          </span>
+                        )}
+                        {tgHandle && (
+                          <span className="debt-person-contact" style={{ color: "#38bdf8" }}>
+                            <Send size={9} /> @{tgHandle}
                           </span>
                         )}
                         {debt.location && (
@@ -282,6 +318,19 @@ export default function DebtLedgerList({
                       {statusCfg.label}
                     </span>
 
+                    <span
+                      className="debt-prob-pill"
+                      style={{
+                        color: probInfo.color,
+                        backgroundColor: probInfo.bg,
+                        borderColor: probInfo.border,
+                      }}
+                      title={`Qaytarish ehtimoli: ${probInfo.fullLabel} (${probInfo.hint})`}
+                    >
+                      <span className="debt-prob-dot" style={{ backgroundColor: probInfo.color }} />
+                      <span>{probInfo.label}</span>
+                    </span>
+
                     {debt.synced ? (
                       <span className="badge badge--db-synced debt-db-badge" title="Server bazasida (DB) saqlangan">
                         <Database size={9} />
@@ -316,6 +365,20 @@ export default function DebtLedgerList({
                       >
                         {statusCfg.label}
                       </span>
+
+                      <span
+                        className="debt-prob-pill"
+                        style={{
+                          color: probInfo.color,
+                          backgroundColor: probInfo.bg,
+                          borderColor: probInfo.border,
+                        }}
+                        title={`Qaytarish ehtimoli: ${probInfo.fullLabel}`}
+                      >
+                        <span className="debt-prob-dot" style={{ backgroundColor: probInfo.color }} />
+                        <span>{probInfo.label}</span>
+                      </span>
+
                       {debt.synced ? (
                         <span className="badge badge--db-synced debt-db-badge" title="Server bazasida">
                           <Database size={9} />

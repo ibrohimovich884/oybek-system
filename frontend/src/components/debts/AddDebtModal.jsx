@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   X,
   User,
@@ -13,27 +13,62 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Clock,
+  ShieldCheck,
+  AlertTriangle,
+  Send,
+  Link2,
+  Unlink,
 } from "lucide-react";
-import { WALLET_CONFIG } from "../../constants/money.js";
-import { DEBT_TYPES, DEBT_TYPE_LABELS } from "../../constants/debts.js";
+import {
+  DEBT_TYPES,
+  DEBT_TYPE_LABELS,
+  REPAYMENT_PROBABILITY,
+} from "../../constants/debts.js";
+import {
+  CATEGORY_LABELS,
+  getTrustLevelInfo,
+} from "../../constants/people.js";
+import { readLocalPeople, fetchPeople } from "../../api/people.js";
 import {
   toLocalDatetimeInput,
   toLocalDateInput,
   formatDateWithWeekday,
+  cleanSocialHandle,
 } from "../../utils/format.js";
 
-export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData = null }) {
-  if (!isOpen) return null;
+function InstagramIcon({ size = 14, color = "currentColor" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
 
-  const [type, setType] = useState(initialData?.type || DEBT_TYPES.GIVEN); // "given" | "taken"
+export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData = null }) {
+  const [peopleList, setPeopleList] = useState(() => readLocalPeople());
+  const [personId, setPersonId] = useState(initialData?.personId || null);
+  const [type, setType] = useState(initialData?.type || DEBT_TYPES.GIVEN);
   const [personName, setPersonName] = useState(initialData?.personName || "");
   const [contact, setContact] = useState(initialData?.contact || "");
+  const [instagram, setInstagram] = useState(initialData?.instagram || "");
+  const [telegram, setTelegram] = useState(initialData?.telegram || "");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("UZS");
   const [wallet, setWallet] = useState("hamyon");
   const [affectBalance, setAffectBalance] = useState(false);
   const [date, setDate] = useState(() => toLocalDatetimeInput(new Date()));
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState(initialData?.location || "");
   const [reason, setReason] = useState("");
   const [isDueDateUnknown, setIsDueDateUnknown] = useState(true);
   const [dueDate, setDueDate] = useState(() => {
@@ -41,16 +76,121 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
     d.setDate(d.getDate() + 30);
     return toLocalDateInput(d);
   });
+  const [repaymentProbability, setRepaymentProbability] = useState(
+    initialData?.repaymentProbability || REPAYMENT_PROBABILITY.HIGH
+  );
   const [personalNote, setPersonalNote] = useState("");
   const [error, setError] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const autocompleteRef = useRef(null);
 
+  // Modal ochilganda odamlar ro'yxatini yangilab olish va formani tiklash
   useEffect(() => {
-    if (initialData) {
-      if (initialData.personName) setPersonName(initialData.personName);
-      if (initialData.contact) setContact(initialData.contact);
-      if (initialData.type) setType(initialData.type);
+    if (!isOpen) return;
+
+    setPeopleList(readLocalPeople());
+    fetchPeople()
+      .then((list) => {
+        if (Array.isArray(list)) setPeopleList(list);
+      })
+      .catch(() => {});
+
+    setPersonId(initialData?.personId || null);
+    setType(initialData?.type || DEBT_TYPES.GIVEN);
+    setPersonName(initialData?.personName || "");
+    setContact(initialData?.contact || "");
+    setInstagram(cleanSocialHandle(initialData?.instagram || ""));
+    setTelegram(cleanSocialHandle(initialData?.telegram || ""));
+    setLocation(initialData?.location || "");
+    setAmount("");
+    setReason("");
+    setPersonalNote("");
+    setDate(toLocalDatetimeInput(new Date()));
+    setRepaymentProbability(initialData?.repaymentProbability || REPAYMENT_PROBABILITY.HIGH);
+    setError("");
+    setShowSuggestions(false);
+  }, [isOpen, initialData]);
+
+  // Tashqariga bosilganda dropdownni yopish
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const handleClickOutside = (e) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSuggestions]);
+
+  const selectedPersonObj = useMemo(() => {
+    if (!personId) return null;
+    return peopleList.find((p) => p.id === personId) || null;
+  }, [personId, peopleList]);
+
+  // Ism yozilayotganda odamlar ro'yxatidan moslarini qidirish
+  const suggestedPeople = useMemo(() => {
+    const q = personName.trim().toLowerCase();
+    const qClean = q.replace(/^@/, "");
+    if (!q) {
+      return peopleList.slice(0, 6);
     }
-  }, [initialData]);
+    return peopleList
+      .filter((p) => {
+        const nick = (p.nickname || "").toLowerCase();
+        const full = (p.fullName || "").toLowerCase();
+        const ph = (p.phone || "").toLowerCase();
+        const tg = cleanSocialHandle(p.telegram || "").toLowerCase();
+        const ig = cleanSocialHandle(p.instagram || "").toLowerCase();
+        const other = (p.otherContacts || "").toLowerCase();
+        return (
+          nick.includes(q) ||
+          full.includes(q) ||
+          ph.includes(q) ||
+          (qClean && tg.includes(qClean)) ||
+          (qClean && ig.includes(qClean)) ||
+          other.includes(q)
+        );
+      })
+      .slice(0, 8);
+  }, [peopleList, personName]);
+
+  if (!isOpen) return null;
+
+  const handleSelectSuggestedPerson = (person) => {
+    const trustInfo = getTrustLevelInfo(person.trustLevel);
+    const cleanIg = cleanSocialHandle(person.instagram || "");
+    const cleanTg = cleanSocialHandle(person.telegram || "");
+
+    setPersonId(person.id);
+    setPersonName(person.nickname || person.fullName || "");
+    setContact(
+      person.phone ||
+        (cleanTg ? `@${cleanTg}` : "") ||
+        (cleanIg ? `@${cleanIg}` : "") ||
+        ""
+    );
+    setInstagram(cleanIg);
+    setTelegram(cleanTg);
+    if (!location && (person.profile?.area || person.metPlace)) {
+      setLocation(person.profile?.area || person.metPlace || "");
+    }
+    setRepaymentProbability(trustInfo.suggestedProbability || REPAYMENT_PROBABILITY.MEDIUM);
+    setShowSuggestions(false);
+  };
+
+  const handlePersonNameChange = (val) => {
+    setPersonName(val);
+    setShowSuggestions(true);
+    if (selectedPersonObj) {
+      const norm = val.trim().toLowerCase();
+      const matchNick = (selectedPersonObj.nickname || "").trim().toLowerCase();
+      const matchFull = (selectedPersonObj.fullName || "").trim().toLowerCase();
+      if (norm !== matchNick && norm !== matchFull) {
+        setPersonId(null);
+      }
+    }
+  };
 
   const handleAddDaysToDueDate = (days) => {
     const d = new Date();
@@ -60,6 +200,7 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
   };
 
   const labels = DEBT_TYPE_LABELS[type];
+  const linkedTrustInfo = selectedPersonObj ? getTrustLevelInfo(selectedPersonObj.trustLevel) : null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -81,19 +222,23 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
     }
 
     onAddDebt({
+      personId,
       type,
-      personName,
-      contact,
+      personName: personName.trim(),
+      contact: contact.trim(),
+      instagram: cleanSocialHandle(instagram),
+      telegram: cleanSocialHandle(telegram),
       amount: numAmount,
       currency,
       wallet,
       affectBalance,
       date,
-      location,
-      reason,
+      location: location.trim(),
+      reason: reason.trim(),
       isDueDateUnknown,
       dueDate: isDueDateUnknown ? null : dueDate,
-      personalNote,
+      repaymentProbability,
+      personalNote: personalNote.trim(),
     });
 
     onClose();
@@ -164,36 +309,168 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
             </button>
           </div>
 
-          {/* Shaxs ismi va Aloqa */}
+          {/* Shaxs ismi (Odamlar ro'yxatidan avtomatik qidirish bilan) va Telefon */}
           <div className="form-row form-row--wide-left">
-            <div className="form-group">
-              <label className="field-label">
-                {labels.personLabel} <span style={{ color: "var(--expense)" }}>*</span>
-              </label>
+            <div className="form-group" ref={autocompleteRef} style={{ position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label className="field-label" style={{ margin: 0 }}>
+                  {labels.personLabel} <span style={{ color: "var(--expense)" }}>*</span>
+                </label>
+                {peopleList.length > 0 && !personId && (
+                  <span style={{ fontSize: "0.7rem", color: "var(--accent)" }}>
+                    Odamlar roʻyxatidan chiqadi
+                  </span>
+                )}
+              </div>
+
               <div className="input-with-icon">
                 <User size={16} className="input-icon" />
                 <input
                   type="text"
                   className="field-input"
-                  placeholder={type === DEBT_TYPES.GIVEN ? "Masalan: Rustam aka" : "Masalan: Otabek aka"}
+                  placeholder={type === DEBT_TYPES.GIVEN ? "Ism yozing (masalan: Jasur)..." : "Ism yozing..."}
                   value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
+                  onFocus={() => {
+                    if (peopleList.length > 0) setShowSuggestions(true);
+                  }}
+                  onChange={(e) => handlePersonNameChange(e.target.value)}
+                  autoComplete="off"
                   autoFocus
                   required
                 />
               </div>
+
+              {/* Odamlar ro'yxati autocomplete dropdown */}
+              {showSuggestions && suggestedPeople.length > 0 && (
+                <div className="debt-person-autocomplete" role="listbox">
+                  <div className="debt-person-autocomplete__header">
+                    <span>Odamlar roʻyxatidan topilganlar — bosing va toʻldiring:</span>
+                  </div>
+                  {suggestedPeople.map((p) => {
+                    const tInfo = getTrustLevelInfo(p.trustLevel);
+                    const ig = cleanSocialHandle(p.instagram || "");
+                    const tg = cleanSocialHandle(p.telegram || "");
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`debt-person-suggestion-item ${personId === p.id ? "is-selected" : ""}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelectSuggestedPerson(p);
+                        }}
+                      >
+                        <div className="debt-person-suggestion-avatar">
+                          {(p.nickname || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="debt-person-suggestion-body">
+                          <div className="debt-person-suggestion-top">
+                            <strong>{p.nickname}</strong>
+                            {p.fullName && (
+                              <span className="debt-person-suggestion-full">({p.fullName})</span>
+                            )}
+                            <span
+                              className="debt-trust-pill"
+                              style={{
+                                color: tInfo.color,
+                                background: tInfo.bg,
+                                borderColor: tInfo.border,
+                              }}
+                            >
+                              {tInfo.shortLabel} ishonch
+                            </span>
+                          </div>
+                          <div className="debt-person-suggestion-meta">
+                            <span>{CATEGORY_LABELS[p.category] || p.category}</span>
+                            {p.phone && <span>• 📞 {p.phone}</span>}
+                            {ig && <span>• IG: @{ig}</span>}
+                            {tg && <span>• TG: @{tg}</span>}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
-              <label className="field-label">Telefon / Aloqa</label>
+              <label className="field-label">Telefon raqami</label>
               <div className="input-with-icon">
                 <Phone size={16} className="input-icon" />
                 <input
                   type="text"
                   className="field-input"
-                  placeholder="+998 90... yoki @username"
+                  placeholder="+998 90 123 45 67"
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bog'langan odam banneri */}
+          {selectedPersonObj && (
+            <div className="debt-linked-person-banner">
+              <div className="debt-linked-person-banner__left">
+                <Link2 size={14} color="var(--accent)" />
+                <span>
+                  Odamlar bilan bogʻlandi: <strong>{selectedPersonObj.nickname}</strong>
+                  {selectedPersonObj.fullName ? ` (${selectedPersonObj.fullName})` : ""}
+                </span>
+                {linkedTrustInfo && (
+                  <span
+                    className="debt-trust-pill"
+                    style={{
+                      color: linkedTrustInfo.color,
+                      background: linkedTrustInfo.bg,
+                      borderColor: linkedTrustInfo.border,
+                    }}
+                  >
+                    {linkedTrustInfo.label}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="debt-linked-person-unlink"
+                onClick={() => setPersonId(null)}
+                title="Bogʻlanishni uzish"
+              >
+                <Unlink size={12} />
+                <span>Uzish</span>
+              </button>
+            </div>
+          )}
+
+          {/* Instagram & Telegram (Odam tanlanganda avtomatik to'ldiriladi) */}
+          <div className="form-row form-row--2col">
+            <div className="form-group">
+              <label className="field-label">Instagram (@username)</label>
+              <div className="input-with-icon">
+                <span className="input-icon" style={{ display: "inline-flex", color: "#e879f9" }}>
+                  <InstagramIcon size={15} />
+                </span>
+                <input
+                  type="text"
+                  className="field-input"
+                  placeholder="instagram_nomi"
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="field-label">Telegram (@username)</label>
+              <div className="input-with-icon">
+                <Send size={15} className="input-icon" style={{ color: "#38bdf8" }} />
+                <input
+                  type="text"
+                  className="field-input"
+                  placeholder="telegram_nomi"
+                  value={telegram}
+                  onChange={(e) => setTelegram(e.target.value)}
                 />
               </div>
             </div>
@@ -473,6 +750,75 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
                 Aniq sana belgilanmagan (Muddatsiz)
               </div>
             )}
+          </div>
+
+          {/* Qaytarish ehtimoli darajasi (3 ta variant) */}
+          <div className="form-group">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label className="field-label" style={{ margin: 0 }}>
+                <ShieldCheck size={14} style={{ marginRight: 4, display: "inline" }} />
+                <span>Qaytarish ehtimoli darajasi</span>
+              </label>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                {type === DEBT_TYPES.GIVEN ? "Qarz qaytish ishonchliligi" : "Oʻz vaqtida qaytarish imkoni"}
+              </span>
+            </div>
+
+            <div className="debt-prob-selector-grid">
+              {[
+                {
+                  key: REPAYMENT_PROBABILITY.HIGH,
+                  label: "Yuqori",
+                  sublabel: "90-100%",
+                  hint: "Ishonchli, vaqtida qaytadi",
+                  icon: ShieldCheck,
+                  color: "#22c55e",
+                  activeClass: "is-high",
+                },
+                {
+                  key: REPAYMENT_PROBABILITY.MEDIUM,
+                  label: "Oʻrtacha",
+                  sublabel: "50-80%",
+                  hint: "Kechikishi mumkin",
+                  icon: Clock,
+                  color: "#f59e0b",
+                  activeClass: "is-medium",
+                },
+                {
+                  key: REPAYMENT_PROBABILITY.LOW,
+                  label: "Past",
+                  sublabel: "0-40%",
+                  hint: "Qaytishi qiyin / xavf bor",
+                  icon: AlertTriangle,
+                  color: "#ef4444",
+                  activeClass: "is-low",
+                },
+              ].map((opt) => {
+                const IconComponent = opt.icon;
+                const isSelected = repaymentProbability === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    className={`debt-prob-card-btn ${isSelected ? `is-selected ${opt.activeClass}` : ""}`}
+                    onClick={() => setRepaymentProbability(opt.key)}
+                  >
+                    <div className="debt-prob-card-top">
+                      <div className="debt-prob-card-icon" style={{ color: opt.color }}>
+                        <IconComponent size={16} />
+                      </div>
+                      <span className="debt-prob-card-tag" style={{ color: opt.color }}>
+                        {opt.sublabel}
+                      </span>
+                    </div>
+                    <div className="debt-prob-card-name" style={{ color: isSelected ? opt.color : "inherit" }}>
+                      {opt.label}
+                    </div>
+                    <div className="debt-prob-card-desc">{opt.hint}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* O'zim uchun eslatma (Izoh) */}

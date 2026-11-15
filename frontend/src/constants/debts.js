@@ -10,6 +10,61 @@ export const DEBT_STATUS = {
   FORGIVEN: "forgiven", // Voz kechilgan / Kechvorilgan (pul olinmaydi, qarz nolga tushiriladi)
 };
 
+export const REPAYMENT_PROBABILITY = {
+  HIGH: "high",     // Yuqori (Ishonchli)
+  MEDIUM: "medium", // O'rtacha (Kutilmoqda)
+  LOW: "low",       // Past (Xavfli / Shubhali)
+};
+
+export const REPAYMENT_PROBABILITY_CONFIG = {
+  high: {
+    value: "high",
+    label: "Yuqori",
+    shortLabel: "Yuqori",
+    fullLabel: "Yuqori (Ishonchli)",
+    badge: "Yuqori ehtimol",
+    badgeClass: "badge--prob-high",
+    hint: "90-100% • Oʻz vaqtida qaytadi",
+    desc: "Qarzni oʻz vaqtida toʻliq qaytarish ehtimoli juda yuqori va ishonchli.",
+    color: "#22c55e",
+    bg: "rgba(34, 197, 94, 0.14)",
+    border: "rgba(34, 197, 94, 0.35)",
+    iconName: "ShieldCheck",
+  },
+  medium: {
+    value: "medium",
+    label: "Oʻrtacha",
+    shortLabel: "Oʻrtacha",
+    fullLabel: "Oʻrtacha (Kutilmoqda)",
+    badge: "Oʻrtacha ehtimol",
+    badgeClass: "badge--prob-medium",
+    hint: "50-80% • Kechikishi mumkin",
+    desc: "Qaytarish niyati bor, biroq maʼlum muddat kechikishi ehtimoli mavjud.",
+    color: "#f59e0b",
+    bg: "rgba(245, 158, 11, 0.14)",
+    border: "rgba(245, 158, 11, 0.35)",
+    iconName: "Clock",
+  },
+  low: {
+    value: "low",
+    label: "Past",
+    shortLabel: "Past",
+    fullLabel: "Past (Xavfli / Shubhali)",
+    badge: "Past ehtimol",
+    badgeClass: "badge--prob-low",
+    hint: "0-40% • Qaytishi qiyin / xavf yuqori",
+    desc: "Qaytarilishi shubhali yoki jiddiy kechikish va qaytmaslik xavfi yuqori.",
+    color: "#ef4444",
+    bg: "rgba(239, 68, 68, 0.14)",
+    border: "rgba(239, 68, 68, 0.35)",
+    iconName: "AlertTriangle",
+  },
+};
+
+export function getRepaymentProbabilityInfo(prob) {
+  return REPAYMENT_PROBABILITY_CONFIG[prob] || REPAYMENT_PROBABILITY_CONFIG.high;
+}
+
 export const DEBT_TYPE_LABELS = {
   given: {
     label: "Men qarz berdim",

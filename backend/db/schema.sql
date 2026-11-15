@@ -101,9 +101,12 @@ ALTER TABLE wallet_notes ADD COLUMN IF NOT EXISTS user_id TEXT;
 CREATE TABLE IF NOT EXISTS debts (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  person_id TEXT,
   type TEXT NOT NULL,                      -- 'taken' (olingan) | 'given' (berilgan)
   person_name TEXT,
   contact TEXT,
+  instagram TEXT,
+  telegram TEXT,
   amount NUMERIC NOT NULL,
   currency TEXT NOT NULL DEFAULT 'UZS',
   reason TEXT,
@@ -116,11 +119,17 @@ CREATE TABLE IF NOT EXISTS debts (
   affect_balance BOOLEAN NOT NULL DEFAULT false,
   synced BOOLEAN NOT NULL DEFAULT true,
   debt_date TIMESTAMPTZ,
+  repayment_probability TEXT NOT NULL DEFAULT 'high',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE debts ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS person_id TEXT;
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS instagram TEXT;
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS telegram TEXT;
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS repayment_probability TEXT NOT NULL DEFAULT 'high';
+CREATE INDEX IF NOT EXISTS idx_debts_person_id ON debts (person_id);
 
 CREATE TABLE IF NOT EXISTS debt_payments (
   id TEXT PRIMARY KEY,
@@ -252,9 +261,12 @@ CREATE TABLE IF NOT EXISTS people (
   instagram TEXT,
   other_contacts TEXT,
   notes TEXT,
+  trust_level TEXT NOT NULL DEFAULT 'medium',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE people ADD COLUMN IF NOT EXISTS trust_level TEXT NOT NULL DEFAULT 'medium';
 
 -- 2) Kengaytirilgan karta: yaqin kategoriyalar uchun (1 odam = 1 qator)
 CREATE TABLE IF NOT EXISTS person_profiles (

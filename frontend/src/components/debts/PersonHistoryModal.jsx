@@ -20,21 +20,26 @@ import {
   User,
   History,
   FolderOpen,
+  ShieldCheck,
+  Send,
+  Link2,
 } from "lucide-react";
-import { formatSum, formatDollar } from "../../utils/format.js";
+import { formatSum, formatDollar, cleanSocialHandle } from "../../utils/format.js";
 import {
   DEBT_TYPES,
-  DEBT_TYPE_LABELS,
   DEBT_STATUS_LABELS,
   getDebtDueInfo,
-  DUE_STAGES,
+  getRepaymentProbabilityInfo,
 } from "../../constants/debts.js";
+import { getTrustLevelInfo } from "../../constants/people.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
 
 export default function PersonHistoryModal({
   isOpen,
   onClose,
   personName,
+  personId = null,
+  peopleList = [],
   debts = [],
   onOpenRepay,
   onOpenForgive,
@@ -43,27 +48,83 @@ export default function PersonHistoryModal({
   onSettleDebt,
 }) {
   const [activeTab, setActiveTab] = useState("debts"); // "debts" | "timeline"
-  const [copiedPhone, setCopiedPhone] = useState(false);
 
-  // Ushbu shaxsga tegishli barcha qarzlarni yig'ib olamiz
+  // Odamlar ro'yxatidan bog'langan shaxsni aniqlash
+  const linkedPerson = useMemo(() => {
+    if (personId) {
+      const fromList = peopleList.find((p) => p.id === personId);
+      if (fromList) return fromList;
+      const fromDebt = debts.find((d) => d.personId === personId && d.linkedPerson)?.linkedPerson;
+      if (fromDebt) return fromDebt;
+    }
+    if (personName) {
+      const norm = personName.trim().toLowerCase();
+      const fromList = peopleList.find(
+        (p) =>
+          (p.nickname || "").trim().toLowerCase() === norm ||
+          (p.fullName || "").trim().toLowerCase() === norm
+      );
+      if (fromList) return fromList;
+      const fromDebt = debts.find(
+        (d) =>
+          (d.personName || "").trim().toLowerCase() === norm &&
+          d.linkedPerson
+      )?.linkedPerson;
+      if (fromDebt) return fromDebt;
+    }
+    return null;
+  }, [personId, personName, peopleList, debts]);
+
+  const effectivePersonId = personId || linkedPerson?.id || null;
+
+  // Ushbu shaxsga tegishli barcha qarzlarni yig'ib olamiz (personId + ism mosligi)
   const personDebts = useMemo(() => {
-    if (!personName) return [];
-    const normalizedTarget = personName.trim().toLowerCase();
-    return debts
-      .filter((d) => (d.personName || "").trim().toLowerCase() === normalizedTarget)
-      .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
-  }, [debts, personName]);
+    if (!personName && !effectivePersonId) return [];
+    const normalizedTarget = (personName || "").trim().toLowerCase();
+    const linkedNick = (linkedPerson?.nickname || "").trim().toLowerCase();
+    const linkedFull = (linkedPerson?.fullName || "").trim().toLowerCase();
 
-  // Telefon raqami va joylashuvni eng so'nggi ma'lumotdan olamiz
+    return debts
+      .filter((d) => {
+        if (effectivePersonId) {
+          if (d.personId === effectivePersonId || d.linkedPerson?.id === effectivePersonId) {
+            return true;
+          }
+        }
+        const dName = (d.personName || "").trim().toLowerCase();
+        if (!dName) return false;
+        if (normalizedTarget && dName === normalizedTarget) return true;
+        if (linkedNick && dName === linkedNick) return true;
+        if (linkedFull && dName === linkedFull) return true;
+        return false;
+      })
+      .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+  }, [debts, personName, effectivePersonId, linkedPerson]);
+
+  const displayName = linkedPerson?.nickname || personName || linkedPerson?.fullName || "Noma'lum";
+  const trustInfo = linkedPerson?.trustLevel ? getTrustLevelInfo(linkedPerson.trustLevel) : null;
+
+  // Telefon, Instagram, Telegram va joylashuvni bog'langan odam + qarzlardan olamiz
   const personContact = useMemo(() => {
+    if (linkedPerson?.phone) return linkedPerson.phone;
     const withPhone = personDebts.find((d) => Boolean(d.contact));
     return withPhone ? withPhone.contact : "";
-  }, [personDebts]);
+  }, [personDebts, linkedPerson]);
+
+  const personInstagram = useMemo(() => {
+    const fromDebt = personDebts.find((d) => Boolean(d.instagram))?.instagram || "";
+    return cleanSocialHandle(fromDebt || linkedPerson?.instagram || "");
+  }, [personDebts, linkedPerson]);
+
+  const personTelegram = useMemo(() => {
+    const fromDebt = personDebts.find((d) => Boolean(d.telegram))?.telegram || "";
+    return cleanSocialHandle(fromDebt || linkedPerson?.telegram || "");
+  }, [personDebts, linkedPerson]);
 
   const personLocation = useMemo(() => {
     const withLoc = personDebts.find((d) => Boolean(d.location));
-    return withLoc ? withLoc.location : "";
-  }, [personDebts]);
+    return withLoc ? withLoc.location : (linkedPerson?.area || linkedPerson?.profile?.area || linkedPerson?.metPlace || "");
+  }, [personDebts, linkedPerson]);
 
   // Umumiy yig'ilgan statistika (Barcha olingan va yopilgan qarzlar yig'indisi)
   const stats = useMemo(() => {
@@ -190,14 +251,7 @@ export default function PersonHistoryModal({
     return events;
   }, [personDebts]);
 
-  if (!isOpen || !personName) return null;
-
-  const handleCopyPhone = () => {
-    if (!personContact) return;
-    navigator.clipboard.writeText(personContact);
-    setCopiedPhone(true);
-    setTimeout(() => setCopiedPhone(false), 2000);
-  };
+  if (!isOpen || (!personName && !effectivePersonId)) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -211,12 +265,39 @@ export default function PersonHistoryModal({
         <div className="modal-header person-history-header">
           <div className="person-history-header__profile">
             <div className="person-history-avatar">
-              {personName.charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
 
             <div className="person-history-header__info">
               <div className="person-history-name-row">
-                <h3 className="person-history-name">{personName}</h3>
+                <h3 className="person-history-name">
+                  {displayName}
+                  {linkedPerson?.fullName && linkedPerson.fullName !== displayName && (
+                    <span style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--text-muted)", marginLeft: 6 }}>
+                      ({linkedPerson.fullName})
+                    </span>
+                  )}
+                </h3>
+                {effectivePersonId && (
+                  <span className="debt-social-chip" title="Odamlar bo'limi bilan bog'langan">
+                    <Link2 size={10} />
+                    <span>Odamlar</span>
+                  </span>
+                )}
+                {trustInfo && (
+                  <span
+                    className="debt-trust-pill"
+                    style={{
+                      color: trustInfo.color,
+                      backgroundColor: trustInfo.bg,
+                      borderColor: trustInfo.border,
+                    }}
+                    title={`Ishonish darajasi: ${trustInfo.fullLabel}`}
+                  >
+                    <ShieldCheck size={10} />
+                    <span>{trustInfo.label}</span>
+                  </span>
+                )}
                 <span className="badge badge--neutral">
                   Jami {stats.totalDebtsCount} ta qarz
                 </span>
@@ -232,6 +313,16 @@ export default function PersonHistoryModal({
                 {personContact && (
                   <span className="person-history-contact-tag">
                     <Phone size={11} /> {personContact}
+                  </span>
+                )}
+                {personInstagram && (
+                  <span className="person-history-contact-tag" style={{ color: "#e879f9" }}>
+                    IG: @{personInstagram}
+                  </span>
+                )}
+                {personTelegram && (
+                  <span className="person-history-contact-tag" style={{ color: "#38bdf8" }}>
+                    <Send size={10} /> @{personTelegram}
                   </span>
                 )}
                 {personLocation && (
@@ -382,6 +473,7 @@ export default function PersonHistoryModal({
                 const remaining = isSettled || isForgiven ? 0 : Math.max(0, totalAmount - paidAmount - forgivenAmount);
 
                 const statusCfg = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
+                const probInfo = getRepaymentProbabilityInfo(debt.repaymentProbability);
                 const dueInfo = getDebtDueInfo(debt);
 
                 return (
@@ -419,6 +511,19 @@ export default function PersonHistoryModal({
                           }}
                         >
                           {statusCfg.label}
+                        </span>
+
+                        <span
+                          className="debt-prob-pill"
+                          style={{
+                            color: probInfo.color,
+                            backgroundColor: probInfo.bg,
+                            borderColor: probInfo.border,
+                          }}
+                          title={`Qaytarish ehtimoli: ${probInfo.fullLabel}`}
+                        >
+                          <span className="debt-prob-dot" style={{ backgroundColor: probInfo.color }} />
+                          <span>{probInfo.label}</span>
                         </span>
 
                         {dueInfo.isOverdue && !isSettled && !isForgiven && (
@@ -639,11 +744,19 @@ export default function PersonHistoryModal({
             className="btn btn--sm btn--primary"
             onClick={() => {
               onClose();
-              onAddNewDebtForPerson({ personName, contact: personContact });
+              onAddNewDebtForPerson({
+                personId: effectivePersonId,
+                personName: displayName,
+                contact: personContact,
+                instagram: personInstagram,
+                telegram: personTelegram,
+                location: personLocation,
+                repaymentProbability: trustInfo?.suggestedProbability,
+              });
             }}
           >
             <PlusCircle size={15} />
-            <span>+ Yangi qarz yozish ({personName})</span>
+            <span>+ Yangi qarz yozish ({displayName})</span>
           </button>
 
           <button

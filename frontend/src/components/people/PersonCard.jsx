@@ -8,6 +8,8 @@ import {
   Sparkles,
   User,
   ChevronRight,
+  ShieldCheck,
+  HandCoins,
 } from "lucide-react";
 
 function InstagramIcon({ size = 11, color = "currentColor" }) {
@@ -22,10 +24,11 @@ function InstagramIcon({ size = 11, color = "currentColor" }) {
 import {
   CATEGORY_LABELS,
   CRUSH_STATUS_LABELS,
+  getTrustLevelInfo,
 } from "../../constants/people.js";
-import { cleanSocialHandle } from "../../utils/format.js";
+import { cleanSocialHandle, formatSum, formatDollar } from "../../utils/format.js";
 
-export default function PersonCard({ person, onClick, onToggleCrush }) {
+export default function PersonCard({ person, onClick, onToggleCrush, debtSummary = null }) {
   const {
     nickname,
     fullName,
@@ -40,9 +43,11 @@ export default function PersonCard({ person, onClick, onToggleCrush }) {
     telegram,
     instagram,
     notes,
+    trustLevel,
     latestAppearance,
   } = person;
 
+  const trustInfo = getTrustLevelInfo(trustLevel);
   const firstLetter = (nickname || "?").charAt(0).toUpperCase();
 
   const handleCrushClick = (e) => {
@@ -152,15 +157,42 @@ export default function PersonCard({ person, onClick, onToggleCrush }) {
           </button>
         </div>
 
-        {/* Crush status bosqichi (agar bo'lsa) */}
-        {isCrush && crushStatus && (
-          <div style={{ marginTop: "0.65rem" }}>
+        {/* Ishonish darajasi, qarz va Crush holati */}
+        <div style={{ marginTop: "0.65rem", display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
+          <span
+            className="person-trust-badge"
+            style={{
+              color: trustInfo.color,
+              background: trustInfo.bg,
+              borderColor: trustInfo.border,
+            }}
+            title={`Ishonish darajasi: ${trustInfo.fullLabel}`}
+          >
+            <ShieldCheck size={11} />
+            <span>{trustInfo.label}</span>
+          </span>
+
+          {debtSummary && debtSummary.activeCount > 0 && (
+            <span
+              className="person-debt-badge"
+              title={`Faol qarzlari: ${debtSummary.activeCount} ta`}
+            >
+              <HandCoins size={11} />
+              <span>
+                {debtSummary.remainingUzs > 0
+                  ? formatSum(debtSummary.remainingUzs)
+                  : formatDollar(debtSummary.remainingUsd)}
+              </span>
+            </span>
+          )}
+
+          {isCrush && crushStatus && (
             <span className="person-crush-badge">
               <Sparkles size={11} />
               <span>{CRUSH_STATUS_LABELS[crushStatus] || crushStatus}</span>
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Karta tanasi: aloqa va joylashuv */}
         <div className="person-card-body" style={{ marginTop: "0.75rem" }}>

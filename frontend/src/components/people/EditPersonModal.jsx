@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { X, Edit2, Heart } from "lucide-react";
+import { X, Edit2, Heart, ShieldCheck, Shield, ShieldAlert } from "lucide-react";
 import {
   PERSON_CATEGORIES,
   CRUSH_STATUSES,
+  TRUST_LEVEL_OPTIONS,
 } from "../../constants/people.js";
 import { updatePerson } from "../../api/people.js";
 
@@ -25,6 +26,7 @@ export default function EditPersonModal({ person, onClose, onSuccess }) {
     instagram: person.instagram || "",
     otherContacts: person.otherContacts || "",
     notes: person.notes || "",
+    trustLevel: person.trustLevel || "medium",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,6 +157,41 @@ export default function EditPersonModal({ person, onClose, onSuccess }) {
                 value={formData.birthday || ""}
                 onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
               />
+            </div>
+          </div>
+
+          {/* Ishonish darajasi */}
+          <div className="people-form-group">
+            <label className="people-form-label" style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <ShieldCheck size={14} color="#4eb896" />
+              <span>Ishonish darajasi</span>
+            </label>
+            <div className="people-trust-selector-grid">
+              {TRUST_LEVEL_OPTIONS.map((opt) => {
+                const isSelected = formData.trustLevel === opt.value;
+                const IconComp =
+                  opt.value === "high"
+                    ? ShieldCheck
+                    : opt.value === "low"
+                    ? ShieldAlert
+                    : Shield;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`people-trust-card-btn ${isSelected ? `is-selected is-${opt.value}` : ""}`}
+                    onClick={() => setFormData({ ...formData, trustLevel: opt.value })}
+                  >
+                    <div className="people-trust-card-top">
+                      <IconComp size={15} color={opt.color} />
+                      <span style={{ color: isSelected ? opt.color : "var(--text)", fontWeight: 700, fontSize: "0.86rem" }}>
+                        {opt.shortLabel}
+                      </span>
+                    </div>
+                    <span className="people-trust-card-hint">{opt.hint}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

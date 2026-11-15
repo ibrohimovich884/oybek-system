@@ -1,5 +1,5 @@
 import { generateId } from "../utils/id.js";
-import { formatISOWithOffset } from "../utils/format.js";
+import { formatISOWithOffset, cleanSocialHandle } from "../utils/format.js";
 import { syncService } from "../services/syncService.js";
 import { apiClient } from "./client.js";
 import { getUserStorageKey } from "../utils/storageKeys.js";
@@ -85,9 +85,12 @@ export async function addDebtRecord(debtData) {
   const debts = readLocalDebts();
   const newDebt = {
     id: generateId(),
+    personId: debtData.personId || null,
     type: debtData.type || "given", // "given" | "taken"
     personName: debtData.personName?.trim() || "Noma'lum shaxs",
     contact: debtData.contact?.trim() || "",
+    instagram: cleanSocialHandle(debtData.instagram || ""),
+    telegram: cleanSocialHandle(debtData.telegram || ""),
     amount: Number(debtData.amount || 0),
     currency: debtData.currency || "UZS", // "UZS" | "USD"
     wallet: debtData.wallet || "hamyon",
@@ -97,6 +100,7 @@ export async function addDebtRecord(debtData) {
     reason: debtData.reason?.trim() || "",
     dueDate: debtData.isDueDateUnknown ? null : (debtData.dueDate || null),
     isDueDateUnknown: Boolean(debtData.isDueDateUnknown),
+    repaymentProbability: debtData.repaymentProbability || "high",
     personalNote: debtData.personalNote?.trim() || "",
     status: "pending", // "pending" | "partial" | "settled"
     payments: [],
@@ -150,6 +154,9 @@ export async function updateDebtRecord(id, updates) {
   const updated = {
     ...existing,
     ...updates,
+    personId: updates.personId !== undefined ? (updates.personId || null) : (existing.personId || null),
+    instagram: updates.instagram !== undefined ? cleanSocialHandle(updates.instagram) : (existing.instagram || ""),
+    telegram: updates.telegram !== undefined ? cleanSocialHandle(updates.telegram) : (existing.telegram || ""),
     synced: false,
     updatedAt: formatISOWithOffset(new Date()),
   };

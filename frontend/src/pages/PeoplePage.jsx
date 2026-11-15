@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users,
@@ -19,7 +19,8 @@ import {
   updateCrushStatus,
   fetchPersonById,
 } from "../api/people.js";
-import { PERSON_CATEGORIES } from "../constants/people.js";
+import { PERSON_CATEGORIES, TRUST_LEVEL_OPTIONS } from "../constants/people.js";
+import { useExpenses } from "../context/ExpensesContext.jsx";
 import PersonCard from "../components/people/PersonCard.jsx";
 import PersonDetailModal from "../components/people/PersonDetailModal.jsx";
 import AddPersonModal from "../components/people/AddPersonModal.jsx";
@@ -27,6 +28,7 @@ import EditPersonModal from "../components/people/EditPersonModal.jsx";
 
 export default function PeoplePage() {
   const navigate = useNavigate();
+  const { debts } = useExpenses();
   const [people, setPeople] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -38,6 +40,7 @@ export default function PeoplePage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedTrustLevel, setSelectedTrustLevel] = useState("all");
   const [sortBy, setSortBy] = useState("name_asc");
 
   // Modallar holati
@@ -53,6 +56,7 @@ export default function PeoplePage() {
         fetchPeople({
           category: selectedCategory,
           status: selectedStatus,
+          trustLevel: selectedTrustLevel,
           search: search.trim(),
           sort: sortBy,
         }),
@@ -71,7 +75,42 @@ export default function PeoplePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedStatus, search, sortBy, selectedPerson?.id]);
+  }, [selectedCategory, selectedStatus, selectedTrustLevel, search, sortBy, selectedPerson?.id]);
+
+  // Har bir odam uchun faol qarzlar yig'indisini hisoblash
+  const debtSummaryByPersonId = useMemo(() => {
+    const map = new Map();
+    if (!people.length || !debts?.length) return map;
+
+    for (const p of people) {
+      const nick = (p.nickname || "").trim().toLowerCase();
+      const full = (p.fullName || "").trim().toLowerCase();
+      let activeCount = 0;
+      let remainingUzs = 0;
+      let remainingUsd = 0;
+
+      for (const d of debts) {
+        if (d.status === "settled" || d.status === "forgiven") continue;
+        const dName = (d.personName || "").trim().toLowerCase();
+        const isMatch =
+          (d.personId && d.personId === p.id) ||
+          (dName && (dName === nick || (full && dName === full)));
+        if (!isMatch) continue;
+
+        const paid = (d.payments || []).reduce((acc, pm) => acc + Number(pm.amount || 0), 0);
+        const rem = Math.max(0, Number(d.amount || 0) - paid);
+        if (rem > 0) {
+          activeCount += 1;
+          if (d.currency === "USD") remainingUsd += rem;
+          else remainingUzs += rem;
+        }
+      }
+      if (activeCount > 0) {
+        map.set(p.id, { activeCount, remainingUzs, remainingUsd });
+      }
+    }
+    return map;
+  }, [people, debts]);
 
   useEffect(() => {
     loadData();
@@ -272,7 +311,21 @@ export default function PeoplePage() {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            <select
+              value={selectedTrustLevel}
+              onChange={(e) => setSelectedTrustLevel(e.target.value)}
+              className="people-form-select"
+              style={{ minWidth: "150px", padding: "0.65rem 0.85rem" }}
+            >
+              <option value="all">Barcha ishonch</option>
+              {TRUST_LEVEL_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label} {stats.byTrustLevel?.[t.value] !== undefined ? `(${stats.byTrustLevel[t.value]})` : ""}
+                </option>
+              ))}
+            </select>
+
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
@@ -292,6 +345,7 @@ export default function PeoplePage() {
             >
               <option value="name_asc">Ism (A-Z)</option>
               <option value="name_desc">Ism (Z-A)</option>
+              <option value="trust_desc">Ishonish darajasi</option>
               <option value="created_desc">Yangi qo'shilganlar</option>
               <option value="met_desc">Tanishgan sanasi</option>
             </select>
@@ -338,6 +392,7 @@ export default function PeoplePage() {
             <PersonCard
               key={person.id}
               person={person}
+              debtSummary={debtSummaryByPersonId.get(person.id) || null}
               onClick={handleCardClick}
               onToggleCrush={handleToggleCrush}
             />

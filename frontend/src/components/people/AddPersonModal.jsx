@@ -9,10 +9,14 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  ShieldCheck,
+  Shield,
+  ShieldAlert,
 } from "lucide-react";
 import {
   PERSON_CATEGORIES,
   CRUSH_STATUSES,
+  TRUST_LEVEL_OPTIONS,
 } from "../../constants/people.js";
 import { createPerson } from "../../api/people.js";
 
@@ -35,6 +39,7 @@ export default function AddPersonModal({ onClose, onSuccess, initialIsCrush = fa
     instagram: "",
     otherContacts: "",
     notes: "",
+    trustLevel: "medium",
   });
 
   // Ixtiyoriy kengaytirilgan bo'limlar ochilishi
@@ -198,6 +203,41 @@ export default function AddPersonModal({ onClose, onSuccess, initialIsCrush = fa
                 value={formData.birthday}
                 onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
               />
+            </div>
+          </div>
+
+          {/* Ishonish darajasi (Trust Level) */}
+          <div className="people-form-group">
+            <label className="people-form-label" style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <ShieldCheck size={14} color="#4eb896" />
+              <span>Ishonish darajasi (Qarz va munosabatlarda)</span>
+            </label>
+            <div className="people-trust-selector-grid">
+              {TRUST_LEVEL_OPTIONS.map((opt) => {
+                const isSelected = formData.trustLevel === opt.value;
+                const IconComp =
+                  opt.value === "high"
+                    ? ShieldCheck
+                    : opt.value === "low"
+                    ? ShieldAlert
+                    : Shield;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`people-trust-card-btn ${isSelected ? `is-selected is-${opt.value}` : ""}`}
+                    onClick={() => setFormData({ ...formData, trustLevel: opt.value })}
+                  >
+                    <div className="people-trust-card-top">
+                      <IconComp size={15} color={opt.color} />
+                      <span style={{ color: isSelected ? opt.color : "var(--text)", fontWeight: 700, fontSize: "0.86rem" }}>
+                        {opt.shortLabel}
+                      </span>
+                    </div>
+                    <span className="people-trust-card-hint">{opt.hint}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

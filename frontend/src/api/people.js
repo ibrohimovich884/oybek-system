@@ -39,6 +39,7 @@ export function writeLocalPeople(people) {
 function calculateLocalStats(people = []) {
   const byCategory = {};
   const byCrushStatus = {};
+  const byTrustLevel = { high: 0, medium: 0, low: 0 };
   let active = 0;
   let lostContact = 0;
   let crushes = 0;
@@ -55,6 +56,8 @@ function calculateLocalStats(people = []) {
     if (p.category) {
       byCategory[p.category] = (byCategory[p.category] || 0) + 1;
     }
+    const trust = p.trustLevel || "medium";
+    byTrustLevel[trust] = (byTrustLevel[trust] || 0) + 1;
   }
 
   return {
@@ -64,6 +67,7 @@ function calculateLocalStats(people = []) {
     crushes,
     byCategory,
     byCrushStatus,
+    byTrustLevel,
   };
 }
 
@@ -81,6 +85,10 @@ function filterPeopleList(people = [], params = {}) {
     result = result.filter((p) => p.status === params.status);
   }
 
+  if (params.trustLevel && params.trustLevel !== "all") {
+    result = result.filter((p) => (p.trustLevel || "medium") === params.trustLevel);
+  }
+
   if (params.isCrush !== undefined && params.isCrush !== "") {
     const isCrushVal = params.isCrush === "true" || params.isCrush === true;
     result = result.filter((p) => Boolean(p.isCrush) === isCrushVal);
@@ -92,13 +100,17 @@ function filterPeopleList(people = [], params = {}) {
 
   if (params.search && params.search.trim()) {
     const s = params.search.trim().toLowerCase();
+    const sClean = s.replace(/^@/, "");
     result = result.filter(
       (p) =>
         (p.nickname && p.nickname.toLowerCase().includes(s)) ||
         (p.fullName && p.fullName.toLowerCase().includes(s)) ||
         (p.phone && p.phone.toLowerCase().includes(s)) ||
-        (p.telegram && p.telegram.toLowerCase().includes(s)) ||
-        (p.instagram && p.instagram.toLowerCase().includes(s)) ||
+        (p.telegram && p.telegram.toLowerCase().includes(sClean)) ||
+        (p.instagram && p.instagram.toLowerCase().includes(sClean)) ||
+        (p.otherContacts && p.otherContacts.toLowerCase().includes(s)) ||
+        (p.metPlace && p.metPlace.toLowerCase().includes(s)) ||
+        (p.profile?.area && p.profile.area.toLowerCase().includes(s)) ||
         (p.notes && p.notes.toLowerCase().includes(s))
     );
   }
@@ -109,6 +121,13 @@ function filterPeopleList(people = [], params = {}) {
     result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   } else if (params.sort === "met_desc") {
     result.sort((a, b) => new Date(b.metOn || 0) - new Date(a.metOn || 0));
+  } else if (params.sort === "trust_desc") {
+    const order = { high: 1, medium: 2, low: 3 };
+    result.sort(
+      (a, b) =>
+        (order[a.trustLevel || "medium"] || 2) - (order[b.trustLevel || "medium"] || 2) ||
+        (a.nickname || "").localeCompare(b.nickname || "")
+    );
   } else {
     // Standart: name_asc
     result.sort((a, b) => (a.nickname || "").localeCompare(b.nickname || ""));
@@ -127,6 +146,7 @@ export async function fetchPeople(params = {}) {
     const query = new URLSearchParams();
     if (params.category && params.category !== "all") query.set("category", params.category);
     if (params.status && params.status !== "all") query.set("status", params.status);
+    if (params.trustLevel && params.trustLevel !== "all") query.set("trustLevel", params.trustLevel);
     if (params.isCrush !== undefined && params.isCrush !== "") query.set("isCrush", params.isCrush);
     if (params.crushStatus && params.crushStatus !== "all") query.set("crushStatus", params.crushStatus);
     if (params.search) query.set("search", params.search);
@@ -247,6 +267,7 @@ export async function createPerson(payload) {
     instagram: (payload.instagram?.trim() || "").replace(/^@/, ""),
     otherContacts: payload.otherContacts?.trim() || "",
     notes: payload.notes?.trim() || "",
+    trustLevel: payload.trustLevel || "medium",
     profile: payload.profile || null,
     latestAppearance,
     appearancesCount: initialAppearances.length,

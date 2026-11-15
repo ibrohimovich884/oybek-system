@@ -21,11 +21,19 @@ import {
   Check,
   HeartHandshake,
   User,
+  ShieldCheck,
+  Send,
+  ExternalLink,
 } from "lucide-react";
-import { formatSum, formatDollar } from "../../utils/format.js";
-import { DEBT_TYPES, DEBT_TYPE_LABELS, DEBT_STATUS_LABELS } from "../../constants/debts.js";
+import { formatSum, formatDollar, cleanSocialHandle } from "../../utils/format.js";
+import {
+  DEBT_TYPES,
+  DEBT_TYPE_LABELS,
+  DEBT_STATUS_LABELS,
+  getRepaymentProbabilityInfo,
+} from "../../constants/debts.js";
+import { getTrustLevelInfo } from "../../constants/people.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
-import SecurityGate from "../security/SecurityGate.jsx";
 import DeleteDebtModal from "./DeleteDebtModal.jsx";
 
 export default function DebtDetailModal({
@@ -89,11 +97,18 @@ export default function DebtDetailModal({
 
   const statusCfg = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
   const typeCfg = DEBT_TYPE_LABELS[debt.type] || DEBT_TYPE_LABELS.given;
+  const probInfo = getRepaymentProbabilityInfo(debt.repaymentProbability);
+  const linkedPerson = debt.linkedPerson || null;
+  const targetPersonId = debt.personId || linkedPerson?.id || null;
+  const trustInfo = linkedPerson?.trustLevel ? getTrustLevelInfo(linkedPerson.trustLevel) : null;
+  const igHandle = cleanSocialHandle(debt.instagram || linkedPerson?.instagram || "");
+  const tgHandle = cleanSocialHandle(debt.telegram || linkedPerson?.telegram || "");
+  const displayContact = debt.contact || linkedPerson?.phone || "";
   const walletCfg = WALLET_CONFIG[debt.wallet];
 
   const handleCopyPhone = () => {
-    if (!debt.contact) return;
-    navigator.clipboard.writeText(debt.contact);
+    if (!displayContact) return;
+    navigator.clipboard.writeText(displayContact);
     setCopiedPhone(true);
     setTimeout(() => setCopiedPhone(false), 2000);
   };
@@ -118,7 +133,14 @@ export default function DebtDetailModal({
             </div>
             <div className="debt-detail-header__text">
               <div className="debt-detail-header__name-row">
-                <h3 className="debt-detail-name">{debt.personName}</h3>
+                <h3 className="debt-detail-name">
+                  {debt.personName}
+                  {linkedPerson?.fullName && linkedPerson.fullName !== debt.personName && (
+                    <span style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--text-muted)", marginLeft: 6 }}>
+                      ({linkedPerson.fullName})
+                    </span>
+                  )}
+                </h3>
                 {onOpenPersonHistory && (
                   <button
                     type="button"
@@ -134,7 +156,7 @@ export default function DebtDetailModal({
                     }}
                     onClick={() => {
                       onClose();
-                      onOpenPersonHistory(debt.personName);
+                      onOpenPersonHistory(debt.personName, targetPersonId);
                     }}
                     title="Ushbu shaxsning barcha qarzlari tarixini ko'rish"
                   >
@@ -177,6 +199,34 @@ export default function DebtDetailModal({
                 >
                   {statusCfg.label}
                 </span>
+
+                <span
+                  className="debt-prob-pill"
+                  style={{
+                    color: probInfo.color,
+                    backgroundColor: probInfo.bg,
+                    borderColor: probInfo.border,
+                  }}
+                  title={`Qaytarish ehtimoli: ${probInfo.fullLabel} (${probInfo.hint})`}
+                >
+                  <span className="debt-prob-dot" style={{ backgroundColor: probInfo.color }} />
+                  <span>{probInfo.badge}</span>
+                </span>
+
+                {trustInfo && (
+                  <span
+                    className="debt-trust-pill"
+                    style={{
+                      color: trustInfo.color,
+                      backgroundColor: trustInfo.bg,
+                      borderColor: trustInfo.border,
+                    }}
+                    title={`Odamga ishonish darajasi: ${trustInfo.fullLabel}`}
+                  >
+                    <ShieldCheck size={10} />
+                    <span>{trustInfo.label}</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -290,39 +340,68 @@ export default function DebtDetailModal({
             )}
           </div>
 
-          {/* 2. Aloqa va Tezkor harakatlar (agar telefon bo'lsa) */}
-          {debt.contact && (
-            <div className="debt-detail-contact-card">
+          {/* 2. Aloqa va Tezkor harakatlar (Telefon, Instagram, Telegram) */}
+          {(displayContact || igHandle || tgHandle) && (
+            <div className="debt-detail-contact-card" style={{ flexWrap: "wrap", gap: 10 }}>
               <div className="debt-detail-contact-left">
                 <div className="debt-detail-contact-icon">
                   <Phone size={15} />
                 </div>
                 <div className="debt-detail-contact-info">
-                  <span className="debt-detail-contact-lbl">Telefon / Aloqa</span>
-                  <div className="debt-detail-contact-val">{debt.contact}</div>
+                  <span className="debt-detail-contact-lbl">Aloqa ma&apos;lumotlari</span>
+                  <div className="debt-detail-contact-val" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                    {displayContact && <span>{displayContact}</span>}
+                    {igHandle && (
+                      <a
+                        href={`https://instagram.com/${igHandle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="debt-social-chip"
+                        style={{ color: "#e879f9", textDecoration: "none" }}
+                      >
+                        <span>IG: @{igHandle}</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    )}
+                    {tgHandle && (
+                      <a
+                        href={`https://t.me/${tgHandle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="debt-social-chip"
+                        style={{ color: "#38bdf8", textDecoration: "none" }}
+                      >
+                        <Send size={10} />
+                        <span>@{tgHandle}</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="debt-detail-contact-actions">
-                <button
-                  type="button"
-                  className="btn btn--xs btn--ghost"
-                  onClick={handleCopyPhone}
-                  title="Nusxa olish"
-                >
-                  {copiedPhone ? <Check size={13} color="var(--income)" /> : <Copy size={13} />}
-                  <span>{copiedPhone ? "Nusxalandi" : "Nusxa"}</span>
-                </button>
+              {displayContact && (
+                <div className="debt-detail-contact-actions">
+                  <button
+                    type="button"
+                    className="btn btn--xs btn--ghost"
+                    onClick={handleCopyPhone}
+                    title="Nusxa olish"
+                  >
+                    {copiedPhone ? <Check size={13} color="var(--income)" /> : <Copy size={13} />}
+                    <span>{copiedPhone ? "Nusxalandi" : "Nusxa"}</span>
+                  </button>
 
-                <a
-                  href={`tel:${debt.contact.replace(/[^\d+]/g, "")}`}
-                  className="btn btn--xs btn--primary"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Phone size={13} />
-                  <span>Qo'ng'iroq</span>
-                </a>
-              </div>
+                  <a
+                    href={`tel:${displayContact.replace(/[^\d+]/g, "")}`}
+                    className="btn btn--xs btn--primary"
+                    style={{ textDecoration: "none" }}
+                  >
+                    <Phone size={13} />
+                    <span>Qo&apos;ng&apos;iroq</span>
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
@@ -392,6 +471,22 @@ export default function DebtDetailModal({
                 </div>
               </div>
             )}
+
+            {/* Qaytarish ehtimoli darajasi */}
+            <div className="debt-detail-info-card">
+              <div className="debt-detail-info-icon" style={{ color: probInfo.color }}>
+                <ShieldCheck size={15} />
+              </div>
+              <div className="debt-detail-info-content">
+                <span className="debt-detail-info-lbl">Qaytarish ehtimoli</span>
+                <div className="debt-detail-info-val" style={{ color: probInfo.color, fontWeight: 700 }}>
+                  {probInfo.fullLabel}
+                </div>
+                <span className="debt-detail-due-hint" style={{ color: "var(--text-muted)", fontSize: "0.74rem" }}>
+                  {probInfo.hint}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* 4. Sababi / Maqsadi */}

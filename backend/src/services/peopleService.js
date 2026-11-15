@@ -25,6 +25,7 @@ export function mapPersonRow(row, profile = null, appearances = []) {
     instagram: row.instagram || "",
     otherContacts: row.other_contacts || "",
     notes: row.notes || "",
+    trustLevel: row.trust_level || "medium",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     profile: profile
@@ -101,6 +102,11 @@ export async function getAllPeople(userId, filters = {}) {
     whereClauses.push(`p.crush_status = $${params.length}`);
   }
 
+  if (filters.trustLevel && filters.trustLevel !== "all") {
+    params.push(filters.trustLevel);
+    whereClauses.push(`COALESCE(p.trust_level, 'medium') = $${params.length}`);
+  }
+
   if (filters.search && filters.search.trim()) {
     params.push(`%${filters.search.trim().toLowerCase()}%`);
     const searchIdx = params.length;
@@ -109,7 +115,8 @@ export async function getAllPeople(userId, filters = {}) {
       `LOWER(COALESCE(p.full_name, '')) LIKE $${searchIdx} OR ` +
       `LOWER(COALESCE(p.phone, '')) LIKE $${searchIdx} OR ` +
       `LOWER(COALESCE(p.telegram, '')) LIKE $${searchIdx} OR ` +
-      `LOWER(COALESCE(p.instagram, '')) LIKE $${searchIdx})`
+      `LOWER(COALESCE(p.instagram, '')) LIKE $${searchIdx} OR ` +
+      `LOWER(COALESCE(p.other_contacts, '')) LIKE $${searchIdx})`
     );
   }
 
@@ -122,6 +129,8 @@ export async function getAllPeople(userId, filters = {}) {
     orderBy = "p.met_on DESC NULLS LAST, p.created_at DESC";
   } else if (filters.sort === "name_desc") {
     orderBy = "p.nickname DESC";
+  } else if (filters.sort === "trust_desc") {
+    orderBy = "CASE COALESCE(p.trust_level, 'medium') WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END ASC, p.nickname ASC";
   }
 
   const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
@@ -224,6 +233,8 @@ export async function createPerson(payload, userId) {
   const instagram = (payload.instagram || "").trim().replace(/^@/, "") || null;
   const otherContacts = (payload.otherContacts || payload.other_contacts || "").trim() || null;
   const notes = (payload.notes || "").trim() || null;
+  const rawTrust = payload.trustLevel || payload.trust_level || "medium";
+  const trustLevel = ["high", "medium", "low"].includes(rawTrust) ? rawTrust : "medium";
 
   const client = await pool.connect();
   try {
@@ -233,12 +244,12 @@ export async function createPerson(payload, userId) {
       INSERT INTO people (
         id, user_id, nickname, full_name, gender, category, status,
         is_crush, crush_status, crush_started_on, met_on, met_place, met_via,
-        birthday, phone, telegram, instagram, other_contacts, notes,
+        birthday, phone, telegram, instagram, other_contacts, notes, trust_level,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
         $8, $9, $10, $11, $12, $13,
-        $14, $15, $16, $17, $18, $19,
+        $14, $15, $16, $17, $18, $19, $20,
         now(), now()
       )
       RETURNING *
@@ -247,7 +258,7 @@ export async function createPerson(payload, userId) {
     const personValues = [
       id, userId, nickname, fullName, gender, category, status,
       isCrush, crushStatus, crushStartedOn, metOn, metPlace, metVia,
-      birthday, phone, telegram, instagram, otherContacts, notes,
+      birthday, phone, telegram, instagram, otherContacts, notes, trustLevel,
     ];
 
     const { rows: personRows } = await client.query(insertPersonQuery, personValues);
@@ -324,7 +335,6 @@ export async function createPerson(payload, userId) {
       }
     }
 
-    await client.query("BEGIN");
     await client.query("COMMIT");
 
     return mapPersonRow(createdPerson, createdProfile, appearances);
@@ -374,6 +384,8 @@ export async function updatePerson(id, updates, userId) {
     const instagram = updates.instagram !== undefined ? (updates.instagram?.trim().replace(/^@/, "") || null) : (current.instagram || null);
     const otherContacts = updates.otherContacts !== undefined ? (updates.otherContacts?.trim() || null) : (current.otherContacts || null);
     const notes = updates.notes !== undefined ? (updates.notes?.trim() || null) : (current.notes || null);
+    const rawTrust = updates.trustLevel !== undefined ? updates.trustLevel : (updates.trust_level !== undefined ? updates.trust_level : current.trustLevel);
+    const trustLevel = ["high", "medium", "low"].includes(rawTrust) ? rawTrust : (current.trustLevel || "medium");
 
     const updateQuery = `
       UPDATE people SET
@@ -394,15 +406,16 @@ export async function updatePerson(id, updates, userId) {
         instagram = $15,
         other_contacts = $16,
         notes = $17,
+        trust_level = $18,
         updated_at = now()
-      WHERE id = $18 AND user_id = $19
+      WHERE id = $19 AND user_id = $20
       RETURNING *
     `;
 
     const { rows: personRows } = await client.query(updateQuery, [
       nickname, fullName, gender, category, status,
       isCrush, crushStatus, crushStartedOn, metOn, metPlace, metVia,
-      birthday, phone, telegram, instagram, otherContacts, notes,
+      birthday, phone, telegram, instagram, otherContacts, notes, trustLevel,
       id, userId,
     ]);
 
@@ -624,6 +637,13 @@ export async function getPeopleStats(userId) {
     [userId]
   );
 
+  const trustRes = await pool.query(
+    `SELECT COALESCE(trust_level, 'medium') AS trust_level, COUNT(*)::int AS count
+     FROM people WHERE user_id = $1
+     GROUP BY COALESCE(trust_level, 'medium')`,
+    [userId]
+  );
+
   const stats = totalRes.rows[0] || {
     total_people: 0,
     active_count: 0,
@@ -643,6 +663,13 @@ export async function getPeopleStats(userId) {
     }
   }
 
+  const trustMap = { high: 0, medium: 0, low: 0 };
+  for (const r of trustRes.rows) {
+    if (r.trust_level) {
+      trustMap[r.trust_level] = r.count;
+    }
+  }
+
   return {
     total: stats.total_people,
     active: stats.active_count,
@@ -650,5 +677,6 @@ export async function getPeopleStats(userId) {
     crushes: stats.crush_count,
     byCategory: categoriesMap,
     byCrushStatus: crushMap,
+    byTrustLevel: trustMap,
   };
 }

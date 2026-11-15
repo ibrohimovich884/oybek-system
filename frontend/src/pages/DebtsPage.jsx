@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   HandCoins,
   PlusCircle,
@@ -7,24 +8,24 @@ import {
   ArrowDownLeft,
   CheckCircle2,
   Clock,
-  DollarSign,
   AlertCircle,
   BookOpen,
   LayoutGrid,
   Users,
   X,
-  SlidersHorizontal,
-  HeartHandshake,
   User,
   ChevronRight,
   Phone,
-  Calendar,
+  ShieldCheck,
+  Send,
+  Link2,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
-import { formatSum, formatDollar } from "../utils/format.js";
+import { readLocalPeople, fetchPeople } from "../api/people.js";
+import { getTrustLevelInfo } from "../constants/people.js";
+import { formatSum, formatDollar, cleanSocialHandle } from "../utils/format.js";
 import {
   DEBT_TYPES,
-  DEBT_STATUS_LABELS,
   getDebtDueInfo,
   DUE_STAGES,
 } from "../constants/debts.js";
@@ -62,6 +63,9 @@ export default function DebtsPage() {
     return "ledger";
   });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [peopleList, setPeopleList] = useState(() => readLocalPeople());
+
   const [filterType, setFilterType] = useState("all");
   // Filtr turlari: "all" | "overdue" | "soon" | "no_date" | "given" | "taken" | "pending" | "forgiven" | "settled"
 
@@ -72,7 +76,15 @@ export default function DebtsPage() {
   const [forgiveTargetDebt, setForgiveTargetDebt] = useState(null);
   const [selectedDebt, setSelectedDebt] = useState(null);
   const [editingDebt, setEditingDebt] = useState(null);
-  const [selectedPersonHistoryName, setSelectedPersonHistoryName] = useState(null);
+  const [selectedPersonHistory, setSelectedPersonHistory] = useState(null);
+
+  const handleOpenPersonHistory = (personName, personId = null) => {
+    if (!personName && !personId) return;
+    setSelectedPersonHistory({
+      personName: personName || "",
+      personId: personId || null,
+    });
+  };
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
@@ -81,32 +93,147 @@ export default function DebtsPage() {
     }
   };
 
+  // Odamlar ro'yxatini yuklash (ishonch darajasi va kontaktlarni bog'lash uchun)
+  useEffect(() => {
+    fetchPeople()
+      .then((list) => {
+        if (Array.isArray(list)) setPeopleList(list);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Odamlar map'i (id bo'yicha va ism bo'yicha tezkor qidiruv)
+  const { peopleById, peopleByName } = useMemo(() => {
+    const byId = new Map();
+    const byName = new Map();
+    peopleList.forEach((p) => {
+      if (!p?.id) return;
+      byId.set(p.id, p);
+      const nick = (p.nickname || "").trim().toLowerCase();
+      const full = (p.fullName || "").trim().toLowerCase();
+      if (nick && !byName.has(nick)) byName.set(nick, p);
+      if (full && !byName.has(full)) byName.set(full, p);
+    });
+    return { peopleById: byId, peopleByName: byName };
+  }, [peopleList]);
+
+  // Har bir qarzga odamlar ro'yxatidagi bog'langan shaxs ma'lumotini biriktirish
+  const enrichedDebts = useMemo(() => {
+    return debts.map((debt) => {
+      let resolved = null;
+      if (debt.personId && peopleById.has(debt.personId)) {
+        resolved = peopleById.get(debt.personId);
+      } else if (debt.linkedPerson?.id && peopleById.has(debt.linkedPerson.id)) {
+        resolved = peopleById.get(debt.linkedPerson.id);
+      } else if (!debt.personId && debt.personName) {
+        const norm = debt.personName.trim().toLowerCase();
+        if (peopleByName.has(norm)) {
+          resolved = peopleByName.get(norm);
+        }
+      }
+
+      const mergedLinked = resolved
+        ? {
+            id: resolved.id,
+            nickname: resolved.nickname,
+            fullName: resolved.fullName,
+            trustLevel: resolved.trustLevel,
+            phone: resolved.phone,
+            telegram: resolved.telegram,
+            instagram: resolved.instagram,
+            otherContacts: resolved.otherContacts,
+            metPlace: resolved.metPlace,
+            area: resolved.profile?.area || "",
+          }
+        : debt.linkedPerson || null;
+
+      return {
+        ...debt,
+        linkedPerson: mergedLinked,
+      };
+    });
+  }, [debts, peopleById, peopleByName]);
+
+  // URL parametrlari (?addForPerson=... yoki ?personId=...) orqali kelganda modalni ochish
+  useEffect(() => {
+    const addForPersonId = searchParams.get("addForPerson");
+    const viewPersonId = searchParams.get("personId");
+
+    if (addForPersonId) {
+      const person = peopleById.get(addForPersonId);
+      if (person) {
+        const trustInfo = getTrustLevelInfo(person.trustLevel);
+        const ig = cleanSocialHandle(person.instagram || "");
+        const tg = cleanSocialHandle(person.telegram || "");
+        setAddDebtInitialData({
+          personId: person.id,
+          personName: person.nickname || person.fullName || "",
+          contact:
+            person.phone ||
+            (tg ? `@${tg}` : "") ||
+            (ig ? `@${ig}` : "") ||
+            "",
+          instagram: ig,
+          telegram: tg,
+          location: person.profile?.area || person.metPlace || "",
+          repaymentProbability: trustInfo.suggestedProbability,
+        });
+        setIsAddModalOpen(true);
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("addForPerson");
+        setSearchParams(nextParams, { replace: true });
+      }
+    } else if (viewPersonId) {
+      const person = peopleById.get(viewPersonId);
+      const fallbackDebt = enrichedDebts.find((d) => d.personId === viewPersonId);
+      const resolvedName = person?.nickname || person?.fullName || fallbackDebt?.personName;
+      if (resolvedName) {
+        setSelectedPersonHistory({
+          personName: resolvedName,
+          personId: viewPersonId,
+        });
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("personId");
+        setSearchParams(nextParams, { replace: true });
+      }
+    }
+  }, [searchParams, peopleById, enrichedDebts, setSearchParams]);
+
   // Agar selectedDebt o'zgarsa (masalan context yangilansa), yangi nusxasini olamiz
   useEffect(() => {
     if (selectedDebt) {
-      const fresh = debts.find((d) => d.id === selectedDebt.id);
+      const fresh = enrichedDebts.find((d) => d.id === selectedDebt.id);
       if (fresh) {
         setSelectedDebt(fresh);
       } else {
         setSelectedDebt(null);
       }
     }
-  }, [debts, selectedDebt?.id]);
+  }, [enrichedDebts, selectedDebt?.id]);
 
   // Har bir shaxs bo'yicha jamlangan ma'lumotlar (Consolidated per person)
   const personsMap = useMemo(() => {
     const map = new Map();
 
-    debts.forEach((debt) => {
-      const pName = (debt.personName || "Noma'lum").trim();
-      const normKey = pName.toLowerCase();
+    enrichedDebts.forEach((debt) => {
+      const linked = debt.linkedPerson;
+      const pName = (linked?.nickname || debt.personName || "Noma'lum").trim();
+      const linkedId = linked?.id || debt.personId || null;
+      const normKey = linkedId ? `person:${linkedId}` : `name:${pName.toLowerCase()}`;
 
       if (!map.has(normKey)) {
         map.set(normKey, {
           key: normKey,
+          personId: linkedId,
+          linkedPerson: linked || null,
+          trustLevel: linked?.trustLevel || null,
           personName: pName,
-          contact: debt.contact || "",
-          location: debt.location || "",
+          fullName: linked?.fullName || "",
+          contact: debt.contact || linked?.phone || "",
+          instagram: cleanSocialHandle(debt.instagram || linked?.instagram || ""),
+          telegram: cleanSocialHandle(debt.telegram || linked?.telegram || ""),
+          location: debt.location || linked?.area || linked?.metPlace || "",
           debts: [],
           activeCount: 0,
           overdueCount: 0,
@@ -128,8 +255,20 @@ export default function DebtsPage() {
 
       const pData = map.get(normKey);
       pData.debts.push(debt);
-      if (!pData.contact && debt.contact) pData.contact = debt.contact;
-      if (!pData.location && debt.location) pData.location = debt.location;
+      if (!pData.personId && linkedId) pData.personId = linkedId;
+      if (!pData.linkedPerson && linked) pData.linkedPerson = linked;
+      if (!pData.trustLevel && linked?.trustLevel) pData.trustLevel = linked.trustLevel;
+      if (!pData.fullName && linked?.fullName) pData.fullName = linked.fullName;
+      if (!pData.contact && (debt.contact || linked?.phone)) pData.contact = debt.contact || linked?.phone || "";
+      if (!pData.instagram && (debt.instagram || linked?.instagram)) {
+        pData.instagram = cleanSocialHandle(debt.instagram || linked?.instagram || "");
+      }
+      if (!pData.telegram && (debt.telegram || linked?.telegram)) {
+        pData.telegram = cleanSocialHandle(debt.telegram || linked?.telegram || "");
+      }
+      if (!pData.location && (debt.location || linked?.area || linked?.metPlace)) {
+        pData.location = debt.location || linked?.area || linked?.metPlace || "";
+      }
 
       const isUsd = debt.currency === "USD";
       const totalAmt = Number(debt.amount || 0);
@@ -178,7 +317,7 @@ export default function DebtsPage() {
     });
 
     return map;
-  }, [debts]);
+  }, [enrichedDebts]);
 
   // Shaxslar ro'yxati (Muddati o'tganlar birinchi o'rinda)
   const personsList = useMemo(() => {
@@ -208,11 +347,16 @@ export default function DebtsPage() {
   const matchedPersons = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
+    const qClean = q.replace(/^@/, "");
     return personsList.filter(
       (p) =>
         p.personName.toLowerCase().includes(q) ||
+        p.fullName.toLowerCase().includes(q) ||
         p.contact.toLowerCase().includes(q) ||
-        p.location.toLowerCase().includes(q)
+        p.location.toLowerCase().includes(q) ||
+        (qClean && p.instagram.toLowerCase().includes(qClean)) ||
+        (qClean && p.telegram.toLowerCase().includes(qClean)) ||
+        (p.linkedPerson?.otherContacts || "").toLowerCase().includes(q)
     );
   }, [personsList, searchQuery]);
 
@@ -228,6 +372,9 @@ export default function DebtsPage() {
     let overdueCount = 0;
     let soonCount = 0;
     let noDateCount = 0;
+    let highProbCount = 0;
+    let mediumProbCount = 0;
+    let lowProbCount = 0;
 
     debts.forEach((debt) => {
       const isSettled = debt.status === "settled";
@@ -261,6 +408,11 @@ export default function DebtsPage() {
         if (dueInfo.isOverdue) overdueCount += 1;
         else if (dueInfo.stage === DUE_STAGES.SOON) soonCount += 1;
         else if (dueInfo.stage === DUE_STAGES.NO_DATE) noDateCount += 1;
+
+        const prob = debt.repaymentProbability || "high";
+        if (prob === "low") lowProbCount += 1;
+        else if (prob === "medium") mediumProbCount += 1;
+        else highProbCount += 1;
       }
     });
 
@@ -282,6 +434,9 @@ export default function DebtsPage() {
       overdueCount,
       soonCount,
       noDateCount,
+      highProbCount,
+      mediumProbCount,
+      lowProbCount,
       totalCount: debts.length,
       personsCount: personsList.length,
     };
@@ -289,7 +444,7 @@ export default function DebtsPage() {
 
   // Qidiruv va filtrlar (Muddati bo'yicha qat'iy tartiblangan)
   const filteredDebts = useMemo(() => {
-    return debts
+    return enrichedDebts
       .filter((d) => {
         const dueInfo = getDebtDueInfo(d);
 
@@ -310,17 +465,47 @@ export default function DebtsPage() {
           if (d.status !== "settled") return false;
         } else if (filterType === "pending") {
           if (d.status === "settled" || d.status === "forgiven") return false;
+        } else if (filterType === "prob_high") {
+          if ((d.repaymentProbability || "high") !== "high" || d.status === "settled" || d.status === "forgiven") return false;
+        } else if (filterType === "prob_medium") {
+          if (d.repaymentProbability !== "medium" || d.status === "settled" || d.status === "forgiven") return false;
+        } else if (filterType === "prob_low") {
+          if (d.repaymentProbability !== "low" || d.status === "settled" || d.status === "forgiven") return false;
         }
 
-        // Matnli qidiruv
+        // Matnli qidiruv (Odamlar ro'yxatidagi ism, telefon, Telegram, Instagram ham qamrab olinadi)
         if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
+          const q = searchQuery.toLowerCase().trim();
+          const qClean = q.replace(/^@/, "");
+          const linked = d.linkedPerson;
           const matchName = (d.personName || "").toLowerCase().includes(q);
+          const matchLinkedNick = (linked?.nickname || "").toLowerCase().includes(q);
+          const matchLinkedFull = (linked?.fullName || "").toLowerCase().includes(q);
           const matchContact = (d.contact || "").toLowerCase().includes(q);
+          const matchLinkedPhone = (linked?.phone || "").toLowerCase().includes(q);
+          const matchIg =
+            Boolean(qClean) &&
+            (cleanSocialHandle(d.instagram || "").toLowerCase().includes(qClean) ||
+              cleanSocialHandle(linked?.instagram || "").toLowerCase().includes(qClean));
+          const matchTg =
+            Boolean(qClean) &&
+            (cleanSocialHandle(d.telegram || "").toLowerCase().includes(qClean) ||
+              cleanSocialHandle(linked?.telegram || "").toLowerCase().includes(qClean));
           const matchReason = (d.reason || "").toLowerCase().includes(q);
           const matchLoc = (d.location || "").toLowerCase().includes(q);
           const matchNote = (d.personalNote || "").toLowerCase().includes(q);
-          return matchName || matchContact || matchReason || matchLoc || matchNote;
+          return (
+            matchName ||
+            matchLinkedNick ||
+            matchLinkedFull ||
+            matchContact ||
+            matchLinkedPhone ||
+            matchIg ||
+            matchTg ||
+            matchReason ||
+            matchLoc ||
+            matchNote
+          );
         }
 
         return true;
@@ -363,7 +548,7 @@ export default function DebtsPage() {
         // Boshqa hollarda sanasi bo'yicha eng yangi
         return new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt);
       });
-  }, [debts, filterType, searchQuery]);
+  }, [enrichedDebts, filterType, searchQuery]);
 
   const handleSettle = async (id, customOpts = {}) => {
     const debt = debts.find((d) => d.id === id);
@@ -542,6 +727,9 @@ export default function DebtsPage() {
             { id: "overdue", label: `🚨 Muddati o'tganlar (${stats.overdueCount})`, isAlert: stats.overdueCount > 0 },
             { id: "soon", label: `⏳ Oz qolganlar (${stats.soonCount})` },
             { id: "no_date", label: `📅 Muddatsizlar (${stats.noDateCount})` },
+            { id: "prob_high", label: `🟢 Yuqori ehtimol (${stats.highProbCount})` },
+            { id: "prob_medium", label: `🟡 Oʻrtacha ehtimol (${stats.mediumProbCount})` },
+            { id: "prob_low", label: `🔴 Past ehtimol (${stats.lowProbCount})`, isAlert: stats.lowProbCount > 0 },
             { id: "given", label: "Men bergan" },
             { id: "taken", label: "Men olgan" },
             { id: "forgiven", label: `💜 Voz kechilgan (${stats.forgivenCount})` },
@@ -566,7 +754,7 @@ export default function DebtsPage() {
           <input
             type="text"
             className="field-input field-input--sm debts-search-input"
-            placeholder="Qarz oluvchi ismini qidiring..."
+            placeholder="Ism, telefon, @instagram, @telegram yoki izoh boʻyicha qidiring..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -592,45 +780,68 @@ export default function DebtsPage() {
           </div>
 
           <div className="debts-search-match-grid">
-            {matchedPersons.map((person) => (
-              <div
-                key={person.key}
-                className="debts-search-match-card"
-                onClick={() => setSelectedPersonHistoryName(person.personName)}
-                title="Barcha qarzlari tarixini 1 ta joyda ochish uchun bosing"
-              >
-                <div className="debts-search-match-avatar">
-                  {person.personName.charAt(0).toUpperCase()}
-                </div>
-
-                <div className="debts-search-match-info">
-                  <div className="debts-search-match-name-row">
-                    <strong className="debts-search-match-name">{person.personName}</strong>
-                    {person.overdueCount > 0 && (
-                      <span className="badge badge--danger" style={{ fontSize: "0.68rem" }}>
-                        Muddati o'tgan
-                      </span>
-                    )}
+            {matchedPersons.map((person) => {
+              const trustInfo = person.trustLevel ? getTrustLevelInfo(person.trustLevel) : null;
+              return (
+                <div
+                  key={person.key}
+                  className="debts-search-match-card"
+                  onClick={() => handleOpenPersonHistory(person.personName, person.personId)}
+                  title="Barcha qarzlari tarixini 1 ta joyda ochish uchun bosing"
+                >
+                  <div className="debts-search-match-avatar">
+                    {person.personName.charAt(0).toUpperCase()}
                   </div>
 
-                  <div className="debts-search-match-sub">
-                    <span>Jami {person.debts.length} ta qarz</span>
-                    {person.contact && <span>• {person.contact}</span>}
+                  <div className="debts-search-match-info">
+                    <div className="debts-search-match-name-row">
+                      <strong className="debts-search-match-name">{person.personName}</strong>
+                      {person.fullName && person.fullName !== person.personName && (
+                        <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
+                          ({person.fullName})
+                        </span>
+                      )}
+                      {trustInfo && (
+                        <span
+                          className="debt-trust-pill"
+                          style={{
+                            color: trustInfo.color,
+                            background: trustInfo.bg,
+                            borderColor: trustInfo.border,
+                          }}
+                        >
+                          <ShieldCheck size={10} />
+                          <span>{trustInfo.shortLabel} ishonch</span>
+                        </span>
+                      )}
+                      {person.overdueCount > 0 && (
+                        <span className="badge badge--danger" style={{ fontSize: "0.68rem" }}>
+                          Muddati o'tgan
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="debts-search-match-sub">
+                      <span>Jami {person.debts.length} ta qarz</span>
+                      {person.contact && <span>• {person.contact}</span>}
+                      {person.instagram && <span>• IG: @{person.instagram}</span>}
+                      {person.telegram && <span>• TG: @{person.telegram}</span>}
+                    </div>
+                  </div>
+
+                  <div className="debts-search-match-amount">
+                    <span className="debts-search-match-amount-val mono">
+                      {person.activeRemainingUzs > 0 || person.activeRemainingUsd > 0
+                        ? formatSum(person.activeRemainingUzs)
+                        : "0 (Yopilgan)"}
+                    </span>
+                    <span className="debts-search-match-cta">
+                      Tarixni ochish <ChevronRight size={12} />
+                    </span>
                   </div>
                 </div>
-
-                <div className="debts-search-match-amount">
-                  <span className="debts-search-match-amount-val mono">
-                    {person.activeRemainingUzs > 0 || person.activeRemainingUsd > 0
-                      ? formatSum(person.activeRemainingUzs)
-                      : "0 (Yopilgan)"}
-                  </span>
-                  <span className="debts-search-match-cta">
-                    Tarixni ochish <ChevronRight size={12} />
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -650,6 +861,7 @@ export default function DebtsPage() {
           <div className="debts-persons-grid">
             {personsList.map((person) => {
               const hasActive = person.activeRemainingUzs > 0 || person.activeRemainingUsd > 0;
+              const trustInfo = person.trustLevel ? getTrustLevelInfo(person.trustLevel) : null;
 
               return (
                 <div
@@ -657,7 +869,7 @@ export default function DebtsPage() {
                   className={`person-ledger-card ${
                     person.overdueCount > 0 ? "person-ledger-card--overdue" : ""
                   }`}
-                  onClick={() => setSelectedPersonHistoryName(person.personName)}
+                  onClick={() => handleOpenPersonHistory(person.personName, person.personId)}
                 >
                   <div className="person-ledger-card__top">
                     <div className="person-ledger-card__profile">
@@ -670,11 +882,37 @@ export default function DebtsPage() {
                       </div>
 
                       <div className="person-ledger-card__titles">
-                        <h4 className="person-ledger-card__name">{person.personName}</h4>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <h4 className="person-ledger-card__name">{person.personName}</h4>
+                          {person.personId && (
+                            <span
+                              className="debt-social-chip"
+                              title="Odamlar ro'yxatiga bog'langan"
+                            >
+                              <Link2 size={10} />
+                              <span>Odamlar</span>
+                            </span>
+                          )}
+                        </div>
+                        {person.fullName && person.fullName !== person.personName && (
+                          <div style={{ fontSize: "0.73rem", color: "var(--text-muted)" }}>
+                            {person.fullName}
+                          </div>
+                        )}
                         <div className="person-ledger-card__meta">
                           {person.contact && (
                             <span className="person-ledger-card__contact">
                               <Phone size={10} /> {person.contact}
+                            </span>
+                          )}
+                          {person.instagram && (
+                            <span className="person-ledger-card__contact">
+                              IG: @{person.instagram}
+                            </span>
+                          )}
+                          {person.telegram && (
+                            <span className="person-ledger-card__contact">
+                              <Send size={9} /> @{person.telegram}
                             </span>
                           )}
                           <span>• Jami {person.debts.length} ta qarz</span>
@@ -702,6 +940,21 @@ export default function DebtsPage() {
 
                   {/* Nishonlar */}
                   <div className="person-ledger-card__badges">
+                    {trustInfo && (
+                      <span
+                        className="debt-trust-pill"
+                        style={{
+                          color: trustInfo.color,
+                          background: trustInfo.bg,
+                          borderColor: trustInfo.border,
+                        }}
+                        title={`Ishonish darajasi: ${trustInfo.fullLabel}`}
+                      >
+                        <ShieldCheck size={11} />
+                        <span>{trustInfo.label}</span>
+                      </span>
+                    )}
+
                     {person.overdueCount > 0 ? (
                       <span className="badge badge--danger" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                         <AlertCircle size={11} />
@@ -737,7 +990,7 @@ export default function DebtsPage() {
                     <button
                       type="button"
                       className="btn btn--xs btn--primary"
-                      onClick={() => setSelectedPersonHistoryName(person.personName)}
+                      onClick={() => handleOpenPersonHistory(person.personName, person.personId)}
                     >
                       <User size={12} />
                       <span>Toʻliq tarixni koʻrish</span>
@@ -748,8 +1001,13 @@ export default function DebtsPage() {
                       className="btn btn--xs btn--ghost"
                       onClick={() =>
                         handleOpenAddNewDebt({
+                          personId: person.personId,
                           personName: person.personName,
                           contact: person.contact,
+                          instagram: person.instagram,
+                          telegram: person.telegram,
+                          location: person.location,
+                          repaymentProbability: trustInfo?.suggestedProbability,
                         })
                       }
                     >
@@ -779,7 +1037,7 @@ export default function DebtsPage() {
             onSelectDebt={(debt) => setSelectedDebt(debt)}
             onOpenRepay={(debt) => setRepayTargetDebt(debt)}
             onOpenForgive={(debt) => setForgiveTargetDebt(debt)}
-            onOpenPersonHistory={(pName) => setSelectedPersonHistoryName(pName)}
+            onOpenPersonHistory={handleOpenPersonHistory}
             onSettleDebt={handleSettle}
             showStageDividers={filterType === "all"}
           />
@@ -792,7 +1050,7 @@ export default function DebtsPage() {
                 onSelectDebt={(d) => setSelectedDebt(d)}
                 onOpenRepay={(d) => setRepayTargetDebt(d)}
                 onOpenForgive={(d) => setForgiveTargetDebt(d)}
-                onOpenPersonHistory={(pName) => setSelectedPersonHistoryName(pName)}
+                onOpenPersonHistory={handleOpenPersonHistory}
                 onDeleteDebt={deleteDebt}
                 onSettleDebt={handleSettle}
               />
@@ -839,10 +1097,12 @@ export default function DebtsPage() {
 
       {/* Shaxsning barcha olingan va yopilgan qarzlari to'liq konsolidatsiyalangan tarixi */}
       <PersonHistoryModal
-        isOpen={Boolean(selectedPersonHistoryName)}
-        onClose={() => setSelectedPersonHistoryName(null)}
-        personName={selectedPersonHistoryName}
-        debts={debts}
+        isOpen={Boolean(selectedPersonHistory)}
+        onClose={() => setSelectedPersonHistory(null)}
+        personName={selectedPersonHistory?.personName}
+        personId={selectedPersonHistory?.personId}
+        peopleList={peopleList}
+        debts={enrichedDebts}
         onOpenRepay={(debt) => setRepayTargetDebt(debt)}
         onOpenForgive={(debt) => setForgiveTargetDebt(debt)}
         onOpenDebtDetail={(debt) => setSelectedDebt(debt)}
@@ -865,7 +1125,7 @@ export default function DebtsPage() {
         debt={selectedDebt}
         onOpenRepay={(d) => setRepayTargetDebt(d)}
         onOpenForgive={(d) => setForgiveTargetDebt(d)}
-        onOpenPersonHistory={(pName) => setSelectedPersonHistoryName(pName)}
+        onOpenPersonHistory={handleOpenPersonHistory}
         onOpenEdit={(d) => setEditingDebt(d)}
         onDeleteDebt={deleteDebt}
         onSettleDebt={handleSettle}

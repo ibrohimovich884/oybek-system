@@ -18,17 +18,18 @@ import {
   AlertCircle,
   Info,
   HeartHandshake,
+  Send,
+  ShieldCheck,
 } from "lucide-react";
-import { formatSum, formatDollar } from "../../utils/format.js";
+import { formatSum, formatDollar, cleanSocialHandle } from "../../utils/format.js";
 import { WALLET_CONFIG } from "../../constants/money.js";
+import { getTrustLevelInfo } from "../../constants/people.js";
 import {
   DEBT_TYPES,
-  DEBT_TYPE_LABELS,
   DEBT_STATUS_LABELS,
   getDebtDueInfo,
-  DUE_STAGES,
+  getRepaymentProbabilityInfo,
 } from "../../constants/debts.js";
-import SecurityGate from "../security/SecurityGate.jsx";
 import DeleteDebtModal from "./DeleteDebtModal.jsx";
 
 export default function DebtCard({
@@ -57,12 +58,20 @@ export default function DebtCard({
   const percentPaid = totalAmount > 0 ? Math.min(100, Math.round(((paidAmount + forgivenAmount) / totalAmount) * 100)) : 0;
 
   const statusInfo = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
-  const typeLabels = DEBT_TYPE_LABELS[debt.type] || DEBT_TYPE_LABELS.given;
+  const probInfo = getRepaymentProbabilityInfo(debt.repaymentProbability);
+
+  const linkedPerson = debt.linkedPerson || null;
+  const targetPersonId = debt.personId || linkedPerson?.id || null;
+  const trustInfo = linkedPerson?.trustLevel ? getTrustLevelInfo(linkedPerson.trustLevel) : null;
+  const igHandle = cleanSocialHandle(debt.instagram || linkedPerson?.instagram || "");
+  const tgHandle = cleanSocialHandle(debt.telegram || linkedPerson?.telegram || "");
+  const displayContact = debt.contact || linkedPerson?.phone || "";
 
   // Qaytish muddati tekshiruvi
   const dueInfo = getDebtDueInfo(debt);
   const isOverdue = dueInfo.isOverdue;
   const dueDateText = dueInfo.text;
+  const daysLeft = dueInfo.daysLeft;
 
   const walletCfg = WALLET_CONFIG[debt.wallet];
 
@@ -86,7 +95,7 @@ export default function DebtCard({
             {debt.personName ? debt.personName.charAt(0).toUpperCase() : "?"}
           </div>
           <div className="debt-card__person-details">
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
               <h4 className="debt-card__name">{debt.personName}</h4>
               {onOpenPersonHistory && (
                 <button
@@ -94,7 +103,7 @@ export default function DebtCard({
                   className="debt-person-history-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onOpenPersonHistory(debt.personName);
+                    onOpenPersonHistory(debt.personName, targetPersonId);
                   }}
                   title="Shaxsning barcha qarzlari tarixi"
                 >
@@ -103,11 +112,26 @@ export default function DebtCard({
                 </button>
               )}
             </div>
-            {debt.contact ? (
-              <span className="debt-card__contact">
-                <Phone size={11} />
-                <span>{debt.contact}</span>
-              </span>
+            {(displayContact || igHandle || tgHandle) ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                {displayContact && (
+                  <span className="debt-card__contact">
+                    <Phone size={11} />
+                    <span>{displayContact}</span>
+                  </span>
+                )}
+                {igHandle && (
+                  <span className="debt-card__contact" style={{ color: "#e879f9" }}>
+                    IG: @{igHandle}
+                  </span>
+                )}
+                {tgHandle && (
+                  <span className="debt-card__contact" style={{ color: "#38bdf8" }}>
+                    <Send size={10} />
+                    <span>@{tgHandle}</span>
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="debt-card__sub-hint">Ma'lumotlarni ko'rish</span>
             )}
@@ -166,6 +190,38 @@ export default function DebtCard({
         >
           {statusInfo.label}
         </span>
+
+        {/* Qaytarish ehtimoli nishoni */}
+        <span
+          className="debt-prob-pill"
+          style={{
+            color: probInfo.color,
+            backgroundColor: probInfo.bg,
+            borderColor: probInfo.border,
+          }}
+          title={`Qaytarish ehtimoli: ${probInfo.fullLabel} (${probInfo.hint})`}
+        >
+          <span
+            className="debt-prob-dot"
+            style={{ backgroundColor: probInfo.color }}
+          />
+          <span>{probInfo.label} ehtimol</span>
+        </span>
+
+        {trustInfo && (
+          <span
+            className="debt-trust-pill"
+            style={{
+              color: trustInfo.color,
+              backgroundColor: trustInfo.bg,
+              borderColor: trustInfo.border,
+            }}
+            title={`Odamga ishonish darajasi: ${trustInfo.fullLabel}`}
+          >
+            <ShieldCheck size={10} />
+            <span>{trustInfo.shortLabel} ishonch</span>
+          </span>
+        )}
 
         {isOverdue ? (
           <span className="debt-due-pill debt-due-pill--overdue">
