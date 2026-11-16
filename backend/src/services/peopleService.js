@@ -108,15 +108,22 @@ export async function getAllPeople(userId, filters = {}) {
   }
 
   if (filters.search && filters.search.trim()) {
-    params.push(`%${filters.search.trim().toLowerCase()}%`);
+    const rawQ = filters.search.trim().toLowerCase();
+    const cleanHandleQ = rawQ.replace(/^@/, "");
+    params.push(`%${rawQ}%`);
     const searchIdx = params.length;
+    params.push(`%${cleanHandleQ}%`);
+    const handleIdx = params.length;
     whereClauses.push(
       `(LOWER(p.nickname) LIKE $${searchIdx} OR ` +
       `LOWER(COALESCE(p.full_name, '')) LIKE $${searchIdx} OR ` +
       `LOWER(COALESCE(p.phone, '')) LIKE $${searchIdx} OR ` +
-      `LOWER(COALESCE(p.telegram, '')) LIKE $${searchIdx} OR ` +
-      `LOWER(COALESCE(p.instagram, '')) LIKE $${searchIdx} OR ` +
-      `LOWER(COALESCE(p.other_contacts, '')) LIKE $${searchIdx})`
+      `LOWER(COALESCE(p.telegram, '')) LIKE $${handleIdx} OR ` +
+      `LOWER(COALESCE(p.instagram, '')) LIKE $${handleIdx} OR ` +
+      `LOWER(COALESCE(p.other_contacts, '')) LIKE $${searchIdx} OR ` +
+      `LOWER(COALESCE(p.met_place, '')) LIKE $${searchIdx} OR ` +
+      `LOWER(COALESCE(p.notes, '')) LIKE $${searchIdx} OR ` +
+      `EXISTS (SELECT 1 FROM person_profiles pp WHERE pp.person_id = p.id AND LOWER(COALESCE(pp.area, '')) LIKE $${searchIdx}))`
     );
   }
 
@@ -217,6 +224,12 @@ export async function createPerson(payload, userId) {
   }
 
   const id = payload.id || `person_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  if (payload.id) {
+    const existingSame = await getPersonById(payload.id, userId);
+    if (existingSame) {
+      return await updatePerson(payload.id, payload, userId);
+    }
+  }
   const fullName = (payload.fullName || payload.full_name || "").trim() || null;
   const gender = payload.gender || null; // 'female' | 'male' | 'other'
   const category = payload.category || "acquaintance";
@@ -454,6 +467,28 @@ export async function updatePerson(id, updates, userId) {
       }
     }
 
+    // Bog'langan qarz yozuvlarida ko'rinish ma'lumotlarini moslab qo'yamiz
+    await client.query(
+      `UPDATE debts
+       SET person_name = $1,
+           contact = CASE WHEN COALESCE(contact, '') = '' OR contact = $2 THEN COALESCE($3, '') ELSE contact END,
+           telegram = CASE WHEN COALESCE(telegram, '') = '' OR telegram = $4 THEN COALESCE($5, '') ELSE telegram END,
+           instagram = CASE WHEN COALESCE(instagram, '') = '' OR instagram = $6 THEN COALESCE($7, '') ELSE instagram END,
+           updated_at = now()
+       WHERE person_id = $8 AND user_id = $9`,
+      [
+        nickname,
+        current.phone || "",
+        phone || "",
+        current.telegram || "",
+        telegram || "",
+        current.instagram || "",
+        instagram || "",
+        id,
+        userId,
+      ]
+    );
+
     await client.query("COMMIT");
 
     return await getPersonById(id, userId);
@@ -573,14 +608,28 @@ export async function deleteAppearance(appearanceId, personId, userId) {
  * Shaxsni o'chirish (CASCADE tufayli profile va appearances o'chadi)
  */
 export async function deletePerson(id, userId) {
-  const { rowCount } = await pool.query(
-    "DELETE FROM people WHERE id = $1 AND user_id = $2",
-    [id, userId]
-  );
-  if (rowCount === 0) {
-    throw new Error("Shaxs topilmadi yoki o'chirish huquqi yo'q");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "UPDATE debts SET person_id = NULL, updated_at = now() WHERE person_id = $1 AND user_id = $2",
+      [id, userId]
+    );
+    const { rowCount } = await client.query(
+      "DELETE FROM people WHERE id = $1 AND user_id = $2",
+      [id, userId]
+    );
+    if (rowCount === 0) {
+      throw new Error("Shaxs topilmadi yoki o'chirish huquqi yo'q");
+    }
+    await client.query("COMMIT");
+    return { success: true };
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
   }
-  return { success: true };
 }
 
 /**

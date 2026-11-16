@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Users,
   UserCheck,
@@ -7,10 +7,10 @@ import {
   Heart,
   Plus,
   Search,
-  Filter,
   RefreshCw,
-  Sparkles,
   X,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import {
   fetchPeople,
@@ -20,14 +20,17 @@ import {
   fetchPersonById,
 } from "../api/people.js";
 import { PERSON_CATEGORIES, TRUST_LEVEL_OPTIONS } from "../constants/people.js";
+import { DEBT_TYPES } from "../constants/debts.js";
 import { useExpenses } from "../context/ExpensesContext.jsx";
 import PersonCard from "../components/people/PersonCard.jsx";
 import PersonDetailModal from "../components/people/PersonDetailModal.jsx";
 import AddPersonModal from "../components/people/AddPersonModal.jsx";
 import EditPersonModal from "../components/people/EditPersonModal.jsx";
+import ConfirmModal from "../components/common/ConfirmModal.jsx";
 
 export default function PeoplePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { debts } = useExpenses();
   const [people, setPeople] = useState([]);
   const [stats, setStats] = useState({
@@ -38,6 +41,7 @@ export default function PeoplePage() {
   });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedTrustLevel, setSelectedTrustLevel] = useState("all");
@@ -48,73 +52,160 @@ export default function PeoplePage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
-  const loadData = useCallback(async () => {
+  const selectedPersonIdRef = useRef(null);
+  useEffect(() => {
+    selectedPersonIdRef.current = selectedPerson?.id || null;
+  }, [selectedPerson?.id]);
+
+  // Qidiruv matnini 250ms kechikish bilan serverga yuborish
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const statsData = await fetchPeopleStats();
+      if (statsData) setStats(statsData);
+    } catch (err) {
+      console.error("Statistikani yuklashda xatolik:", err);
+    }
+  }, []);
+
+  const loadPeopleList = useCallback(async () => {
     try {
       setLoading(true);
-      const [peopleData, statsData] = await Promise.all([
-        fetchPeople({
-          category: selectedCategory,
-          status: selectedStatus,
-          trustLevel: selectedTrustLevel,
-          search: search.trim(),
-          sort: sortBy,
-        }),
-        fetchPeopleStats(),
-      ]);
+      const peopleData = await fetchPeople({
+        category: selectedCategory,
+        status: selectedStatus,
+        trustLevel: selectedTrustLevel,
+        search: debouncedSearch,
+        sort: sortBy,
+      });
       setPeople(peopleData || []);
-      if (statsData) setStats(statsData);
-
-      // Agar detail modal ochiq bo'lsa, uni yangilaymiz
-      if (selectedPerson) {
-        const refreshed = await fetchPersonById(selectedPerson.id);
-        if (refreshed) setSelectedPerson(refreshed);
-      }
     } catch (err) {
       console.error("Odamlarni yuklashda xatolik:", err);
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedStatus, selectedTrustLevel, search, sortBy, selectedPerson?.id]);
+  }, [selectedCategory, selectedStatus, selectedTrustLevel, debouncedSearch, sortBy]);
 
-  // Har bir odam uchun faol qarzlar yig'indisini hisoblash
+  const refreshAll = useCallback(async () => {
+    await Promise.all([loadPeopleList(), loadStats()]);
+    const openId = selectedPersonIdRef.current;
+    if (openId) {
+      const refreshed = await fetchPersonById(openId);
+      if (refreshed) setSelectedPerson(refreshed);
+    }
+  }, [loadPeopleList, loadStats]);
+
+  useEffect(() => {
+    loadPeopleList();
+  }, [loadPeopleList]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // URL (?personId=...) orqali kelganda shaxs kartasini ochish
+  useEffect(() => {
+    const viewPersonId = searchParams.get("personId");
+    if (!viewPersonId) return;
+    fetchPersonById(viewPersonId)
+      .then((person) => {
+        if (person) {
+          setSelectedPerson(person);
+          setIsDetailOpen(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        const next = new URLSearchParams(searchParams);
+        next.delete("personId");
+        setSearchParams(next, { replace: true });
+      });
+  }, [searchParams, setSearchParams]);
+
+  // Har bir odam uchun faol qarzlar yig'indisini yo'nalishi bilan hisoblash
   const debtSummaryByPersonId = useMemo(() => {
     const map = new Map();
     if (!people.length || !debts?.length) return map;
+
+    const nameCountMap = new Map();
+    for (const p of people) {
+      const n1 = (p.nickname || "").trim().toLowerCase();
+      const n2 = (p.fullName || "").trim().toLowerCase();
+      if (n1) nameCountMap.set(n1, (nameCountMap.get(n1) || 0) + 1);
+      if (n2 && n2 !== n1) nameCountMap.set(n2, (nameCountMap.get(n2) || 0) + 1);
+    }
 
     for (const p of people) {
       const nick = (p.nickname || "").trim().toLowerCase();
       const full = (p.fullName || "").trim().toLowerCase();
       let activeCount = 0;
+      let givenCount = 0;
+      let takenCount = 0;
+      let givenUzs = 0;
+      let givenUsd = 0;
+      let takenUzs = 0;
+      let takenUsd = 0;
       let remainingUzs = 0;
       let remainingUsd = 0;
 
       for (const d of debts) {
         if (d.status === "settled" || d.status === "forgiven") continue;
-        const dName = (d.personName || "").trim().toLowerCase();
-        const isMatch =
-          (d.personId && d.personId === p.id) ||
-          (dName && (dName === nick || (full && dName === full)));
+        const dPersonId = d.personId || d.linkedPerson?.id || null;
+        let isMatch = false;
+        if (dPersonId) {
+          isMatch = dPersonId === p.id;
+        } else {
+          const dName = (d.personName || "").trim().toLowerCase();
+          if (dName && ((dName === nick && (nameCountMap.get(nick) || 0) === 1) || (full && dName === full && (nameCountMap.get(full) || 0) === 1))) {
+            isMatch = true;
+          }
+        }
         if (!isMatch) continue;
 
         const paid = (d.payments || []).reduce((acc, pm) => acc + Number(pm.amount || 0), 0);
         const rem = Math.max(0, Number(d.amount || 0) - paid);
         if (rem > 0) {
           activeCount += 1;
-          if (d.currency === "USD") remainingUsd += rem;
+          const isUsd = d.currency === "USD";
+          if (d.type === DEBT_TYPES.TAKEN) {
+            takenCount += 1;
+            if (isUsd) takenUsd += rem;
+            else takenUzs += rem;
+          } else {
+            givenCount += 1;
+            if (isUsd) givenUsd += rem;
+            else givenUzs += rem;
+          }
+          if (isUsd) remainingUsd += rem;
           else remainingUzs += rem;
         }
       }
       if (activeCount > 0) {
-        map.set(p.id, { activeCount, remainingUzs, remainingUsd });
+        map.set(p.id, {
+          activeCount,
+          givenCount,
+          takenCount,
+          givenUzs,
+          givenUsd,
+          takenUzs,
+          takenUsd,
+          remainingUzs,
+          remainingUsd,
+        });
       }
     }
     return map;
   }, [people, debts]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   const handleCardClick = async (person) => {
     try {
@@ -135,28 +226,39 @@ export default function PeoplePage() {
         crushStatus: isNowCrush ? "liked" : null,
         crushStartedOn: isNowCrush ? new Date().toISOString().slice(0, 10) : null,
       });
-      loadData();
+      refreshAll();
     } catch (err) {
-      alert("Crush holatini o'zgartirishda xatolik: " + err.message);
+      setFeedback({
+        type: "error",
+        message: "Yoqtirganlar holatini o'zgartirishda xatolik: " + err.message,
+      });
     }
   };
 
-  const handleDeletePerson = async (person) => {
-    if (
-      !window.confirm(
-        `"${person.nickname}" kartasini va unga tegishli barcha ma'lumotlarni o'chirishni tasdiqlaysizmi?`
-      )
-    ) {
-      return;
-    }
+  const handleRequestDeletePerson = (person) => {
+    setDeleteTarget(person);
+  };
 
+  const handleConfirmDeletePerson = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      await deletePerson(person.id);
+      await deletePerson(deleteTarget.id);
+      setFeedback({
+        type: "success",
+        message: `"${deleteTarget.nickname}" kartasi o'chirildi.`,
+      });
+      setDeleteTarget(null);
       setIsDetailOpen(false);
       setSelectedPerson(null);
-      loadData();
+      refreshAll();
     } catch (err) {
-      alert("O'chirishda xatolik: " + err.message);
+      setFeedback({
+        type: "error",
+        message: "O'chirishda xatolik: " + err.message,
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -184,7 +286,7 @@ export default function PeoplePage() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button
             type="button"
-            onClick={loadData}
+            onClick={refreshAll}
             className="people-btn-secondary"
             title="Yangilash"
             style={{ padding: "0.6rem 0.85rem" }}
@@ -203,6 +305,19 @@ export default function PeoplePage() {
         </div>
       </div>
 
+      {/* Amallar xabarnomasi */}
+      {feedback && (
+        <div className={`people-feedback-banner people-feedback-banner--${feedback.type}`}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {feedback.type === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+            <span>{feedback.message}</span>
+          </div>
+          <button type="button" onClick={() => setFeedback(null)} className="people-feedback-close">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Statistika kartalari (Frosted glass + blur, bosganda tezkor filtrlaydi) */}
       <div className="people-stats-grid">
         <div
@@ -210,6 +325,8 @@ export default function PeoplePage() {
           onClick={() => {
             setSelectedCategory("all");
             setSelectedStatus("all");
+            setSelectedTrustLevel("all");
+            setSearch("");
           }}
           style={{ cursor: "pointer" }}
           title="Barcha tanishlarni ko'rsatish"
@@ -405,7 +522,7 @@ export default function PeoplePage() {
           </div>
           <h3>Hech kim topilmadi</h3>
           <p>
-            {search || selectedCategory !== "all" || selectedStatus !== "all"
+            {search || selectedCategory !== "all" || selectedStatus !== "all" || selectedTrustLevel !== "all"
               ? "Qidiruv yoki filtrlash parametrlarini o'zgartirib ko'ring."
               : "Hozircha hech qanday tanish qo'shilmagan. Birinchi shaxs kartasini yarating!"}
           </p>
@@ -430,15 +547,15 @@ export default function PeoplePage() {
             setSelectedPerson(null);
           }}
           onEdit={handleEditPerson}
-          onDelete={handleDeletePerson}
-          onRefresh={loadData}
+          onDelete={handleRequestDeletePerson}
+          onRefresh={refreshAll}
         />
       )}
 
       {isAddOpen && (
         <AddPersonModal
           onClose={() => setIsAddOpen(false)}
-          onSuccess={loadData}
+          onSuccess={refreshAll}
         />
       )}
 
@@ -449,9 +566,25 @@ export default function PeoplePage() {
             setIsEditOpen(false);
             setSelectedPerson(null);
           }}
-          onSuccess={loadData}
+          onSuccess={refreshAll}
         />
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Shaxs kartasini o'chirish"
+        message={
+          deleteTarget
+            ? `"${deleteTarget.nickname}" kartasini va unga tegishli shaxsiy ma'lumotlarni o'chirishni tasdiqlaysizmi? Bog'langan qarz yozuvlari saqlanib qoladi.`
+            : ""
+        }
+        confirmLabel="Ha, o'chirish"
+        cancelLabel="Bekor qilish"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDeletePerson}
+        onCancel={() => !isDeleting && setDeleteTarget(null)}
+      />
     </div>
   );
 }

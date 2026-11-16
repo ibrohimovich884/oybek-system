@@ -18,6 +18,7 @@ import {
   Send,
   Link2,
   Unlink,
+  UserPlus,
 } from "lucide-react";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
 import {
@@ -27,9 +28,10 @@ import {
 } from "../../constants/debts.js";
 import {
   CATEGORY_LABELS,
+  TRUST_LEVELS,
   getTrustLevelInfo,
 } from "../../constants/people.js";
-import { readLocalPeople, fetchPeople } from "../../api/people.js";
+import { readLocalPeople, fetchPeople, createPerson } from "../../api/people.js";
 import {
   toLocalDatetimeInput,
   toLocalDateInput,
@@ -87,6 +89,10 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   );
   const [personalNote, setPersonalNote] = useState(debt?.personalNote || "");
   const [syncLinkedTransaction, setSyncLinkedTransaction] = useState(hasLinkedTxs);
+  const [saveToPeople, setSaveToPeople] = useState(false);
+  const [newPersonTrust, setNewPersonTrust] = useState("medium");
+  const [newPersonCategory, setNewPersonCategory] = useState("acquaintance");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef(null);
@@ -102,7 +108,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
   }, [isOpen]);
 
   useEffect(() => {
-    if (debt) {
+    if (debt && isOpen) {
       setPersonId(debt.personId || null);
       setType(debt.type || DEBT_TYPES.GIVEN);
       setPersonName(debt.personName || "");
@@ -124,10 +130,14 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
       setRepaymentProbability(debt.repaymentProbability || REPAYMENT_PROBABILITY.HIGH);
       setPersonalNote(debt.personalNote || "");
       setSyncLinkedTransaction(Boolean(debt.affectBalance) || linkedTxs.length > 0);
+      setSaveToPeople(false);
+      setNewPersonTrust("medium");
+      setNewPersonCategory("acquaintance");
+      setIsSubmitting(false);
       setError("");
       setShowSuggestions(false);
     }
-  }, [debt]);
+  }, [debt, isOpen]);
 
   useEffect(() => {
     if (!showSuggestions) return;
@@ -216,8 +226,9 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
     setIsDueDateUnknown(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError("");
 
     if (!personName.trim()) {
@@ -235,30 +246,66 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
       return;
     }
 
-    onUpdateDebt(
-      debt.id,
-      {
-        personId,
-        type,
-        personName: personName.trim(),
-        contact: contact.trim(),
-        instagram: cleanSocialHandle(instagram),
-        telegram: cleanSocialHandle(telegram),
-        amount: numAmount,
-        currency,
-        wallet,
-        date,
-        location: location.trim(),
-        reason: reason.trim(),
-        isDueDateUnknown,
-        dueDate: isDueDateUnknown ? null : dueDate,
-        repaymentProbability,
-        personalNote: personalNote.trim(),
-      },
-      { syncLinkedTransaction }
-    );
+    setIsSubmitting(true);
+    try {
+      let resolvedPersonId = personId;
+      let resolvedLinkedPerson = selectedPersonObj || null;
 
-    onClose();
+      if (!resolvedPersonId && saveToPeople) {
+        const createdPerson = await createPerson({
+          nickname: personName.trim(),
+          phone: contact.trim(),
+          instagram: cleanSocialHandle(instagram),
+          telegram: cleanSocialHandle(telegram),
+          metPlace: location.trim(),
+          trustLevel: newPersonTrust,
+          category: newPersonCategory,
+          status: "active",
+        });
+        if (createdPerson?.id) {
+          resolvedPersonId = createdPerson.id;
+          resolvedLinkedPerson = {
+            id: createdPerson.id,
+            nickname: createdPerson.nickname,
+            fullName: createdPerson.fullName || "",
+            trustLevel: createdPerson.trustLevel || newPersonTrust,
+            phone: createdPerson.phone || "",
+            telegram: createdPerson.telegram || "",
+            instagram: createdPerson.instagram || "",
+          };
+        }
+      }
+
+      await onUpdateDebt(
+        debt.id,
+        {
+          personId: resolvedPersonId,
+          linkedPerson: resolvedLinkedPerson,
+          type,
+          personName: personName.trim(),
+          contact: contact.trim(),
+          instagram: cleanSocialHandle(instagram),
+          telegram: cleanSocialHandle(telegram),
+          amount: numAmount,
+          currency,
+          wallet,
+          date,
+          location: location.trim(),
+          reason: reason.trim(),
+          isDueDateUnknown,
+          dueDate: isDueDateUnknown ? null : dueDate,
+          repaymentProbability,
+          personalNote: personalNote.trim(),
+        },
+        { syncLinkedTransaction }
+      );
+
+      onClose();
+    } catch (err) {
+      setError(err?.message || "Qarzni yangilashda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const labels = DEBT_TYPE_LABELS[type];
@@ -429,7 +476,7 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
             </div>
           </div>
 
-          {selectedPersonObj && (
+          {selectedPersonObj ? (
             <div className="debt-linked-person-banner">
               <div className="debt-linked-person-banner__left">
                 <Link2 size={14} color="var(--accent)" />
@@ -460,7 +507,58 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
                 <span>Uzish</span>
               </button>
             </div>
-          )}
+          ) : personName.trim() ? (
+            <div className="debt-quick-save-person-box">
+              <label className="debt-quick-save-person-toggle">
+                <input
+                  type="checkbox"
+                  checked={saveToPeople}
+                  onChange={(e) => setSaveToPeople(e.target.checked)}
+                  style={{ accentColor: "var(--accent)" }}
+                />
+                <UserPlus size={14} color="var(--accent)" />
+                <span>
+                  <strong>{personName.trim()}</strong>ni &ldquo;Odamlar&rdquo; roʻyxatiga saqlab bogʻlash
+                </span>
+              </label>
+
+              {saveToPeople && (
+                <div className="debt-quick-save-person-fields">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="field-label" style={{ fontSize: "0.72rem" }}>Ishonish darajasi</label>
+                    <select
+                      className="field-input"
+                      value={newPersonTrust}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewPersonTrust(val);
+                        const tInfo = getTrustLevelInfo(val);
+                        if (tInfo?.suggestedProbability) {
+                          setRepaymentProbability(tInfo.suggestedProbability);
+                        }
+                      }}
+                    >
+                      {TRUST_LEVELS.map((t) => (
+                        <option key={t.key} value={t.key}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="field-label" style={{ fontSize: "0.72rem" }}>Toifasi</label>
+                    <select
+                      className="field-input"
+                      value={newPersonCategory}
+                      onChange={(e) => setNewPersonCategory(e.target.value)}
+                    >
+                      {Object.entries(CATEGORY_LABELS).map(([k, lbl]) => (
+                        <option key={k} value={k}>{lbl}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* Instagram & Telegram */}
           <div className="form-row form-row--2col">
@@ -886,9 +984,10 @@ export default function EditDebtModal({ isOpen, onClose, debt, onUpdateDebt }) {
               <button
                 type="submit"
                 className="btn btn--primary debt-action-save"
+                disabled={isSubmitting}
               >
                 <CheckCircle2 size={16} />
-                <span>Oʻzgarishlarni saqlash</span>
+                <span>{isSubmitting ? "Saqlanmoqda..." : "Oʻzgarishlarni saqlash"}</span>
               </button>
             </div>
           </div>

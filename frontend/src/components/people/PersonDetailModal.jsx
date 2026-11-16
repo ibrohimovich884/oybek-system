@@ -1,26 +1,27 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
   Edit2,
   Trash2,
   Heart,
-  Calendar,
   MapPin,
   Compass,
   Phone,
-  Send,
   User,
   Sparkles,
   Smile,
   Plus,
   Clock,
   Save,
-  Check,
   ShieldCheck,
   HandCoins,
   ArrowUpRight,
   ArrowDownLeft,
+  CheckCircle2,
+  HeartHandshake,
+  AlertCircle,
+  PlusCircle,
 } from "lucide-react";
 
 function InstagramIcon({ size = 14, color = "currentColor" }) {
@@ -61,6 +62,9 @@ import {
   formatDollar,
 } from "../../utils/format.js";
 import { useExpenses } from "../../context/ExpensesContext.jsx";
+import ConfirmModal from "../common/ConfirmModal.jsx";
+import RepayDebtModal from "../debts/RepayDebtModal.jsx";
+import ForgiveDebtModal from "../debts/ForgiveDebtModal.jsx";
 
 export default function PersonDetailModal({
   person,
@@ -70,7 +74,7 @@ export default function PersonDetailModal({
   onRefresh,
 }) {
   const navigate = useNavigate();
-  const { debts } = useExpenses();
+  const { debts, repayDebt, forgiveDebt, settleDebt } = useExpenses();
   const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'debts' | 'profile' | 'appearances'
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -100,23 +104,54 @@ export default function PersonDetailModal({
   // Crush statusini tezkor yangilash
   const [isUpdatingCrush, setIsUpdatingCrush] = useState(false);
   const [isUpdatingTrust, setIsUpdatingTrust] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [deleteAppTarget, setDeleteAppTarget] = useState(null);
+  const [isDeletingApp, setIsDeletingApp] = useState(false);
+  const [repayTargetDebt, setRepayTargetDebt] = useState(null);
+  const [forgiveTargetDebt, setForgiveTargetDebt] = useState(null);
+
+  // Shaxs yangilanganda forma maydonlarini ham sinxronlash
+  useEffect(() => {
+    setProfileForm({
+      area: person.profile?.area || "",
+      interests: person.profile?.interests || "",
+      likes: person.profile?.likes || "",
+      dislikes: person.profile?.dislikes || "",
+      personality: person.profile?.personality || "",
+      howWeTalk: person.profile?.howWeTalk || "",
+      meaningToMe: person.profile?.meaningToMe || "",
+      myFeelings: person.profile?.myFeelings || "",
+    });
+    setAppForm((prev) => ({
+      ...prev,
+      heightCmEst: person.latestAppearance?.heightCmEst || "",
+      eyeColor: person.latestAppearance?.eyeColor || "",
+      hairColor: person.latestAppearance?.hairColor || "",
+    }));
+    setModalError("");
+  }, [person]);
 
   const trustInfo = getTrustLevelInfo(person.trustLevel);
 
-  // Ushbu shaxsga bog'langan barcha qarzlar (personId yoki ism mosligi orqali)
+  // Ushbu shaxsga bog'langan barcha qarzlar (personId qat'iy tekshiriladi, faqat bog'lanmaganlarda ism fallback)
   const personDebts = useMemo(() => {
     const nick = (person.nickname || "").trim().toLowerCase();
     const full = (person.fullName || "").trim().toLowerCase();
-    return (debts || []).filter((d) => {
-      if (d.personId && d.personId === person.id) return true;
-      const dName = (d.personName || "").trim().toLowerCase();
-      return Boolean(dName && (dName === nick || (full && dName === full)));
-    });
+    return (debts || [])
+      .filter((d) => {
+        const dPersonId = d.personId || d.linkedPerson?.id || null;
+        if (dPersonId) return dPersonId === person.id;
+        const dName = (d.personName || "").trim().toLowerCase();
+        return Boolean(dName && (dName === nick || (full && dName === full)));
+      })
+      .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
   }, [debts, person.id, person.nickname, person.fullName]);
 
   const debtTotals = useMemo(() => {
-    let remainingUzs = 0;
-    let remainingUsd = 0;
+    let givenUzs = 0;
+    let givenUsd = 0;
+    let takenUzs = 0;
+    let takenUsd = 0;
     let activeCount = 0;
     personDebts.forEach((d) => {
       if (d.status === "settled" || d.status === "forgiven") return;
@@ -124,20 +159,27 @@ export default function PersonDetailModal({
       const rem = Math.max(0, Number(d.amount || 0) - paid);
       if (rem > 0) {
         activeCount += 1;
-        if (d.currency === "USD") remainingUsd += rem;
-        else remainingUzs += rem;
+        const isUsd = d.currency === "USD";
+        if (d.type === DEBT_TYPES.TAKEN) {
+          if (isUsd) takenUsd += rem;
+          else takenUzs += rem;
+        } else {
+          if (isUsd) givenUsd += rem;
+          else givenUzs += rem;
+        }
       }
     });
-    return { remainingUzs, remainingUsd, activeCount };
+    return { givenUzs, givenUsd, takenUzs, takenUsd, activeCount };
   }, [personDebts]);
 
   const handleQuickTrustChange = async (newTrustLevel) => {
     setIsUpdatingTrust(true);
+    setModalError("");
     try {
       await updatePerson(person.id, { trustLevel: newTrustLevel });
       if (onRefresh) onRefresh();
     } catch (err) {
-      console.error("Ishonish darajasini yangilashda xatolik:", err);
+      setModalError("Ishonish darajasini yangilashda xatolik: " + err.message);
     } finally {
       setIsUpdatingTrust(false);
     }
@@ -151,12 +193,13 @@ export default function PersonDetailModal({
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setIsSavingProfile(true);
+    setModalError("");
     try {
       await updateProfile(person.id, profileForm);
       setIsEditingProfile(false);
       if (onRefresh) onRefresh();
     } catch (err) {
-      alert("Profilni saqlashda xatolik: " + err.message);
+      setModalError("Profilni saqlashda xatolik: " + err.message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -165,6 +208,7 @@ export default function PersonDetailModal({
   const handleAddAppearanceSubmit = async (e) => {
     e.preventDefault();
     setIsSavingApp(true);
+    setModalError("");
     try {
       await addAppearance(person.id, appForm);
       setShowAddAppearance(false);
@@ -178,24 +222,34 @@ export default function PersonDetailModal({
       });
       if (onRefresh) onRefresh();
     } catch (err) {
-      alert("Ko'rinish qaydini saqlashda xatolik: " + err.message);
+      setModalError("Ko'rinish qaydini saqlashda xatolik: " + err.message);
     } finally {
       setIsSavingApp(false);
     }
   };
 
-  const handleDeleteAppearance = async (appId) => {
-    if (!window.confirm("Ushbu ko'rinish yozuvini o'chirishni tasdiqlaysizmi?")) return;
+  const handleDeleteAppearance = (appId) => {
+    setDeleteAppTarget(appId);
+  };
+
+  const handleConfirmDeleteAppearance = async () => {
+    if (!deleteAppTarget) return;
+    setIsDeletingApp(true);
+    setModalError("");
     try {
-      await deleteAppearance(person.id, appId);
+      await deleteAppearance(person.id, deleteAppTarget);
+      setDeleteAppTarget(null);
       if (onRefresh) onRefresh();
     } catch (err) {
-      alert("O'chirishda xatolik: " + err.message);
+      setModalError("Ko'rinish qaydini o'chirishda xatolik: " + err.message);
+    } finally {
+      setIsDeletingApp(false);
     }
   };
 
   const handleCrushChange = async (newStatus) => {
     setIsUpdatingCrush(true);
+    setModalError("");
     try {
       await updateCrushStatus(person.id, {
         isCrush: true,
@@ -204,7 +258,7 @@ export default function PersonDetailModal({
       });
       if (onRefresh) onRefresh();
     } catch (err) {
-      alert("Crush statusini yangilashda xatolik: " + err.message);
+      setModalError("His-tuyg'u bosqichini yangilashda xatolik: " + err.message);
     } finally {
       setIsUpdatingCrush(false);
     }
@@ -212,6 +266,7 @@ export default function PersonDetailModal({
 
   const handleToggleCrush = async () => {
     setIsUpdatingCrush(true);
+    setModalError("");
     try {
       await updateCrushStatus(person.id, {
         isCrush: !person.isCrush,
@@ -220,7 +275,7 @@ export default function PersonDetailModal({
       });
       if (onRefresh) onRefresh();
     } catch (err) {
-      alert("Xatolik: " + err.message);
+      setModalError("Yoqtirganlar holatini o'zgartirishda xatolik: " + err.message);
     } finally {
       setIsUpdatingCrush(false);
     }
@@ -352,6 +407,17 @@ export default function PersonDetailModal({
 
         {/* Modal asosiy qismi */}
         <div className="people-modal-body">
+          {modalError && (
+            <div className="people-feedback-banner people-feedback-banner--error">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <AlertCircle size={15} />
+                <span>{modalError}</span>
+              </div>
+              <button type="button" onClick={() => setModalError("")} className="people-feedback-close">
+                <X size={13} />
+              </button>
+            </div>
+          )}
           {/* TAB 1: ASOSIY KARTA */}
           {activeTab === "overview" && (
             <>
@@ -607,18 +673,48 @@ export default function PersonDetailModal({
                   gap: "0.75rem",
                 }}
               >
-                <div>
-                  <span className="person-detail-label">Faol qarz qoldig'i</span>
-                  <div className="person-detail-val mono" style={{ fontSize: "1.15rem", color: debtTotals.activeCount > 0 ? "#f59e0b" : "#34d399", marginTop: "2px" }}>
-                    {debtTotals.remainingUzs > 0
-                      ? formatSum(debtTotals.remainingUzs)
-                      : debtTotals.remainingUsd > 0
-                      ? formatDollar(debtTotals.remainingUsd)
-                      : "0 so'm (Qarz yo'q)"}
-                    {debtTotals.remainingUzs > 0 && debtTotals.remainingUsd > 0 && (
-                      <span style={{ marginLeft: "8px", fontSize: "0.9rem" }}>+ {formatDollar(debtTotals.remainingUsd)}</span>
-                    )}
-                  </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "center" }}>
+                  {(() => {
+                    const hasGiven = debtTotals.givenUzs > 0 || debtTotals.givenUsd > 0;
+                    const hasTaken = debtTotals.takenUzs > 0 || debtTotals.takenUsd > 0;
+                    const fmtPair = (uzs, usd) => {
+                      if (uzs > 0 && usd > 0) return `${formatSum(uzs)} + ${formatDollar(usd)}`;
+                      if (uzs > 0) return formatSum(uzs);
+                      return formatDollar(usd);
+                    };
+
+                    if (!hasGiven && !hasTaken) {
+                      return (
+                        <div>
+                          <span className="person-detail-label">Faol qarz qoldig'i</span>
+                          <div className="person-detail-val mono" style={{ fontSize: "1.1rem", color: "#34d399", marginTop: "2px" }}>
+                            0 so'm (Qarz yo'q)
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <>
+                        {hasGiven && (
+                          <div>
+                            <span className="person-detail-label">Menga qaytishi kerak</span>
+                            <div className="person-detail-val mono" style={{ fontSize: "1.08rem", color: "#38bdf8", marginTop: "2px" }}>
+                              +{fmtPair(debtTotals.givenUzs, debtTotals.givenUsd)}
+                            </div>
+                          </div>
+                        )}
+                        {hasTaken && (
+                          <div>
+                            <span className="person-detail-label">Qaytarishim kerak</span>
+                            <div className="person-detail-val mono" style={{ fontSize: "1.08rem", color: "#f59e0b", marginTop: "2px" }}>
+                              -{fmtPair(debtTotals.takenUzs, debtTotals.takenUsd)}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <button
@@ -639,7 +735,8 @@ export default function PersonDetailModal({
                     const isUsd = debt.currency === "USD";
                     const fmt = isUsd ? formatDollar : formatSum;
                     const paid = (debt.payments || []).reduce((acc, p) => acc + Number(p.amount || 0), 0);
-                    const rem = debt.status === "settled" || debt.status === "forgiven" ? 0 : Math.max(0, Number(debt.amount || 0) - paid);
+                    const isClosed = debt.status === "settled" || debt.status === "forgiven";
+                    const rem = isClosed ? 0 : Math.max(0, Number(debt.amount || 0) - paid);
                     const statusCfg = DEBT_STATUS_LABELS[debt.status] || DEBT_STATUS_LABELS.pending;
                     const dueInfo = getDebtDueInfo(debt);
 
@@ -647,10 +744,10 @@ export default function PersonDetailModal({
                       <div
                         key={debt.id}
                         className="person-detail-section"
-                        style={{ padding: "0.9rem 1rem", gap: "0.45rem", cursor: "pointer" }}
+                        style={{ padding: "0.9rem 1rem", gap: "0.55rem", cursor: "pointer" }}
                         onClick={() => {
                           onClose();
-                          navigate(`/debts?personId=${encodeURIComponent(person.id)}`);
+                          navigate(`/debts?debtId=${encodeURIComponent(debt.id)}`);
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -687,6 +784,50 @@ export default function PersonDetailModal({
                           <span>• {dueInfo.text}</span>
                           {debt.reason && <span>• {debt.reason}</span>}
                         </div>
+
+                        {!isClosed && rem > 0 && (
+                          <div
+                            style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap", paddingTop: "0.25rem" }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              className="btn btn--xs btn--primary"
+                              onClick={() => setRepayTargetDebt(debt)}
+                            >
+                              <PlusCircle size={12} />
+                              <span>{isGiven ? "To'lov olish" : "To'lov qilish"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn--xs"
+                              style={{
+                                background: "rgba(168, 85, 247, 0.15)",
+                                color: "#c084fc",
+                                border: "1px solid rgba(168, 85, 247, 0.3)",
+                              }}
+                              onClick={() => setForgiveTargetDebt(debt)}
+                            >
+                              <HeartHandshake size={12} />
+                              <span>Voz kechish</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn--xs btn--ghost"
+                              onClick={() =>
+                                settleDebt(debt.id, {
+                                  amount: rem,
+                                  wallet: debt.wallet,
+                                  affectBalance: false,
+                                  note: "Odamlar kartasidan to'liq yopildi",
+                                })
+                              }
+                            >
+                              <CheckCircle2 size={12} />
+                              <span>Yopildi</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1155,6 +1296,32 @@ export default function PersonDetailModal({
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(deleteAppTarget)}
+        title="Ko'rinish yozuvini o'chirish"
+        message="Ushbu tashqi ko'rinish qaydini o'chirishni tasdiqlaysizmi?"
+        confirmLabel="Ha, o'chirish"
+        cancelLabel="Bekor qilish"
+        variant="danger"
+        isLoading={isDeletingApp}
+        onConfirm={handleConfirmDeleteAppearance}
+        onCancel={() => !isDeletingApp && setDeleteAppTarget(null)}
+      />
+
+      <RepayDebtModal
+        isOpen={Boolean(repayTargetDebt)}
+        onClose={() => setRepayTargetDebt(null)}
+        debt={repayTargetDebt}
+        onRepay={repayDebt}
+      />
+
+      <ForgiveDebtModal
+        isOpen={Boolean(forgiveTargetDebt)}
+        onClose={() => setForgiveTargetDebt(null)}
+        debt={forgiveTargetDebt}
+        onForgive={forgiveDebt}
+      />
     </div>
   );
 }

@@ -86,10 +86,9 @@ export default function PersonHistoryModal({
 
     return debts
       .filter((d) => {
-        if (effectivePersonId) {
-          if (d.personId === effectivePersonId || d.linkedPerson?.id === effectivePersonId) {
-            return true;
-          }
+        const dPersonId = d.personId || d.linkedPerson?.id || null;
+        if (dPersonId) {
+          return effectivePersonId ? dPersonId === effectivePersonId : false;
         }
         const dName = (d.personName || "").trim().toLowerCase();
         if (!dName) return false;
@@ -136,6 +135,10 @@ export default function PersonHistoryModal({
     let repaidUsd = 0;
     let forgivenUzs = 0;
     let forgivenUsd = 0;
+    let activeGivenUzs = 0;
+    let activeGivenUsd = 0;
+    let activeTakenUzs = 0;
+    let activeTakenUsd = 0;
     let activeRemainingUzs = 0;
     let activeRemainingUsd = 0;
 
@@ -182,6 +185,13 @@ export default function PersonHistoryModal({
       const remaining = isSettled || isForgiven ? 0 : Math.max(0, total - debtPaid - debtForgiven);
       if (remaining > 0) {
         pendingCount += 1;
+        if (isGiven) {
+          if (isUsd) activeGivenUsd += remaining;
+          else activeGivenUzs += remaining;
+        } else {
+          if (isUsd) activeTakenUsd += remaining;
+          else activeTakenUzs += remaining;
+        }
         if (isUsd) activeRemainingUsd += remaining;
         else activeRemainingUzs += remaining;
 
@@ -194,6 +204,9 @@ export default function PersonHistoryModal({
       }
     });
 
+    const netActiveUzs = activeGivenUzs - activeTakenUzs;
+    const netActiveUsd = activeGivenUsd - activeTakenUsd;
+
     return {
       totalDebtsCount: personDebts.length,
       givenUzs,
@@ -204,6 +217,12 @@ export default function PersonHistoryModal({
       repaidUsd,
       forgivenUzs,
       forgivenUsd,
+      activeGivenUzs,
+      activeGivenUsd,
+      activeTakenUzs,
+      activeTakenUsd,
+      netActiveUzs,
+      netActiveUsd,
       activeRemainingUzs,
       activeRemainingUsd,
       pendingCount,
@@ -364,53 +383,110 @@ export default function PersonHistoryModal({
         <div className="modal-body person-history-body">
           {/* 1. Umumiy Konsolidatsiyalangan Hisob-Kitob (KPI Kartalar) */}
           <div className="person-history-stats-grid">
-            {/* Hozirgi qarz qoldig'i (Eng muhimi!) */}
-            <div
-              className={`person-kpi-card ${
-                stats.activeRemainingUzs > 0 || stats.activeRemainingUsd > 0
-                  ? "person-kpi-card--active-debt"
-                  : "person-kpi-card--settled"
-              }`}
-            >
-              <span className="person-kpi-card__lbl">Hozirgi qarz qoldig'i</span>
-              <div className="person-kpi-card__val mono">
-                {stats.activeRemainingUzs > 0 || stats.activeRemainingUsd > 0
-                  ? formatSum(stats.activeRemainingUzs)
-                  : "0 UZS (To'liq yopilgan)"}
-              </div>
-              {stats.activeRemainingUsd > 0 && (
-                <div className="person-kpi-card__sub mono">
-                  + {formatDollar(stats.activeRemainingUsd)}
+            {/* Hozirgi qarz qoldig'i (Yo'nalishga ajratilgan!) */}
+            {(() => {
+              const hasActiveGiven = stats.activeGivenUzs > 0 || stats.activeGivenUsd > 0;
+              const hasActiveTaken = stats.activeTakenUzs > 0 || stats.activeTakenUsd > 0;
+              const hasAnyActive = hasActiveGiven || hasActiveTaken;
+              const onlyTaken = hasActiveTaken && !hasActiveGiven;
+              const mixed = hasActiveGiven && hasActiveTaken;
+              const primaryUzs = onlyTaken ? stats.activeTakenUzs : stats.netActiveUzs;
+              const primaryUsd = onlyTaken ? stats.activeTakenUsd : stats.netActiveUsd;
+
+              const formatMix = (uzsVal, usdVal) => {
+                const absUzs = Math.abs(uzsVal);
+                const absUsd = Math.abs(usdVal);
+                if (absUzs > 0) return `${uzsVal < 0 ? "-" : ""}${formatSum(absUzs)}`;
+                if (absUsd > 0) return `${usdVal < 0 ? "-" : ""}${formatDollar(absUsd)}`;
+                return "0 UZS (To'liq yopilgan)";
+              };
+
+              return (
+                <div
+                  className={`person-kpi-card ${
+                    hasAnyActive
+                      ? "person-kpi-card--active-debt"
+                      : "person-kpi-card--settled"
+                  }`}
+                >
+                  <span className="person-kpi-card__lbl">
+                    {mixed
+                      ? "Sof faol qarz balansi"
+                      : onlyTaken
+                      ? "Qaytarishim kerak"
+                      : hasActiveGiven
+                      ? "Menga qaytishi kerak"
+                      : "Hozirgi qarz qoldig'i"}
+                  </span>
+                  <div
+                    className="person-kpi-card__val mono"
+                    style={onlyTaken ? { color: "var(--expense)" } : undefined}
+                  >
+                    {hasAnyActive
+                      ? mixed
+                        ? formatMix(primaryUzs, primaryUsd)
+                        : primaryUzs > 0
+                        ? formatSum(primaryUzs)
+                        : formatDollar(primaryUsd)
+                      : "0 UZS (To'liq yopilgan)"}
+                  </div>
+                  {hasAnyActive && Math.abs(primaryUzs) > 0 && Math.abs(primaryUsd) > 0 && (
+                    <div className="person-kpi-card__sub mono">
+                      {primaryUsd > 0 ? "+ " : "- "}
+                      {formatDollar(Math.abs(primaryUsd))}
+                    </div>
+                  )}
+                  <span className="person-kpi-card__hint">
+                    {mixed
+                      ? `Bergan: ${stats.activeGivenUzs > 0 ? formatSum(stats.activeGivenUzs) : formatDollar(stats.activeGivenUsd)} • Olgan: ${stats.activeTakenUzs > 0 ? formatSum(stats.activeTakenUzs) : formatDollar(stats.activeTakenUsd)}`
+                      : stats.pendingCount > 0
+                      ? `${stats.pendingCount} ta qarz yopilishi kutilmoqda`
+                      : "Ushbu shaxs bilan qarzlar nol bo'lgan"}
+                  </span>
                 </div>
+              );
+            })()}
+
+            {/* Jami berilgan / olingan */}
+            <div className="person-kpi-card">
+              <span className="person-kpi-card__lbl">
+                {stats.givenUzs === 0 && stats.givenUsd === 0 && (stats.takenUzs > 0 || stats.takenUsd > 0)
+                  ? "Jami olingan qarz"
+                  : "Jami berilgan qarz"}
+              </span>
+              {stats.givenUzs === 0 && stats.givenUsd === 0 && (stats.takenUzs > 0 || stats.takenUsd > 0) ? (
+                <>
+                  <div className="person-kpi-card__val mono" style={{ color: "var(--expense)" }}>
+                    {stats.takenUzs > 0 ? formatSum(stats.takenUzs) : formatDollar(stats.takenUsd)}
+                  </div>
+                  {stats.takenUzs > 0 && stats.takenUsd > 0 && (
+                    <div className="person-kpi-card__sub mono">+ {formatDollar(stats.takenUsd)}</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="person-kpi-card__val mono" style={{ color: "var(--accent)" }}>
+                    {stats.givenUzs > 0 || stats.givenUsd === 0 ? formatSum(stats.givenUzs) : formatDollar(stats.givenUsd)}
+                  </div>
+                  {stats.givenUzs > 0 && stats.givenUsd > 0 && (
+                    <div className="person-kpi-card__sub mono">+ {formatDollar(stats.givenUsd)}</div>
+                  )}
+                </>
               )}
               <span className="person-kpi-card__hint">
-                {stats.pendingCount > 0
-                  ? `${stats.pendingCount} ta qarz yopilishi kutilmoqda`
-                  : "Ushbu shaxs bilan qarzlar nol bo'lgan"}
+                {(stats.givenUzs > 0 || stats.givenUsd > 0) && (stats.takenUzs > 0 || stats.takenUsd > 0)
+                  ? `Olingan: ${stats.takenUzs > 0 ? formatSum(stats.takenUzs) : formatDollar(stats.takenUsd)}`
+                  : "Barcha vaqtlar davomida"}
               </span>
-            </div>
-
-            {/* Jami berilgan */}
-            <div className="person-kpi-card">
-              <span className="person-kpi-card__lbl">Jami berilgan qarz</span>
-              <div className="person-kpi-card__val mono" style={{ color: "var(--accent)" }}>
-                {formatSum(stats.givenUzs)}
-              </div>
-              {stats.givenUsd > 0 && (
-                <div className="person-kpi-card__sub mono">
-                  + {formatDollar(stats.givenUsd)}
-                </div>
-              )}
-              <span className="person-kpi-card__hint">Barcha vaqtlar davomida</span>
             </div>
 
             {/* Jami qaytargan */}
             <div className="person-kpi-card">
               <span className="person-kpi-card__lbl">Qaytarilgan to'lovlar</span>
               <div className="person-kpi-card__val mono" style={{ color: "var(--income)" }}>
-                {formatSum(stats.repaidUzs)}
+                {stats.repaidUzs > 0 || stats.repaidUsd === 0 ? formatSum(stats.repaidUzs) : formatDollar(stats.repaidUsd)}
               </div>
-              {stats.repaidUsd > 0 && (
+              {stats.repaidUzs > 0 && stats.repaidUsd > 0 && (
                 <div className="person-kpi-card__sub mono">
                   + {formatDollar(stats.repaidUsd)}
                 </div>
@@ -424,9 +500,9 @@ export default function PersonHistoryModal({
                 Voz kechilgan (Kechilgan)
               </span>
               <div className="person-kpi-card__val mono" style={{ color: "#c084fc" }}>
-                {formatSum(stats.forgivenUzs)}
+                {stats.forgivenUzs > 0 || stats.forgivenUsd === 0 ? formatSum(stats.forgivenUzs) : formatDollar(stats.forgivenUsd)}
               </div>
-              {stats.forgivenUsd > 0 && (
+              {stats.forgivenUzs > 0 && stats.forgivenUsd > 0 && (
                 <div className="person-kpi-card__sub mono">
                   + {formatDollar(stats.forgivenUsd)}
                 </div>
@@ -614,7 +690,7 @@ export default function PersonHistoryModal({
                             }}
                           >
                             <PlusCircle size={12} />
-                            <span>To'lov olish</span>
+                            <span>{isGiven ? "To'lov olish" : "To'lov qilish"}</span>
                           </button>
 
                           <button

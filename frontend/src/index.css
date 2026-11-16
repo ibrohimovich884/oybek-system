@@ -6583,6 +6583,61 @@ textarea.field-input {
   background: rgba(239, 68, 68, 0.1);
 }
 
+/* Modal ichida yangi odamni "Odamlar" ro'yxatiga saqlash va bog'lash bloki */
+.debt-quick-save-person-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px dashed rgba(78, 184, 150, 0.35);
+  margin-bottom: 12px;
+}
+
+.debt-quick-save-person-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.35;
+  user-select: none;
+}
+
+.debt-quick-save-person-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Eski bog'lanmagan qarzlarni Odamlar bilan bir tugmada bog'lash banneri */
+.debt-autolink-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: rgba(78, 184, 150, 0.09);
+  border: 1px solid rgba(78, 184, 150, 0.32);
+  flex-wrap: wrap;
+}
+
+.debt-autolink-banner__text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.35;
+  flex: 1;
+  min-width: 200px;
+}
+
 /* Qidiruv natijalaridagi shaxslar qatori (Match highlight) */
 .debts-search-match-section {
   background: var(--surface);
@@ -6816,6 +6871,10 @@ textarea.field-input {
   color: var(--income);
 }
 
+.person-ledger-card__bal-val--taken {
+  color: var(--expense);
+}
+
 .person-ledger-card__bal-val--zero {
   color: var(--text-muted);
 }
@@ -6823,6 +6882,13 @@ textarea.field-input {
 .person-ledger-card__bal-sub {
   font-size: 0.8rem;
   color: var(--warning);
+}
+
+.person-ledger-card__bal-mix {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+  font-family: var(--font-mono);
 }
 
 .person-ledger-card__badges {
@@ -7640,6 +7706,21 @@ textarea.field-input {
   .debts-search-input {
     font-size: 14px !important;
     height: 36px !important;
+  }
+
+  .debt-quick-save-person-fields {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .debt-autolink-banner {
+    padding: 8px 10px !important;
+    gap: 8px !important;
+  }
+
+  .debt-autolink-banner__text {
+    font-size: 0.75rem !important;
+    min-width: 0 !important;
   }
 
   /* 4. Topilgan shaxslar (Dossier Match Box) */

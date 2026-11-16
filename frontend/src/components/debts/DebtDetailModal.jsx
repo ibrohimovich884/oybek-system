@@ -30,6 +30,7 @@ import {
   DEBT_TYPES,
   DEBT_TYPE_LABELS,
   DEBT_STATUS_LABELS,
+  getDebtDueInfo,
   getRepaymentProbabilityInfo,
 } from "../../constants/debts.js";
 import { getTrustLevelInfo } from "../../constants/people.js";
@@ -66,23 +67,17 @@ export default function DebtDetailModal({
   const percentPaid =
     totalAmount > 0 ? Math.min(100, Math.round(((paidAmount + forgivenAmount) / totalAmount) * 100)) : 0;
 
-  // Qaytish muddati tekshiruvi
+  // Qaytish muddati tekshiruvi (DebtCard va DebtsPage bilan bir xil lokal kun hisobi)
+  const dueInfo = getDebtDueInfo(debt);
   let dueDateText = "Muddatsiz (belgilanmagan)";
-  let isOverdue = false;
-  let daysLeft = null;
+  const isOverdue = dueInfo.isOverdue;
+  const daysLeft = dueInfo.daysLeft;
   if (!debt.isDueDateUnknown && debt.dueDate) {
-    const due = new Date(debt.dueDate);
-    const now = new Date();
-    dueDateText = due.toLocaleDateString("uz-UZ", {
+    dueDateText = new Date(debt.dueDate).toLocaleDateString("uz-UZ", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-    const diffTime = due.getTime() - now.getTime();
-    daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (!isSettled && daysLeft < 0) {
-      isOverdue = true;
-    }
   }
 
   const createdDateText = debt.date || debt.createdAt
@@ -541,21 +536,32 @@ export default function DebtDetailModal({
             {payments.length > 0 ? (
               <div className="debt-detail-payments-list">
                 {payments.map((p, idx) => (
-                  <div key={p.id || idx} className="debt-detail-payment-item">
+                  <div
+                    key={p.id || idx}
+                    className="debt-detail-payment-item"
+                    style={p.isForgiven ? { borderColor: "rgba(168, 85, 247, 0.35)", background: "rgba(168, 85, 247, 0.08)" } : undefined}
+                  >
                     <div className="debt-detail-payment-left">
                       <div className="debt-detail-payment-date">
                         <span>
-                          {new Date(p.date).toLocaleDateString("uz-UZ", {
+                          {new Date(p.date || p.paidAt).toLocaleDateString("uz-UZ", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
                           })}
                         </span>
-                        {p.wallet && (
+                        {p.isForgiven ? (
+                          <span
+                            className="debt-detail-payment-wallet"
+                            style={{ color: "#c084fc", fontWeight: 700 }}
+                          >
+                            (Voz kechilgan)
+                          </span>
+                        ) : p.wallet ? (
                           <span className="debt-detail-payment-wallet">
                             ({WALLET_CONFIG[p.wallet]?.shortLabel || p.wallet})
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       {p.note && (
                         <span className="debt-detail-payment-note">
@@ -564,8 +570,11 @@ export default function DebtDetailModal({
                       )}
                     </div>
 
-                    <span className="debt-detail-payment-amount mono">
-                      +{formatFn(p.amount)}
+                    <span
+                      className="debt-detail-payment-amount mono"
+                      style={p.isForgiven ? { color: "#c084fc" } : undefined}
+                    >
+                      {p.isForgiven ? formatFn(p.amount) : `+${formatFn(p.amount)}`}
                     </span>
                   </div>
                 ))}

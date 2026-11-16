@@ -103,6 +103,9 @@ export const EXPECTED = {
     user_id: "text",
     amount: "numeric",
     note: "text",
+    wallet: "text",
+    affect_balance: "boolean",
+    is_forgiven: "boolean",
     paid_at: "timestamp with time zone",
   },
   cbu_rate_log: {
@@ -242,6 +245,8 @@ const DEFAULTS = {
   "debts.repayment_probability": "'high'",
   "debts.created_at": "now()",
   "debts.updated_at": "now()",
+  "debt_payments.affect_balance": "false",
+  "debt_payments.is_forgiven": "false",
   "debt_payments.paid_at": "now()",
   "cbu_rate_log.recorded_at": "now()",
   "exercise_logs.completed": "true",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   HeartHandshake,
@@ -19,6 +19,13 @@ export default function ForgiveDebtModal({
 }) {
   const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setNote("");
+      setIsSubmitting(false);
+    }
+  }, [isOpen, debt?.id]);
 
   if (!isOpen || !debt) return null;
 

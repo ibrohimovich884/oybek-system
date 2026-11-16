@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, DollarSign, Wallet, Calendar, FileText, CheckCircle2 } from "lucide-react";
 import {
   formatSum,
@@ -9,22 +9,35 @@ import {
 import { DEBT_TYPES } from "../../constants/debts.js";
 
 export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
-  if (!isOpen || !debt) return null;
-
-  const totalPaid = (debt.payments || []).reduce(
+  const totalPaid = (debt?.payments || []).reduce(
     (sum, p) => sum + Number(p.amount || 0),
     0
   );
-  const remaining = Math.max(0, Number(debt.amount || 0) - totalPaid);
-  const isUsd = debt.currency === "USD";
+  const remaining = Math.max(0, Number(debt?.amount || 0) - totalPaid);
+  const isUsd = debt?.currency === "USD";
   const formatFn = isUsd ? formatDollar : formatSum;
 
   const [amount, setAmount] = useState(remaining);
-  const [wallet, setWallet] = useState(debt.wallet || (isUsd ? "dollar" : "hamyon"));
+  const [wallet, setWallet] = useState(debt?.wallet || (isUsd ? "dollar" : "hamyon"));
   const [affectBalance, setAffectBalance] = useState(false);
   const [date, setDate] = useState(() => toLocalDatetimeInput(new Date()));
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen || !debt) return;
+    const paid = (debt.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const rem = Math.max(0, Number(debt.amount || 0) - paid);
+    const usd = debt.currency === "USD";
+    setAmount(rem);
+    setWallet(debt.wallet || (usd ? "dollar" : "hamyon"));
+    setAffectBalance(false);
+    setDate(toLocalDatetimeInput(new Date()));
+    setNote("");
+    setError("");
+  }, [isOpen, debt]);
+
+  if (!isOpen || !debt) return null;
 
   const isGiven = debt.type === DEBT_TYPES.GIVEN;
 
@@ -89,7 +102,7 @@ export default function RepayDebtModal({ isOpen, onClose, debt, onRepay }) {
                 <button
                   type="button"
                   className="quick-chip-btn"
-                  onClick={() => setAmount(Math.round(remaining / 2))}
+                  onClick={() => setAmount(isUsd ? Number((remaining / 2).toFixed(2)) : Math.round(remaining / 2))}
                 >
                   50%
                 </button>

@@ -55,9 +55,17 @@ export async function getDebts() {
           serverPayments.forEach((p) => payMap.set(p.id, p));
           localPayments.forEach((p) => payMap.set(p.id, p));
 
+          const resolvedStatus =
+            localD.status === "forgiven" || serverD.status === "forgiven"
+              ? "forgiven"
+              : localD.status === "settled" || serverD.status === "settled"
+              ? "settled"
+              : localD.status || serverD.status;
+
           debtMap.set(localD.id, {
             ...serverD,
             ...localD,
+            status: resolvedStatus,
             payments: Array.from(payMap.values()),
             synced: false,
           });
@@ -211,7 +219,9 @@ export async function recordDebtPayment(id, paymentData) {
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
   let status = "partial";
-  if (totalPaid >= debt.amount || paymentData.status === "settled" || paymentData.markSettled) {
+  if (paymentData.status === "forgiven" || debt.status === "forgiven") {
+    status = "forgiven";
+  } else if (totalPaid >= debt.amount || paymentData.status === "settled" || paymentData.markSettled) {
     status = "settled";
   } else if (totalPaid <= 0) {
     status = "pending";

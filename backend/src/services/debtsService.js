@@ -2,6 +2,10 @@ import { pool } from "../../db/pool.js";
 import { cleanWalletKey } from "./walletsService.js";
 import { deleteExpense } from "./expensesService.js";
 
+function isLegacyForgivenNote(note) {
+  return /voz kech|kechib yubor/i.test(String(note || ""));
+}
+
 function mapDebtRow(row, payments = []) {
   return {
     id: row.id,
@@ -9,15 +13,15 @@ function mapDebtRow(row, payments = []) {
     type: row.type, // 'taken' | 'given'
     personName: row.person_name,
     contact: row.contact,
-    instagram: row.instagram || row.linked_instagram || "",
-    telegram: row.telegram || row.linked_telegram || "",
+    instagram: row.instagram ?? row.linked_instagram ?? "",
+    telegram: row.telegram ?? row.linked_telegram ?? "",
     amount: Number(row.amount),
     currency: row.currency,
     reason: row.reason,
     location: row.location,
     personalNote: row.personal_note,
     wallet: cleanWalletKey(row.wallet),
-    status: row.status, // 'pending' | 'partial' | 'settled'
+    status: row.status, // 'pending' | 'partial' | 'settled' | 'forgiven'
     dueDate: row.due_date,
     isDueDateUnknown: Boolean(row.is_due_date_unknown),
     affectBalance: Boolean(row.affect_balance),
@@ -43,6 +47,11 @@ function mapDebtRow(row, payments = []) {
       debtId: p.debt_id,
       amount: Number(p.amount),
       note: p.note,
+      wallet: cleanWalletKey(p.wallet || row.wallet),
+      affectBalance: Boolean(p.affect_balance),
+      isForgiven: Boolean(
+        p.is_forgiven || (row.status === "forgiven" && isLegacyForgivenNote(p.note))
+      ),
       date: p.paid_at,
       paidAt: p.paid_at,
     })),
@@ -58,19 +67,29 @@ const DEBT_SELECT_WITH_PERSON = `
          p.telegram AS linked_telegram,
          p.instagram AS linked_instagram
     FROM debts d
-    LEFT JOIN people p ON d.person_id = p.id
+    LEFT JOIN people p ON d.person_id = p.id AND (p.user_id = d.user_id OR d.user_id IS NULL)
 `;
+
+async function resolveOwnedPersonId(personId, userId) {
+  if (!personId) return null;
+  if (!userId) return personId;
+  const { rows } = await pool.query(
+    "SELECT id FROM people WHERE id = $1 AND user_id = $2 LIMIT 1",
+    [personId, userId]
+  );
+  return rows.length > 0 ? rows[0].id : null;
+}
 
 export async function getAllDebts(userId) {
   const debtQuery = userId
-    ? `${DEBT_SELECT_WITH_PERSON} WHERE d.user_id = $1 OR d.user_id IS NULL ORDER BY d.created_at DESC`
+    ? `${DEBT_SELECT_WITH_PERSON} WHERE d.user_id = $1 ORDER BY d.created_at DESC`
     : `${DEBT_SELECT_WITH_PERSON} ORDER BY d.created_at DESC`;
   const debtParams = userId ? [userId] : [];
 
   const paymentQuery = userId
-    ? `SELECT dp.* FROM debt_payments dp 
-       JOIN debts d ON dp.debt_id = d.id 
-       WHERE (d.user_id = $1 OR d.user_id IS NULL) 
+    ? `SELECT dp.* FROM debt_payments dp
+       JOIN debts d ON dp.debt_id = d.id
+       WHERE d.user_id = $1
        ORDER BY dp.paid_at DESC`
     : "SELECT * FROM debt_payments ORDER BY paid_at DESC";
   const paymentParams = userId ? [userId] : [];
@@ -93,7 +112,7 @@ export async function getAllDebts(userId) {
 
 export async function getDebtById(id, userId) {
   const query = userId
-    ? `${DEBT_SELECT_WITH_PERSON} WHERE d.id = $1 AND (d.user_id = $2 OR d.user_id IS NULL)`
+    ? `${DEBT_SELECT_WITH_PERSON} WHERE d.id = $1 AND d.user_id = $2`
     : `${DEBT_SELECT_WITH_PERSON} WHERE d.id = $1`;
   const params = userId ? [id, userId] : [id];
 
@@ -134,6 +153,14 @@ export async function createDebt(payload, userId) {
     payments = [],
   } = payload;
 
+  if (userId) {
+    const existingOwner = await pool.query("SELECT user_id FROM debts WHERE id = $1 LIMIT 1", [id]);
+    if (existingOwner.rows.length > 0 && existingOwner.rows[0].user_id && existingOwner.rows[0].user_id !== userId) {
+      throw new Error("Ushbu qarz yozuviga ruxsat berilmagan");
+    }
+  }
+
+  const verifiedPersonId = await resolveOwnedPersonId(personId, userId);
   const resolvedWallet = cleanWalletKey(wallet);
   const cleanInstagram = String(instagram || "").trim().replace(/^@/, "");
   const cleanTelegram = String(telegram || "").trim().replace(/^@/, "");
@@ -146,6 +173,7 @@ export async function createDebt(payload, userId) {
      ON CONFLICT (id) DO UPDATE SET
        user_id = COALESCE(EXCLUDED.user_id, debts.user_id),
        person_id = EXCLUDED.person_id,
+       type = EXCLUDED.type,
        person_name = EXCLUDED.person_name,
        contact = EXCLUDED.contact,
        instagram = EXCLUDED.instagram,
@@ -161,13 +189,14 @@ export async function createDebt(payload, userId) {
        is_due_date_unknown = EXCLUDED.is_due_date_unknown,
        affect_balance = EXCLUDED.affect_balance,
        synced = EXCLUDED.synced,
+       debt_date = COALESCE(EXCLUDED.debt_date, debts.debt_date),
        repayment_probability = COALESCE(EXCLUDED.repayment_probability, debts.repayment_probability),
        updated_at = now()
      RETURNING *`,
     [
       id,
       userId || null,
-      personId || null,
+      verifiedPersonId,
       type,
       personName || "Noma'lum shaxs",
       contact,
@@ -194,11 +223,28 @@ export async function createDebt(payload, userId) {
     for (const p of payments) {
       if (p && p.amount) {
         const payId = p.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const payWallet = p.wallet ? cleanWalletKey(p.wallet) : null;
         await pool.query(
-          `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
-           VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
-           ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at`,
-          [payId, id, userId || null, Number(p.amount), p.note || "", p.paidAt || p.date || null]
+          `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, wallet, affect_balance, is_forgiven, paid_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, now()))
+           ON CONFLICT (id) DO UPDATE SET
+             amount = EXCLUDED.amount,
+             note = EXCLUDED.note,
+             wallet = COALESCE(EXCLUDED.wallet, debt_payments.wallet),
+             affect_balance = EXCLUDED.affect_balance,
+             is_forgiven = EXCLUDED.is_forgiven,
+             paid_at = EXCLUDED.paid_at`,
+          [
+            payId,
+            id,
+            userId || null,
+            Number(p.amount),
+            p.note || "",
+            payWallet,
+            Boolean(p.affectBalance),
+            Boolean(p.isForgiven),
+            p.paidAt || p.date || null,
+          ]
         ).catch(() => {});
       }
     }
@@ -215,7 +261,8 @@ export async function updateDebt(id, updates, userId) {
 
   const resolvedWallet = updates.wallet ? cleanWalletKey(updates.wallet) : current.wallet;
   const newStatus = updates.status !== undefined ? updates.status : current.status;
-  const nextPersonId = updates.personId !== undefined ? (updates.personId || null) : (current.personId || null);
+  const rawPersonId = updates.personId !== undefined ? (updates.personId || null) : (current.personId || null);
+  const nextPersonId = await resolveOwnedPersonId(rawPersonId, userId);
   const nextInstagram = updates.instagram !== undefined
     ? String(updates.instagram || "").trim().replace(/^@/, "")
     : (current.instagram || "");
@@ -223,6 +270,7 @@ export async function updateDebt(id, updates, userId) {
     ? String(updates.telegram || "").trim().replace(/^@/, "")
     : (current.telegram || "");
 
+  const updateWhere = userId ? "WHERE id = $20 AND user_id = $19" : "WHERE id = $20";
   const { rows } = await pool.query(
     `UPDATE debts SET
       type = COALESCE($1, type),
@@ -243,9 +291,8 @@ export async function updateDebt(id, updates, userId) {
       person_id = $16,
       instagram = $17,
       telegram = $18,
-      user_id = COALESCE($19, user_id),
       updated_at = now()
-     WHERE id = $20 AND (user_id = $19 OR user_id IS NULL)
+     ${updateWhere}
      RETURNING *`,
     [
       updates.type ?? null,
@@ -271,20 +318,36 @@ export async function updateDebt(id, updates, userId) {
     ]
   );
 
-  let updatedRow = rows[0];
-  if (!updatedRow) {
-    return await createDebt({ id, ...updates }, userId);
+  if (!rows[0]) {
+    throw new Error("Qarz topilmadi yoki ruxsat berilmagan");
   }
 
   if (Array.isArray(updates.payments)) {
     for (const p of updates.payments) {
       if (p && p.amount) {
         const payId = p.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const payWallet = p.wallet ? cleanWalletKey(p.wallet) : null;
         await pool.query(
-          `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
-           VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
-           ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at`,
-          [payId, id, userId || null, Number(p.amount), p.note || "", p.paidAt || p.date || null]
+          `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, wallet, affect_balance, is_forgiven, paid_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, now()))
+           ON CONFLICT (id) DO UPDATE SET
+             amount = EXCLUDED.amount,
+             note = EXCLUDED.note,
+             wallet = COALESCE(EXCLUDED.wallet, debt_payments.wallet),
+             affect_balance = EXCLUDED.affect_balance,
+             is_forgiven = EXCLUDED.is_forgiven,
+             paid_at = EXCLUDED.paid_at`,
+          [
+            payId,
+            id,
+            userId || null,
+            Number(p.amount),
+            p.note || "",
+            payWallet,
+            Boolean(p.affectBalance),
+            Boolean(p.isForgiven),
+            p.paidAt || p.date || null,
+          ]
         ).catch(() => {});
       }
     }
@@ -314,34 +377,62 @@ export async function addDebtPayment(debtId, payment, userId) {
 
   let paymentRow = null;
   const paymentAmount = Number(payment.amount || 0);
+  const payWallet = payment.wallet ? cleanWalletKey(payment.wallet) : cleanWalletKey(debt?.wallet);
+  const isForgivenPayment = Boolean(payment.isForgiven);
 
   if (paymentAmount > 0) {
     const paymentId = payment.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const { rows } = await pool.query(
-      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
-       VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
-       ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at
+      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, wallet, affect_balance, is_forgiven, paid_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, now()))
+       ON CONFLICT (id) DO UPDATE SET
+         amount = EXCLUDED.amount,
+         note = EXCLUDED.note,
+         wallet = COALESCE(EXCLUDED.wallet, debt_payments.wallet),
+         affect_balance = EXCLUDED.affect_balance,
+         is_forgiven = EXCLUDED.is_forgiven,
+         paid_at = EXCLUDED.paid_at
        RETURNING *`,
-      [paymentId, debtId, userId || null, paymentAmount, payment.note || "", payment.paidAt || payment.date || null]
+      [
+        paymentId,
+        debtId,
+        userId || null,
+        paymentAmount,
+        payment.note || "",
+        payWallet,
+        Boolean(payment.affectBalance),
+        isForgivenPayment,
+        payment.paidAt || payment.date || null,
+      ]
     );
     paymentRow = rows[0];
   }
 
-  // Statusni tekshirib yangilaymiz
   const updatedDebt = await getDebtById(debtId, userId);
   if (updatedDebt) {
     const totalPaid = (updatedDebt.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+    const hasForgiven = isForgivenPayment || (updatedDebt.payments || []).some((p) => p.isForgiven);
     let newStatus = "partial";
-    if (totalPaid >= updatedDebt.amount || payment.markSettled || payment.status === "settled") {
+    if (payment.status === "forgiven" || (hasForgiven && totalPaid >= updatedDebt.amount)) {
+      newStatus = "forgiven";
+    } else if (totalPaid >= updatedDebt.amount || payment.markSettled || payment.status === "settled") {
       newStatus = "settled";
     } else if (totalPaid <= 0) {
       newStatus = "pending";
     }
 
-    await pool.query("UPDATE debts SET status = $1, updated_at = now() WHERE id = $2", [
-      newStatus,
-      debtId,
-    ]);
+    if (userId) {
+      await pool.query("UPDATE debts SET status = $1, updated_at = now() WHERE id = $2 AND user_id = $3", [
+        newStatus,
+        debtId,
+        userId,
+      ]);
+    } else {
+      await pool.query("UPDATE debts SET status = $1, updated_at = now() WHERE id = $2", [
+        newStatus,
+        debtId,
+      ]);
+    }
   }
 
   return paymentRow || { id: `pay_${Date.now()}`, debt_id: debtId, amount: paymentAmount };
@@ -355,22 +446,48 @@ export async function settleDebt(debtId, payload = {}, userId) {
       debt = await getDebtById(debtId, userId);
     }
   }
+  if (!debt) {
+    throw new Error("Qarz topilmadi");
+  }
 
   const paymentAmount = Number(payload.amount || 0);
   if (paymentAmount > 0) {
     const paymentId = payload.paymentId || payload.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const payWallet = payload.wallet ? cleanWalletKey(payload.wallet) : cleanWalletKey(debt.wallet);
     await pool.query(
-      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
-       VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
-       ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at`,
-      [paymentId, debtId, userId || null, paymentAmount, payload.note || "To'liq yopildi deb belgilandi", payload.date || null]
+      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, wallet, affect_balance, is_forgiven, paid_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, false, COALESCE($8, now()))
+       ON CONFLICT (id) DO UPDATE SET
+         amount = EXCLUDED.amount,
+         note = EXCLUDED.note,
+         wallet = COALESCE(EXCLUDED.wallet, debt_payments.wallet),
+         affect_balance = EXCLUDED.affect_balance,
+         is_forgiven = false,
+         paid_at = EXCLUDED.paid_at`,
+      [
+        paymentId,
+        debtId,
+        userId || null,
+        paymentAmount,
+        payload.note || "To'liq yopildi deb belgilandi",
+        payWallet,
+        Boolean(payload.affectBalance),
+        payload.date || null,
+      ]
     ).catch(() => {});
   }
 
-  await pool.query(
-    "UPDATE debts SET status = 'settled', updated_at = now() WHERE id = $1",
-    [debtId]
-  );
+  if (userId) {
+    await pool.query(
+      "UPDATE debts SET status = 'settled', updated_at = now() WHERE id = $1 AND user_id = $2",
+      [debtId, userId]
+    );
+  } else {
+    await pool.query(
+      "UPDATE debts SET status = 'settled', updated_at = now() WHERE id = $1",
+      [debtId]
+    );
+  }
 
   return await getDebtById(debtId, userId);
 }
@@ -383,6 +500,9 @@ export async function forgiveDebt(debtId, payload = {}, userId) {
       debt = await getDebtById(debtId, userId);
     }
   }
+  if (!debt) {
+    throw new Error("Qarz topilmadi");
+  }
 
   const paid = (debt?.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
   const remaining = Math.max(0, Number(debt?.amount || 0) - paid);
@@ -391,9 +511,13 @@ export async function forgiveDebt(debtId, payload = {}, userId) {
   if (forgiveAmount > 0) {
     const paymentId = payload.paymentId || payload.id || `pay_forgive_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     await pool.query(
-      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, paid_at)
-       VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))
-       ON CONFLICT (id) DO UPDATE SET amount = EXCLUDED.amount, note = EXCLUDED.note, paid_at = EXCLUDED.paid_at`,
+      `INSERT INTO debt_payments (id, debt_id, user_id, amount, note, wallet, affect_balance, is_forgiven, paid_at)
+       VALUES ($1, $2, $3, $4, $5, NULL, false, true, COALESCE($6, now()))
+       ON CONFLICT (id) DO UPDATE SET
+         amount = EXCLUDED.amount,
+         note = EXCLUDED.note,
+         is_forgiven = true,
+         paid_at = EXCLUDED.paid_at`,
       [
         paymentId,
         debtId,
@@ -405,24 +529,33 @@ export async function forgiveDebt(debtId, payload = {}, userId) {
     ).catch(() => {});
   }
 
-  await pool.query(
-    "UPDATE debts SET status = 'forgiven', updated_at = now() WHERE id = $1",
-    [debtId]
-  );
+  if (userId) {
+    await pool.query(
+      "UPDATE debts SET status = 'forgiven', updated_at = now() WHERE id = $1 AND user_id = $2",
+      [debtId, userId]
+    );
+  } else {
+    await pool.query(
+      "UPDATE debts SET status = 'forgiven', updated_at = now() WHERE id = $1",
+      [debtId]
+    );
+  }
 
   return await getDebtById(debtId, userId);
 }
 
 export async function deleteDebt(id, userId, { revertTransactions = false } = {}) {
+  const debt = await getDebtById(id, userId);
+  if (!debt) return;
+
   if (revertTransactions) {
     try {
-      const debt = await getDebtById(id, userId);
       const txQuery = userId
-        ? `SELECT id FROM transactions 
-           WHERE (user_id = $1 OR user_id IS NULL) 
+        ? `SELECT id FROM transactions
+           WHERE user_id = $1
              AND (debt_id = $2 OR (debt_id IS NULL AND ($3::text IS NOT NULL AND position(lower($3) in lower(reason)) > 0 AND subcategory IN ('Qarz berish', 'Qarz olish', 'Qarz qaytishi', 'Qarz to''lash'))))`
-        : `SELECT id FROM transactions 
-           WHERE debt_id = $1 
+        : `SELECT id FROM transactions
+           WHERE debt_id = $1
               OR (debt_id IS NULL AND ($2::text IS NOT NULL AND position(lower($2) in lower(reason)) > 0 AND subcategory IN ('Qarz berish', 'Qarz olish', 'Qarz qaytishi', 'Qarz to''lash')))`;
       const txParams = userId ? [userId, id, debt?.personName || null] : [id, debt?.personName || null];
       const { rows: linkedTxs } = await pool.query(txQuery, txParams);
@@ -435,7 +568,7 @@ export async function deleteDebt(id, userId, { revertTransactions = false } = {}
   }
 
   if (userId) {
-    await pool.query("DELETE FROM debts WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", [id, userId]);
+    await pool.query("DELETE FROM debts WHERE id = $1 AND user_id = $2", [id, userId]);
   } else {
     await pool.query("DELETE FROM debts WHERE id = $1", [id]);
   }

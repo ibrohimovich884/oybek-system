@@ -8,6 +8,7 @@ import {
 } from "react";
 import * as expensesApi from "../api/expenses.js";
 import * as debtsApi from "../api/debts.js";
+import * as peopleApi from "../api/people.js";
 import { syncService } from "../services/syncService.js";
 import {
   DEFAULT_WALLETS,
@@ -104,6 +105,15 @@ export function ExpensesProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleLocalDebtsUpdated = () => {
+      setDebts(debtsApi.readLocalDebts());
+    };
+    window.addEventListener("oybek:debts-local-updated", handleLocalDebtsUpdated);
+    return () => window.removeEventListener("oybek:debts-local-updated", handleLocalDebtsUpdated);
   }, []);
 
   // Backend holatiga va SyncService holatiga obuna bo'lish
@@ -511,6 +521,137 @@ export function ExpensesProvider({ children }) {
     URL.revokeObjectURL(url);
   }, [expenses]);
 
+  const downloadDebtsCSV = useCallback(() => {
+    const list = debts.length > 0 ? debts : debtsApi.readLocalDebts();
+    if (!list.length) return;
+
+    const headers = [
+      "ID",
+      "Turi",
+      "Shaxs",
+      "Aloqa",
+      "Instagram",
+      "Telegram",
+      "Summa",
+      "Valyuta",
+      "To'langan",
+      "Qoldiq",
+      "Holati",
+      "Qaytarish ehtimoli",
+      "Sana",
+      "Muddat",
+      "Sababi",
+      "Shaxsiy izoh",
+    ];
+
+    const escapeCsv = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+
+    const rows = list.map((d) => {
+      const paid = (d.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
+      const isClosed = d.status === "settled" || d.status === "forgiven";
+      const remaining = isClosed ? 0 : Math.max(0, Number(d.amount || 0) - paid);
+      const typeLabel = d.type === "taken" ? "Olingan qarz" : "Berilgan qarz";
+      const statusMap = {
+        pending: "Kutilmoqda",
+        partial: "Qisman qaytarilgan",
+        settled: "To'liq yopilgan",
+        forgiven: "Voz kechilgan",
+      };
+      const probMap = { high: "Yuqori", medium: "O'rtacha", low: "Past" };
+
+      return [
+        escapeCsv(d.id),
+        escapeCsv(typeLabel),
+        escapeCsv(d.personName),
+        escapeCsv(d.contact),
+        escapeCsv(d.instagram),
+        escapeCsv(d.telegram),
+        Number(d.amount || 0),
+        escapeCsv(d.currency || "UZS"),
+        paid,
+        remaining,
+        escapeCsv(statusMap[d.status] || d.status),
+        escapeCsv(probMap[d.repaymentProbability] || "Yuqori"),
+        escapeCsv(d.date || d.createdAt || ""),
+        escapeCsv(d.isDueDateUnknown ? "Muddatsiz" : (d.dueDate || "")),
+        escapeCsv(d.reason),
+        escapeCsv(d.personalNote),
+      ].join(",");
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `oybek-system-qarzlar-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [debts]);
+
+  const downloadPeopleCSV = useCallback(async () => {
+    let list = peopleApi.readLocalPeople();
+    if (!list.length) {
+      list = await peopleApi.fetchPeople().catch(() => []);
+    }
+    if (!list.length) return;
+
+    const escapeCsv = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const headers = [
+      "ID",
+      "Ism / Laqab",
+      "To'liq ism",
+      "Jinsi",
+      "Toifa",
+      "Holati",
+      "Ishonch darajasi",
+      "Telefon",
+      "Telegram",
+      "Instagram",
+      "Boshqa aloqa",
+      "Tanishgan joy",
+      "Tanishgan sana",
+      "Tug'ilgan kun",
+      "Hudud",
+      "Yoqtirganimmi",
+      "Crush bosqichi",
+      "Izohlar",
+    ];
+
+    const trustMap = { high: "Ishonchli", medium: "O'rtacha", low: "Past" };
+    const rows = list.map((p) =>
+      [
+        escapeCsv(p.id),
+        escapeCsv(p.nickname),
+        escapeCsv(p.fullName),
+        escapeCsv(p.gender),
+        escapeCsv(p.category),
+        escapeCsv(p.status),
+        escapeCsv(trustMap[p.trustLevel || "medium"] || p.trustLevel),
+        escapeCsv(p.phone),
+        escapeCsv(p.telegram),
+        escapeCsv(p.instagram),
+        escapeCsv(p.otherContacts),
+        escapeCsv(p.metPlace),
+        escapeCsv(p.metOn),
+        escapeCsv(p.birthday),
+        escapeCsv(p.profile?.area),
+        escapeCsv(p.isCrush ? "Ha" : "Yo'q"),
+        escapeCsv(p.crushStatus),
+        escapeCsv(p.notes),
+      ].join(",")
+    );
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `oybek-system-odamlar-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   const getLinkedDebtTransactions = useCallback(
     (debt) => {
       if (!debt) return [];
@@ -699,9 +840,18 @@ export function ExpensesProvider({ children }) {
           const newAmount = updates.amount !== undefined ? Number(updates.amount) : initialTx.amount;
           const newWallet = updates.wallet || initialTx.wallet;
           const newPerson = updates.personName || debt.personName;
-          const newReason = `${newPerson}ga ${(updates.type || debt.type) === "taken" ? "dan qarz olindi" : "qarz berildi"}: ${updates.reason || ""}`.trim();
+          const nextDebtType = updates.type || debt.type;
+          const nextTxType = nextDebtType === "taken" ? "income" : "expense";
+          const nextSubcategory = nextDebtType === "taken" ? "Qarz olish" : "Qarz berish";
+          const reasonSuffix = updates.reason !== undefined ? updates.reason : (debt.reason || "");
+          const newReason =
+            nextDebtType === "taken"
+              ? `${newPerson}dan qarz olindi: ${reasonSuffix}`.trim()
+              : `${newPerson}ga qarz berildi: ${reasonSuffix}`.trim();
 
           await expensesApi.updateExpense(initialTx.id, {
+            type: nextTxType,
+            subcategory: nextSubcategory,
             amount: newAmount,
             wallet: newWallet,
             paymentMethod: newWallet,
@@ -823,6 +973,8 @@ export function ExpensesProvider({ children }) {
     resetManualUsdRate,
     loadCbuRate,
     downloadCSV,
+    downloadDebtsCSV,
+    downloadPeopleCSV,
     getLinkedDebtTransactions,
     addDebt,
     repayDebt,

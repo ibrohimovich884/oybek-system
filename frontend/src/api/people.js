@@ -1,5 +1,7 @@
 import { apiClient } from "./client.js";
 import { getUserStorageKey } from "../utils/storageKeys.js";
+import { syncService } from "../services/syncService.js";
+import { readLocalDebts, writeLocalDebts } from "./debts.js";
 
 const BASE_PEOPLE_KEY = "oybek-system:people";
 
@@ -13,7 +15,9 @@ export function readLocalPeople() {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed)
+      ? parsed.map((p) => ({ ...p, synced: p.synced !== undefined ? Boolean(p.synced) : true }))
+      : [];
   } catch (err) {
     console.warn("Lokal odamlarni o'qishda xatolik:", err);
     return [];
@@ -31,6 +35,12 @@ export function writeLocalPeople(people) {
   } catch (err) {
     console.warn("Lokal odamlarni yozishda xatolik:", err);
   }
+}
+
+export function markPersonSynced(personId, isSynced = true) {
+  const list = readLocalPeople();
+  const updated = list.map((p) => (p.id === personId ? { ...p, synced: isSynced } : p));
+  writeLocalPeople(updated);
 }
 
 /**
@@ -129,7 +139,6 @@ function filterPeopleList(people = [], params = {}) {
         (a.nickname || "").localeCompare(b.nickname || "")
     );
   } else {
-    // Standart: name_asc
     result.sort((a, b) => (a.nickname || "").localeCompare(b.nickname || ""));
   }
 
@@ -141,6 +150,13 @@ function filterPeopleList(people = [], params = {}) {
  */
 export async function fetchPeople(params = {}) {
   const localList = readLocalPeople();
+  const isUnfiltered =
+    (!params.category || params.category === "all") &&
+    (!params.status || params.status === "all") &&
+    (!params.trustLevel || params.trustLevel === "all") &&
+    (params.isCrush === undefined || params.isCrush === "") &&
+    (!params.crushStatus || params.crushStatus === "all") &&
+    (!params.search || !params.search.trim());
 
   try {
     const query = new URLSearchParams();
@@ -157,19 +173,27 @@ export async function fetchPeople(params = {}) {
     const res = await apiClient.get(endpoint);
 
     if (res.ok && Array.isArray(res.data)) {
-      // Server ma'lumotlari bilan lokal keshi yangilaymiz
-      const mergedMap = new Map();
-      localList.forEach((p) => mergedMap.set(p.id, p));
-      res.data.forEach((p) => mergedMap.set(p.id, { ...p, synced: true }));
-      const merged = Array.from(mergedMap.values());
-      writeLocalPeople(merged);
-      return res.data;
+      const unsyncedLocals = localList.filter((p) => p.synced === false);
+      if (isUnfiltered) {
+        const mergedMap = new Map();
+        res.data.forEach((p) => mergedMap.set(p.id, { ...p, synced: true }));
+        unsyncedLocals.forEach((p) => mergedMap.set(p.id, p));
+        const merged = Array.from(mergedMap.values());
+        writeLocalPeople(merged);
+        return filterPeopleList(merged, params);
+      } else {
+        const mergedMap = new Map();
+        localList.forEach((p) => mergedMap.set(p.id, p));
+        res.data.forEach((p) => mergedMap.set(p.id, { ...p, synced: true }));
+        unsyncedLocals.forEach((p) => mergedMap.set(p.id, p));
+        writeLocalPeople(Array.from(mergedMap.values()));
+        return res.data;
+      }
     }
   } catch (err) {
     console.warn("Serverdan odamlarni olishda ogohlantirish (lokal xotira ishlatiladi):", err);
   }
 
-  // Server ishlamasa yoki hali deploy qilinmagan bo'lsa, lokal keshdan qaytaramiz
   return filterPeopleList(localList, params);
 }
 
@@ -206,13 +230,13 @@ export async function fetchPersonById(id) {
   const localFound = localList.find((p) => p.id === id);
 
   try {
-    const res = await apiClient.get(`/api/people/${id}`);
+    const res = await apiClient.get(`/api/people/${encodeURIComponent(id)}`);
     if (res.ok && res.data) {
-      // Lokalda ham yangilab qo'yamiz
-      const updated = localList.map((p) => (p.id === id ? res.data : p));
-      if (!localFound) updated.push(res.data);
+      const syncedPerson = { ...res.data, synced: true };
+      const updated = localList.map((p) => (p.id === id ? syncedPerson : p));
+      if (!localFound) updated.push(syncedPerson);
       writeLocalPeople(updated);
-      return res.data;
+      return syncedPerson;
     }
   } catch (err) {
     console.warn(`/api/people/${id} server xatosi:`, err);
@@ -233,7 +257,7 @@ export async function createPerson(payload) {
   let latestAppearance = null;
 
   if (payload.appearance) {
-    const appId = `appr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const appId = payload.appearance.id || `appr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     latestAppearance = {
       id: appId,
       personId: newId,
@@ -248,12 +272,18 @@ export async function createPerson(payload) {
     initialAppearances.push(latestAppearance);
   }
 
+  const serverPayload = {
+    ...payload,
+    id: newId,
+    appearance: latestAppearance ? { ...payload.appearance, id: latestAppearance.id } : undefined,
+  };
+
   const newPerson = {
     id: newId,
     nickname: payload.nickname?.trim() || "",
     fullName: payload.fullName?.trim() || "",
-    gender: payload.gender || "female",
-    category: payload.category || "friend",
+    gender: payload.gender || null,
+    category: payload.category || "acquaintance",
     status: payload.status || "active",
     isCrush: Boolean(payload.isCrush),
     crushStatus: payload.isCrush ? (payload.crushStatus || "liked") : null,
@@ -280,17 +310,25 @@ export async function createPerson(payload) {
   localList.unshift(newPerson);
   writeLocalPeople(localList);
 
-  // Serverga yuborish
+  const queueEntry = syncService.addToQueue({
+    entity: "people",
+    type: "create",
+    targetId: newId,
+    payload: serverPayload,
+  });
+
   try {
-    const res = await apiClient.post("/api/people", payload);
+    const res = await apiClient.post("/api/people", serverPayload);
     if (res.ok && res.data) {
-      newPerson.synced = true;
-      const updatedList = localList.map((p) => (p.id === newId ? { ...res.data, synced: true } : p));
+      const syncedPerson = { ...res.data, synced: true };
+      const updatedList = readLocalPeople().map((p) => (p.id === newId ? syncedPerson : p));
       writeLocalPeople(updatedList);
-      return res.data;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Shaxs DBga saqlandi: ${syncedPerson.nickname}`);
+      return syncedPerson;
     }
   } catch (err) {
-    console.warn("Serverga odam qo'shishda ogohlantirish (lokal saqlandi):", err);
+    console.warn("Serverga odam qo'shishda ogohlantirish (oflayn navbatga olindi):", err);
   }
 
   return newPerson;
@@ -307,22 +345,69 @@ export async function updatePerson(id, updates) {
     ...(existing || {}),
     ...updates,
     id,
+    telegram: updates.telegram !== undefined ? String(updates.telegram || "").trim().replace(/^@/, "") : (existing?.telegram || ""),
+    instagram: updates.instagram !== undefined ? String(updates.instagram || "").trim().replace(/^@/, "") : (existing?.instagram || ""),
     updatedAt: new Date().toISOString(),
     synced: false,
   };
 
-  const updatedList = localList.map((p) => (p.id === id ? updatedPerson : p));
+  const updatedList = localList.some((p) => p.id === id)
+    ? localList.map((p) => (p.id === id ? updatedPerson : p))
+    : [updatedPerson, ...localList];
   writeLocalPeople(updatedList);
 
+  // Lokal qarzlardagi bog'langan personName/contact ham yangilansin
   try {
-    const res = await apiClient.put(`/api/people/${id}`, updates);
+    const debts = readLocalDebts();
+    let changed = false;
+    const nextDebts = debts.map((d) => {
+      if (d.personId !== id) return d;
+      changed = true;
+      return {
+        ...d,
+        personName: updatedPerson.nickname || d.personName,
+        contact: (!d.contact || d.contact === existing?.phone) ? (updatedPerson.phone || "") : d.contact,
+        telegram: (!d.telegram || d.telegram === existing?.telegram) ? (updatedPerson.telegram || "") : d.telegram,
+        instagram: (!d.instagram || d.instagram === existing?.instagram) ? (updatedPerson.instagram || "") : d.instagram,
+        linkedPerson: {
+          ...(d.linkedPerson || {}),
+          id,
+          nickname: updatedPerson.nickname || "",
+          fullName: updatedPerson.fullName || "",
+          trustLevel: updatedPerson.trustLevel || "medium",
+          phone: updatedPerson.phone || "",
+          telegram: updatedPerson.telegram || "",
+          instagram: updatedPerson.instagram || "",
+        },
+      };
+    });
+    if (changed) {
+      writeLocalDebts(nextDebts);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:debts-local-updated"));
+      }
+    }
+  } catch {}
+
+  const queueEntry = syncService.addToQueue({
+    entity: "people",
+    type: "update",
+    targetId: id,
+    payload: updates,
+  });
+
+  try {
+    const res = await apiClient.put(`/api/people/${encodeURIComponent(id)}`, updates);
     if (res.ok && res.data) {
-      const finalUpdated = updatedList.map((p) => (p.id === id ? { ...res.data, synced: true } : p));
+      const syncedPerson = { ...res.data, synced: true };
+      const finalUpdated = readLocalPeople().map((p) => (p.id === id ? syncedPerson : p));
       writeLocalPeople(finalUpdated);
-      return res.data;
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Shaxs yangilanishi DBga saqlandi: ${syncedPerson.nickname}`);
+      return syncedPerson;
     }
   } catch (err) {
-    console.warn("Serverda odam yangilashda ogohlantirish (lokal saqlandi):", err);
+    console.warn("Serverda odam yangilashda ogohlantirish (oflayn navbatga olindi):", err);
   }
 
   return updatedPerson;
@@ -342,15 +427,26 @@ export async function updateCrushStatus(id, crushData) {
     crushStatus: isCrushVal ? (crushData.crushStatus || "liked") : null,
     crushStartedOn: isCrushVal ? (crushData.crushStartedOn || new Date().toISOString().slice(0, 10)) : null,
     updatedAt: new Date().toISOString(),
+    synced: false,
   };
 
   const updatedList = localList.map((p) => (p.id === id ? updatedPerson : p));
   writeLocalPeople(updatedList);
 
+  const queueEntry = syncService.addToQueue({
+    entity: "people",
+    type: "crush",
+    targetId: id,
+    payload: crushData,
+  });
+
   try {
-    const res = await apiClient.patch(`/api/people/${id}/crush`, crushData);
+    const res = await apiClient.patch(`/api/people/${encodeURIComponent(id)}/crush`, crushData);
     if (res.ok && res.data) {
-      return res.data;
+      const syncedPerson = { ...res.data, synced: true };
+      writeLocalPeople(readLocalPeople().map((p) => (p.id === id ? syncedPerson : p)));
+      syncService.removeFromQueue(queueEntry.queueId);
+      return syncedPerson;
     }
   } catch (err) {
     console.warn("Crush statusini serverda yangilashda ogohlantirish:", err);
@@ -375,12 +471,25 @@ export async function updateProfile(id, profileData) {
   if (existing) {
     existing.profile = newProfile;
     existing.updatedAt = new Date().toISOString();
+    existing.synced = false;
     writeLocalPeople(localList);
   }
 
+  const queueEntry = syncService.addToQueue({
+    entity: "person_profile",
+    type: "update",
+    targetId: id,
+    payload: profileData,
+  });
+
   try {
-    const res = await apiClient.put(`/api/people/${id}/profile`, profileData);
+    const res = await apiClient.put(`/api/people/${encodeURIComponent(id)}/profile`, profileData);
     if (res.ok && res.data) {
+      const nextList = readLocalPeople().map((p) =>
+        p.id === id ? { ...p, profile: res.data, synced: true } : p
+      );
+      writeLocalPeople(nextList);
+      syncService.removeFromQueue(queueEntry.queueId);
       return res.data;
     }
   } catch (err) {
@@ -399,6 +508,7 @@ export async function addAppearance(personId, appearanceData) {
 
   const appId = appearanceData.id || `appr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const nowStr = new Date().toISOString();
+  const payloadWithId = { ...appearanceData, id: appId };
 
   const newApp = {
     id: appId,
@@ -418,12 +528,32 @@ export async function addAppearance(personId, appearanceData) {
     existing.latestAppearance = newApp;
     existing.appearancesCount = existing.appearances.length;
     existing.updatedAt = nowStr;
+    existing.synced = false;
     writeLocalPeople(localList);
   }
 
+  const queueEntry = syncService.addToQueue({
+    entity: "person_appearances",
+    type: "create",
+    targetId: personId,
+    payload: payloadWithId,
+  });
+
   try {
-    const res = await apiClient.post(`/api/people/${personId}/appearances`, appearanceData);
+    const res = await apiClient.post(`/api/people/${encodeURIComponent(personId)}/appearances`, payloadWithId);
     if (res.ok && res.data) {
+      const nextList = readLocalPeople().map((p) => {
+        if (p.id !== personId) return p;
+        const nextApps = (p.appearances || []).map((a) => (a.id === appId ? res.data : a));
+        return {
+          ...p,
+          appearances: nextApps,
+          latestAppearance: nextApps[0] || res.data,
+          synced: true,
+        };
+      });
+      writeLocalPeople(nextList);
+      syncService.removeFromQueue(queueEntry.queueId);
       return res.data;
     }
   } catch (err) {
@@ -447,8 +577,18 @@ export async function deleteAppearance(personId, appearanceId) {
     writeLocalPeople(localList);
   }
 
+  const queueEntry = syncService.addToQueue({
+    entity: "person_appearances",
+    type: "delete",
+    targetId: personId,
+    payload: { appearanceId },
+  });
+
   try {
-    await apiClient.delete(`/api/people/${personId}/appearances/${appearanceId}`);
+    const res = await apiClient.delete(`/api/people/${encodeURIComponent(personId)}/appearances/${encodeURIComponent(appearanceId)}`);
+    if (res && res.ok) {
+      syncService.removeFromQueue(queueEntry.queueId);
+    }
   } catch (err) {
     console.warn("Ko'rinish qaydini serverda o'chirishda ogohlantirish:", err);
   }
@@ -464,10 +604,40 @@ export async function deletePerson(id) {
   const filtered = localList.filter((p) => p.id !== id);
   writeLocalPeople(filtered);
 
+  // Lokal qarzlardagi dangling personId ni tozalash
   try {
-    await apiClient.delete(`/api/people/${id}`);
+    const localDebts = readLocalDebts();
+    let debtsChanged = false;
+    const cleanedDebts = localDebts.map((d) => {
+      if (d.personId === id || d.linkedPerson?.id === id) {
+        debtsChanged = true;
+        return { ...d, personId: null, linkedPerson: null };
+      }
+      return d;
+    });
+    if (debtsChanged) {
+      writeLocalDebts(cleanedDebts);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("oybek:debts-local-updated"));
+      }
+    }
+  } catch {}
+
+  const queueEntry = syncService.addToQueue({
+    entity: "people",
+    type: "delete",
+    targetId: id,
+    payload: { id },
+  });
+
+  try {
+    const res = await apiClient.delete(`/api/people/${encodeURIComponent(id)}`);
+    if (res && res.ok) {
+      syncService.removeFromQueue(queueEntry.queueId);
+      syncService.addLog("success", `Shaxs DBdan o'chirildi (ID: ${id})`);
+    }
   } catch (err) {
-    console.warn("Shaxsni serverda o'chirishda ogohlantirish:", err);
+    console.warn("Shaxsni serverda o'chirishda ogohlantirish (navbatga olindi):", err);
   }
 
   return { success: true };

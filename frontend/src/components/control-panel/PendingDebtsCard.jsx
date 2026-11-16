@@ -18,8 +18,8 @@ export default function PendingDebtsCard() {
   const { debts, addDebt } = useExpenses();
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  // Faol qarzlar hisobi
-  const activeDebts = debts.filter((d) => d.status !== "settled");
+  // Faol qarzlar hisobi (yopilgan va voz kechilganlarni chiqarib tashlaymiz)
+  const activeDebts = debts.filter((d) => d.status !== "settled" && d.status !== "forgiven");
 
   let givenUzs = 0;
   let givenUsd = 0;
@@ -107,10 +107,18 @@ export default function PendingDebtsCard() {
             <ArrowUpRight size={14} />
             <span>Kutilayotgan (Men bergan)</span>
           </div>
-          <div className="mono" style={{ fontSize: "1.15rem", fontWeight: 700, marginTop: 4, color: "var(--text)" }}>
-            {formatSum(givenUzs)}
+          <div
+            className="mono"
+            style={{
+              fontSize: "1.15rem",
+              fontWeight: 700,
+              marginTop: 4,
+              color: givenUzs === 0 && givenUsd > 0 ? "var(--dollar)" : "var(--text)",
+            }}
+          >
+            {givenUzs === 0 && givenUsd > 0 ? formatDollar(givenUsd) : formatSum(givenUzs)}
           </div>
-          {givenUsd > 0 && (
+          {givenUzs > 0 && givenUsd > 0 && (
             <div style={{ fontSize: "0.8rem", color: "var(--dollar)", fontWeight: 600 }}>
               + {formatDollar(givenUsd)}
             </div>
@@ -131,9 +139,9 @@ export default function PendingDebtsCard() {
             <span>Qarzim (Men olgan)</span>
           </div>
           <div className="mono" style={{ fontSize: "1.15rem", fontWeight: 700, marginTop: 4, color: "var(--expense)" }}>
-            {formatSum(takenUzs)}
+            {takenUzs === 0 && takenUsd > 0 ? formatDollar(takenUsd) : formatSum(takenUzs)}
           </div>
-          {takenUsd > 0 && (
+          {takenUzs > 0 && takenUsd > 0 && (
             <div style={{ fontSize: "0.8rem", color: "var(--expense)", fontWeight: 600 }}>
               + {formatDollar(takenUsd)}
             </div>

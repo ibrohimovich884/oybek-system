@@ -172,19 +172,50 @@ export default function PersonCard({ person, onClick, onToggleCrush, debtSummary
             <span>{trustInfo.label}</span>
           </span>
 
-          {debtSummary && debtSummary.activeCount > 0 && (
-            <span
-              className="person-debt-badge"
-              title={`Faol qarzlari: ${debtSummary.activeCount} ta`}
-            >
-              <HandCoins size={11} />
-              <span>
-                {debtSummary.remainingUzs > 0
-                  ? formatSum(debtSummary.remainingUzs)
-                  : formatDollar(debtSummary.remainingUsd)}
+          {debtSummary && debtSummary.activeCount > 0 && (() => {
+            const hasGiven = (debtSummary.givenUzs || 0) > 0 || (debtSummary.givenUsd || 0) > 0;
+            const hasTaken = (debtSummary.takenUzs || 0) > 0 || (debtSummary.takenUsd || 0) > 0;
+            const fmtPair = (uzs, usd) => {
+              if (uzs > 0 && usd > 0) return `${formatSum(uzs)} + ${formatDollar(usd)}`;
+              if (uzs > 0) return formatSum(uzs);
+              return formatDollar(usd);
+            };
+
+            if (hasGiven || hasTaken) {
+              return (
+                <>
+                  {hasGiven && (
+                    <span
+                      className="person-debt-badge person-debt-badge--given"
+                      title={`Menga qaytishi kerak (${debtSummary.givenCount || debtSummary.activeCount} ta qarz)`}
+                    >
+                      <HandCoins size={11} />
+                      <span>Olishim: {fmtPair(debtSummary.givenUzs || 0, debtSummary.givenUsd || 0)}</span>
+                    </span>
+                  )}
+                  {hasTaken && (
+                    <span
+                      className="person-debt-badge person-debt-badge--taken"
+                      title={`Qaytarishim kerak (${debtSummary.takenCount || debtSummary.activeCount} ta qarz)`}
+                    >
+                      <HandCoins size={11} />
+                      <span>Berishim: {fmtPair(debtSummary.takenUzs || 0, debtSummary.takenUsd || 0)}</span>
+                    </span>
+                  )}
+                </>
+              );
+            }
+
+            return (
+              <span
+                className="person-debt-badge"
+                title={`Faol qarzlari: ${debtSummary.activeCount} ta`}
+              >
+                <HandCoins size={11} />
+                <span>{fmtPair(debtSummary.remainingUzs || 0, debtSummary.remainingUsd || 0)}</span>
               </span>
-            </span>
-          )}
+            );
+          })()}
 
           {isCrush && crushStatus && (
             <span className="person-crush-badge">

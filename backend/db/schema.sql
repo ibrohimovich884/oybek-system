@@ -137,10 +137,16 @@ CREATE TABLE IF NOT EXISTS debt_payments (
   user_id TEXT,
   amount NUMERIC NOT NULL,
   note TEXT,
+  wallet TEXT,
+  affect_balance BOOLEAN NOT NULL DEFAULT false,
+  is_forgiven BOOLEAN NOT NULL DEFAULT false,
   paid_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE debt_payments ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE debt_payments ADD COLUMN IF NOT EXISTS wallet TEXT;
+ALTER TABLE debt_payments ADD COLUMN IF NOT EXISTS affect_balance BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE debt_payments ADD COLUMN IF NOT EXISTS is_forgiven BOOLEAN NOT NULL DEFAULT false;
 
 -- app_snapshot jadvalini butunlay o'chirish (keraksiz va xatolik manbai bo'lgani uchun)
 DROP TABLE IF EXISTS app_snapshot CASCADE;

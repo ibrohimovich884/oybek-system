@@ -32,12 +32,16 @@ import {
   Eye,
   Play,
   Layers,
+  Users,
+  HandCoins,
 } from "lucide-react";
 import { useExpenses } from "../context/ExpensesContext.jsx";
+import { readLocalPeople } from "../api/people.js";
 import { formatSum, formatDateTime } from "../utils/format.js";
 import { DEFAULT_BACKEND_URL } from "../config/apiConfig.js";
 import SecuritySettingsTab from "../components/security/SecuritySettingsTab.jsx";
 import Loader, { CardLoader, BlockLoader, ButtonLoader } from "../components/common/Loader.jsx";
+import ConfirmModal from "../components/common/ConfirmModal.jsx";
 
 export default function SettingsPage() {
   const {
@@ -52,6 +56,8 @@ export default function SettingsPage() {
     clearSyncQueue,
     clearLocalStorageData,
     downloadCSV,
+    downloadDebtsCSV,
+    downloadPeopleCSV,
     expenses,
     debts,
   } = useExpenses();
@@ -80,7 +86,8 @@ export default function SettingsPage() {
   const [logSearch, setLogSearch] = useState("");
 
   // Brauzer kesh hajmi (localStorage)
-  const [storageStats, setStorageStats] = useState({ keysCount: 0, kb: "0" });
+  const [storageStats, setStorageStats] = useState({ keysCount: 0, kb: "0", peopleCount: 0 });
+  const [confirmAction, setConfirmAction] = useState(null); // { title, message, confirmLabel, variant, onConfirm }
 
   const calculateStorageStats = useCallback(() => {
     try {
@@ -91,12 +98,14 @@ export default function SettingsPage() {
         const val = localStorage.getItem(key) || "";
         totalBytes += (key.length + val.length) * 2;
       }
+      const peopleCount = readLocalPeople().length;
       setStorageStats({
         keysCount: len,
         kb: (totalBytes / 1024).toFixed(1),
+        peopleCount,
       });
     } catch {
-      setStorageStats({ keysCount: 0, kb: "0" });
+      setStorageStats({ keysCount: 0, kb: "0", peopleCount: 0 });
     }
   }, []);
 
@@ -149,8 +158,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleForcePush = async () => {
-    if (!window.confirm("Barcha mahalliy ma'lumotlarni DBga majburiy yozishni tasdiqlaysizmi?")) return;
+  const executeForcePush = async () => {
     setSyncFeedback({ type: "loading", message: "Barcha xotira DBga yuklanmoqda..." });
     try {
       const res = await forcePushAllToDB();
@@ -165,6 +173,16 @@ export default function SettingsPage() {
     } catch (err) {
       setSyncFeedback({ type: "error", message: err.message });
     }
+  };
+
+  const handleForcePush = () => {
+    setConfirmAction({
+      title: "DBga majburiy yuklash",
+      message: "Barcha mahalliy ma'lumotlarni DBga majburiy yozishni tasdiqlaysizmi?",
+      confirmLabel: "Ha, yuklash",
+      variant: "primary",
+      onConfirm: executeForcePush,
+    });
   };
 
   const handleTestConnection = async () => {
@@ -215,7 +233,7 @@ export default function SettingsPage() {
   const syncedExpensesCount = (expenses || []).filter((e) => e.synced !== false).length;
   const pendingExpensesCount = (expenses || []).filter((e) => e.synced === false).length;
   const pendingQueueCount = syncStatus?.pendingCount || 0;
-  const totalLocalItems = (expenses || []).length + (debts || []).length;
+  const totalLocalItems = (expenses || []).length + (debts || []).length + (storageStats.peopleCount || 0);
 
   // Jurnal yozuvlarini saralash
   const filteredLogs = useMemo(() => {
@@ -733,11 +751,15 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     className="btn btn--ghost btn--xs text-muted"
-                    onClick={() => {
-                      if (window.confirm("Kutilayotgan barcha navbatni tozalashni tasdiqlaysizmi?")) {
-                        clearSyncQueue();
-                      }
-                    }}
+                    onClick={() =>
+                      setConfirmAction({
+                        title: "Navbatni tozalash",
+                        message: "Kutilayotgan barcha navbatni tozalashni tasdiqlaysizmi?",
+                        confirmLabel: "Ha, tozalash",
+                        variant: "danger",
+                        onConfirm: clearSyncQueue,
+                      })
+                    }
                   >
                     <Trash2 size={11} />
                     <span>Tozalash</span>
@@ -778,13 +800,13 @@ export default function SettingsPage() {
                           background:
                             item.type === "create"
                               ? "rgba(16, 185, 129, 0.16)"
-                              : item.type === "update"
+                              : item.type === "update" || item.type === "crush"
                               ? "rgba(56, 189, 248, 0.16)"
                               : "rgba(239, 68, 68, 0.16)",
                           color:
                             item.type === "create"
                               ? "var(--income)"
-                              : item.type === "update"
+                              : item.type === "update" || item.type === "crush"
                               ? "var(--karta)"
                               : "var(--danger)",
                           fontSize: "0.68rem",
@@ -792,7 +814,11 @@ export default function SettingsPage() {
                           padding: "1px 5px",
                         }}
                       >
-                        {item.type === "create" ? "Qo'shish" : item.type === "update" ? "Tahrir" : "O'chirish"}
+                        {item.type === "create"
+                          ? "Qo'shish"
+                          : item.type === "update" || item.type === "crush"
+                          ? "Tahrir"
+                          : "O'chirish"}
                       </span>
                       <span style={{ wordBreak: "break-word" }}>
                         <strong>
@@ -804,9 +830,16 @@ export default function SettingsPage() {
                             ? "Qarz"
                             : item.entity === "reserves"
                             ? "Zaxira"
+                            : item.entity === "people"
+                            ? "Shaxs"
+                            : item.entity === "person_profile"
+                            ? "Shaxs profili"
+                            : item.entity === "person_appearances"
+                            ? "Ko'rinish"
                             : item.entity}:
                         </strong>{" "}
-                        {item.payload?.personName ||
+                        {item.payload?.nickname ||
+                          item.payload?.personName ||
                           item.payload?.name ||
                           item.payload?.reason ||
                           item.payload?.category ||
@@ -868,6 +901,16 @@ export default function SettingsPage() {
               </div>
 
               <div className="settings-kpi-box">
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Odamlar:</span>
+                <strong className="mono" style={{ fontSize: "1.05rem", color: "var(--accent)", display: "block", marginTop: 3 }}>
+                  {storageStats.peopleCount || 0} ta
+                </strong>
+                <span style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>
+                  Shaxsiy kartalar
+                </span>
+              </div>
+
+              <div className="settings-kpi-box">
                 <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>Navbat:</span>
                 <strong className="mono" style={{ fontSize: "1.05rem", color: pendingQueueCount > 0 ? "var(--warning)" : "var(--income)", display: "block", marginTop: 3 }}>
                   {pendingQueueCount} ta
@@ -887,7 +930,7 @@ export default function SettingsPage() {
                 </span>
               </div>
 
-              <div className="settings-kpi-box" style={{ gridColumn: "span 2" }}>
+              <div className="settings-kpi-box">
                 <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "block" }}>DB Holati:</span>
                 <strong style={{ fontSize: "0.95rem", color: syncStatus?.isConnected ? "var(--income)" : "var(--warning)", display: "block", marginTop: 3 }}>
                   {syncStatus?.isConnected ? "Ulangan (DB faol)" : "Oflayn rejim"}
@@ -1009,16 +1052,16 @@ export default function SettingsPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <FileSpreadsheet size={18} color="var(--accent)" />
               <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 700 }}>
-                Moliyaviy Maʼlumotlarni Eksport Qilish
+                Maʼlumotlarni Eksport Qilish (CSV / Excel)
               </h2>
             </div>
             <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Barcha kundalik xarajat va daromadlar tarixini Excel yoki Google Sheets dasturlarida tahlil qilish uchun yuklab olish
+              Xarajatlar, qarz daftari va odamlar roʻyxatini Excel yoki Google Sheets dasturlarida tahlil qilish uchun yuklab olish
             </p>
           </div>
 
-          <div style={{ maxWidth: 520 }}>
-            {/* Excel / CSV eksport */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+            {/* Xarajatlar CSV eksport */}
             <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -1038,16 +1081,16 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
-                      Excel / CSV Jadvali
+                      Xarajatlar va Daromadlar
                     </h3>
                     <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                      Jadvallar uchun (.csv)
+                      {(expenses || []).length} ta yozuv (.csv)
                     </span>
                   </div>
                 </div>
 
                 <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
-                  Barcha kiritilgan xarajat va daromadlar tarixini universal CSV jadval fayli koʻrinishida yuklab oling.
+                  Barcha kiritilgan xarajat, daromad va hamyonlararo oʻtkazmalar tarixini CSV jadval fayli koʻrinishida yuklab oling.
                 </p>
               </div>
 
@@ -1057,8 +1100,96 @@ export default function SettingsPage() {
                 onClick={downloadCSV}
                 style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
               >
-                <FileSpreadsheet size={15} />
-                <span>Excel / CSV faylni yuklab olish</span>
+                <Download size={15} />
+                <span>Xarajatlarni yuklab olish</span>
+              </button>
+            </div>
+
+            {/* Qarz daftari CSV eksport */}
+            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      background: "rgba(245, 158, 11, 0.14)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--warning)",
+                    }}
+                  >
+                    <HandCoins size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
+                      Qarz daftari (.csv)
+                    </h3>
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      {(debts || []).length} ta qarz yozuvi
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
+                  Berilgan va olingan barcha qarzlar, muddatlar, qaytarish ehtimoli, toʻlangan hamda qolgan summalarni yuklab oling.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={downloadDebtsCSV}
+                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
+              >
+                <Download size={15} />
+                <span>Qarz daftarini yuklab olish</span>
+              </button>
+            </div>
+
+            {/* Odamlar ro'yxati CSV eksport */}
+            <div className="settings-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      background: "rgba(78, 184, 150, 0.14)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--accent)",
+                    }}
+                  >
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700 }}>
+                      Odamlar roʻyxati (.csv)
+                    </h3>
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      {storageStats.peopleCount || 0} ta shaxs kartasi
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 14 }}>
+                  Tanishlar, kontaktlar, ishonch darajasi, yoqtirganlar holati va shaxsiy izohlarni Excel formatida yuklab oling.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={downloadPeopleCSV}
+                style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40 }}
+              >
+                <Download size={15} />
+                <span>Odamlar roʻyxatini yuklab olish</span>
               </button>
             </div>
           </div>
@@ -1090,11 +1221,15 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   className="btn btn--ghost btn--xs text-muted"
-                  onClick={() => {
-                    if (window.confirm("Barcha tizim jurnali yozuvlarini tozalashni tasdiqlaysizmi?")) {
-                      clearSyncLogs();
-                    }
-                  }}
+                  onClick={() =>
+                    setConfirmAction({
+                      title: "Jurnalni tozalash",
+                      message: "Barcha tizim jurnali yozuvlarini tozalashni tasdiqlaysizmi?",
+                      confirmLabel: "Ha, tozalash",
+                      variant: "danger",
+                      onConfirm: clearSyncLogs,
+                    })
+                  }
                   style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
                 >
                   <Trash2 size={13} />
@@ -1607,6 +1742,21 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(confirmAction)}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel || "Tasdiqlash"}
+        cancelLabel="Bekor qilish"
+        variant={confirmAction?.variant || "primary"}
+        onConfirm={async () => {
+          const fn = confirmAction?.onConfirm;
+          setConfirmAction(null);
+          if (fn) await fn();
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

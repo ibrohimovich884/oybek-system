@@ -341,17 +341,25 @@ export default function DebtCard({
               {payments.map((p) => (
                 <div key={p.id} className="debt-card__payment-item">
                   <div className="debt-card__payment-meta">
-                    <CheckCircle2 size={12} color="var(--accent)" />
+                    {p.isForgiven ? (
+                      <HeartHandshake size={12} color="#c084fc" />
+                    ) : (
+                      <CheckCircle2 size={12} color="var(--accent)" />
+                    )}
                     <span>
-                      {new Date(p.date).toLocaleDateString("uz-UZ", {
+                      {new Date(p.date || p.paidAt).toLocaleDateString("uz-UZ", {
                         month: "short",
                         day: "numeric",
                       })}
+                      {p.isForgiven && " [Voz kechilgan]"}
                       {p.note && ` — ${p.note}`}
                     </span>
                   </div>
-                  <span className="debt-card__payment-val mono">
-                    +{formatFn(p.amount)}
+                  <span
+                    className="debt-card__payment-val mono"
+                    style={p.isForgiven ? { color: "#c084fc" } : undefined}
+                  >
+                    {p.isForgiven ? formatFn(p.amount) : `+${formatFn(p.amount)}`}
                   </span>
                 </div>
               ))}
@@ -413,6 +421,14 @@ export default function DebtCard({
                 <span>To'lov</span>
               </button>
             </>
+          ) : isForgiven ? (
+            <span
+              className="debt-card__settled-badge"
+              style={{ color: "#c084fc", background: "rgba(168, 85, 247, 0.14)", borderColor: "rgba(168, 85, 247, 0.35)" }}
+            >
+              <HeartHandshake size={14} />
+              <span>Voz kechilgan</span>
+            </span>
           ) : (
             <span className="debt-card__settled-badge">
               <CheckCircle2 size={14} />

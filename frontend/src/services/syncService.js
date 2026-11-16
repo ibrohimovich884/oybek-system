@@ -270,10 +270,44 @@ class SyncService {
               } else if (item.type === "update") {
                 res = await apiClient.put(API_ENDPOINTS.DEBT_DETAIL(item.targetId), item.payload);
               } else if (item.type === "delete") {
-                res = await apiClient.delete(API_ENDPOINTS.DEBT_DETAIL(item.targetId));
+                const delQuery = item.payload?.revertTransactions ? "?revertTransactions=true" : "";
+                res = await apiClient.delete(`${API_ENDPOINTS.DEBT_DETAIL(item.targetId)}${delQuery}`);
               }
               if (res?.ok && item.targetId) {
                 this.markLocalDebtSynced(item.targetId, true);
+              }
+            }
+            // C2) Odamlar (people, person_profiles, person_appearances)
+            else if (item.entity === "people") {
+              if (item.type === "create") {
+                res = await apiClient.post(API_ENDPOINTS.PEOPLE, item.payload);
+              } else if (item.type === "update") {
+                res = await apiClient.put(API_ENDPOINTS.PERSON_DETAIL(item.targetId), item.payload);
+              } else if (item.type === "crush") {
+                res = await apiClient.patch(API_ENDPOINTS.PERSON_CRUSH(item.targetId), item.payload);
+              } else if (item.type === "delete") {
+                res = await apiClient.delete(API_ENDPOINTS.PERSON_DETAIL(item.targetId));
+              }
+              if (res?.ok && item.targetId && item.type !== "delete") {
+                this.markLocalPersonSynced(item.targetId, true);
+              }
+            }
+            else if (item.entity === "person_profile") {
+              res = await apiClient.put(API_ENDPOINTS.PERSON_PROFILE(item.targetId), item.payload);
+              if (res?.ok && item.targetId) {
+                this.markLocalPersonSynced(item.targetId, true);
+              }
+            }
+            else if (item.entity === "person_appearances") {
+              if (item.type === "create") {
+                res = await apiClient.post(API_ENDPOINTS.PERSON_APPEARANCES(item.targetId), item.payload);
+              } else if (item.type === "delete") {
+                res = await apiClient.delete(
+                  API_ENDPOINTS.PERSON_APPEARANCE_DETAIL(item.targetId, item.payload?.appearanceId)
+                );
+              }
+              if (res?.ok && item.targetId) {
+                this.markLocalPersonSynced(item.targetId, true);
               }
             }
             // D) Zaxira hisoblari (wallets & notes)
@@ -348,6 +382,13 @@ class SyncService {
         if (debtRes.ok && Array.isArray(debtRes.data)) {
           pulledCount += debtRes.data.length;
           this.mergeServerDebtsWithLocal(debtRes.data);
+        }
+
+        // C2) Odamlar (people)
+        const peopleRes = await apiClient.get(API_ENDPOINTS.PEOPLE);
+        if (peopleRes.ok && Array.isArray(peopleRes.data)) {
+          pulledCount += peopleRes.data.length;
+          this.mergeServerPeopleWithLocal(peopleRes.data);
         }
 
         // D) Mashqlar (exercises)
@@ -460,6 +501,19 @@ class SyncService {
     } catch {}
   }
 
+  markLocalPersonSynced(id, isSynced = true) {
+    if (typeof window === "undefined") return;
+    try {
+      const storageKey = getUserStorageKey("oybek-system:people");
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return;
+      const updated = list.map((item) => (item.id === id ? { ...item, synced: isSynced } : item));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {}
+  }
+
   mergeServerExpensesWithLocal(serverExpenses) {
     if (typeof window === "undefined") return;
     try {
@@ -502,10 +556,17 @@ class SyncService {
           serverPayments.forEach((p) => payMap.set(p.id, p));
           localPayments.forEach((p) => payMap.set(p.id, p));
 
+          const resolvedStatus =
+            localD.status === "forgiven" || serverD.status === "forgiven"
+              ? "forgiven"
+              : localD.status === "settled" || serverD.status === "settled"
+              ? "settled"
+              : localD.status || serverD.status;
+
           debtMap.set(localD.id, {
             ...serverD,
             ...localD,
-            status: localD.status === "settled" || serverD.status === "settled" ? "settled" : (localD.status || serverD.status),
+            status: resolvedStatus,
             payments: Array.from(payMap.values()),
             synced: false,
           });
@@ -519,6 +580,25 @@ class SyncService {
       localStorage.setItem(storageKey, JSON.stringify(merged));
     } catch (err) {
       console.warn("Qarzlarni birlashtirishda xato:", err);
+    }
+  }
+
+  mergeServerPeopleWithLocal(serverPeople) {
+    if (typeof window === "undefined" || !Array.isArray(serverPeople)) return;
+    try {
+      const storageKey = getUserStorageKey("oybek-system:people");
+      const raw = localStorage.getItem(storageKey);
+      const localList = raw ? JSON.parse(raw) : [];
+      const unsyncedLocals = Array.isArray(localList) ? localList.filter((item) => item.synced === false) : [];
+
+      const peopleMap = new Map();
+      serverPeople.forEach((p) => peopleMap.set(p.id, { ...p, synced: true }));
+      unsyncedLocals.forEach((p) => peopleMap.set(p.id, p));
+
+      const merged = Array.from(peopleMap.values());
+      localStorage.setItem(storageKey, JSON.stringify(merged));
+    } catch (err) {
+      console.warn("Odamlarni birlashtirishda xato:", err);
     }
   }
 
@@ -606,6 +686,13 @@ class SyncService {
         await apiClient.post(API_ENDPOINTS.EXERCISE_LOGS, log).catch(() => {});
       }
 
+      // 3b. Odamlarni ham DBga yuklash
+      const rawPeople = localStorage.getItem(getUserStorageKey("oybek-system:people"));
+      const peopleList = rawPeople ? JSON.parse(rawPeople) : [];
+      for (const person of peopleList) {
+        await apiClient.post(API_ENDPOINTS.PEOPLE, person).catch(() => {});
+      }
+
       // 4. Markaziy bank kursini DB cbu_rate_log ga log qilish
       await apiClient.post(API_ENDPOINTS.EXCHANGE_RATE_SYNC_CBU, {}).catch(() => {});
 
@@ -622,6 +709,9 @@ class SyncService {
       const allLogsSynced = logs.map((item) => ({ ...item, synced: true }));
       localStorage.setItem(getUserStorageKey("oybek_exercise_logs"), JSON.stringify(allLogsSynced));
 
+      const allPeopleSynced = peopleList.map((item) => ({ ...item, synced: true }));
+      localStorage.setItem(getUserStorageKey("oybek-system:people"), JSON.stringify(allPeopleSynced));
+
       this.clearQueue();
 
       const nowIso = new Date().toISOString();
@@ -632,7 +722,7 @@ class SyncService {
         window.dispatchEvent(new CustomEvent("oybek:sync-complete", { detail: { timestamp: nowIso } }));
       }
 
-      return { success: true, count: expenses.length + pendingDebts.length + exercises.length };
+      return { success: true, count: expenses.length + pendingDebts.length + exercises.length + peopleList.length };
     } catch (err) {
       this.addLog("error", `Majburiy yuklashda xato: ${err.message}`);
       return { success: false, error: err.message };

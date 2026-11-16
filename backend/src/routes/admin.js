@@ -27,7 +27,7 @@ router.get("/stats", async (req, res) => {
       pool.query(`SELECT COUNT(*)::int AS count FROM users WHERE is_active = true`),
       pool.query(`SELECT COUNT(*)::int AS count FROM transactions`),
       pool.query(`SELECT COUNT(*)::int AS count FROM wallets`),
-      pool.query(`SELECT COUNT(*)::int AS count FROM debts WHERE status != 'settled'`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM debts WHERE status NOT IN ('settled', 'forgiven')`),
       pool.query(`SELECT COUNT(*)::int AS count FROM update_complaints`).catch(async () => {
         return pool.query(`SELECT COUNT(*)::int AS count FROM app_update_complaints`).catch(() => ({ rows: [{ count: 0 }] }));
       }),

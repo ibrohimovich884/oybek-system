@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Edit2, Heart, ShieldCheck, Shield, ShieldAlert } from "lucide-react";
 import {
   PERSON_CATEGORIES,
@@ -31,6 +31,30 @@ export default function EditPersonModal({ person, onClose, onSuccess }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setFormData({
+      nickname: person.nickname || "",
+      fullName: person.fullName || "",
+      gender: person.gender || "female",
+      category: person.category || "friend",
+      status: person.status || "active",
+      isCrush: Boolean(person.isCrush),
+      crushStatus: person.crushStatus || "liked",
+      crushStartedOn: person.crushStartedOn || "",
+      metOn: person.metOn || "",
+      metPlace: person.metPlace || "",
+      metVia: person.metVia || "",
+      birthday: person.birthday || "",
+      phone: person.phone || "",
+      telegram: person.telegram || "",
+      instagram: person.instagram || "",
+      otherContacts: person.otherContacts || "",
+      notes: person.notes || "",
+      trustLevel: person.trustLevel || "medium",
+    });
+    setError(null);
+  }, [person]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

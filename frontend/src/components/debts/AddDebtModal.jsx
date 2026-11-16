@@ -18,6 +18,7 @@ import {
   Send,
   Link2,
   Unlink,
+  UserPlus,
 } from "lucide-react";
 import {
   DEBT_TYPES,
@@ -26,9 +27,10 @@ import {
 } from "../../constants/debts.js";
 import {
   CATEGORY_LABELS,
+  TRUST_LEVELS,
   getTrustLevelInfo,
 } from "../../constants/people.js";
-import { readLocalPeople, fetchPeople } from "../../api/people.js";
+import { readLocalPeople, fetchPeople, createPerson } from "../../api/people.js";
 import {
   toLocalDatetimeInput,
   toLocalDateInput,
@@ -80,6 +82,10 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
     initialData?.repaymentProbability || REPAYMENT_PROBABILITY.HIGH
   );
   const [personalNote, setPersonalNote] = useState("");
+  const [saveToPeople, setSaveToPeople] = useState(false);
+  const [newPersonTrust, setNewPersonTrust] = useState("medium");
+  const [newPersonCategory, setNewPersonCategory] = useState("acquaintance");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef(null);
@@ -95,6 +101,10 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
       })
       .catch(() => {});
 
+    const initCurrency = initialData?.currency || "UZS";
+    const defaultDue = new Date();
+    defaultDue.setDate(defaultDue.getDate() + 30);
+
     setPersonId(initialData?.personId || null);
     setType(initialData?.type || DEBT_TYPES.GIVEN);
     setPersonName(initialData?.personName || "");
@@ -103,10 +113,19 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
     setTelegram(cleanSocialHandle(initialData?.telegram || ""));
     setLocation(initialData?.location || "");
     setAmount("");
+    setCurrency(initCurrency);
+    setWallet(initialData?.wallet || (initCurrency === "USD" ? "dollar" : "hamyon"));
+    setAffectBalance(false);
+    setIsDueDateUnknown(true);
+    setDueDate(toLocalDateInput(defaultDue));
     setReason("");
     setPersonalNote("");
     setDate(toLocalDatetimeInput(new Date()));
     setRepaymentProbability(initialData?.repaymentProbability || REPAYMENT_PROBABILITY.HIGH);
+    setSaveToPeople(false);
+    setNewPersonTrust("medium");
+    setNewPersonCategory("acquaintance");
+    setIsSubmitting(false);
     setError("");
     setShowSuggestions(false);
   }, [isOpen, initialData]);
@@ -202,8 +221,9 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
   const labels = DEBT_TYPE_LABELS[type];
   const linkedTrustInfo = selectedPersonObj ? getTrustLevelInfo(selectedPersonObj.trustLevel) : null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError("");
 
     if (!personName.trim()) {
@@ -221,27 +241,63 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
       return;
     }
 
-    onAddDebt({
-      personId,
-      type,
-      personName: personName.trim(),
-      contact: contact.trim(),
-      instagram: cleanSocialHandle(instagram),
-      telegram: cleanSocialHandle(telegram),
-      amount: numAmount,
-      currency,
-      wallet,
-      affectBalance,
-      date,
-      location: location.trim(),
-      reason: reason.trim(),
-      isDueDateUnknown,
-      dueDate: isDueDateUnknown ? null : dueDate,
-      repaymentProbability,
-      personalNote: personalNote.trim(),
-    });
+    setIsSubmitting(true);
+    try {
+      let resolvedPersonId = personId;
+      let resolvedLinkedPerson = selectedPersonObj || null;
 
-    onClose();
+      if (!resolvedPersonId && saveToPeople) {
+        const createdPerson = await createPerson({
+          nickname: personName.trim(),
+          phone: contact.trim(),
+          instagram: cleanSocialHandle(instagram),
+          telegram: cleanSocialHandle(telegram),
+          metPlace: location.trim(),
+          trustLevel: newPersonTrust,
+          category: newPersonCategory,
+          status: "active",
+        });
+        if (createdPerson?.id) {
+          resolvedPersonId = createdPerson.id;
+          resolvedLinkedPerson = {
+            id: createdPerson.id,
+            nickname: createdPerson.nickname,
+            fullName: createdPerson.fullName || "",
+            trustLevel: createdPerson.trustLevel || newPersonTrust,
+            phone: createdPerson.phone || "",
+            telegram: createdPerson.telegram || "",
+            instagram: createdPerson.instagram || "",
+          };
+        }
+      }
+
+      await onAddDebt({
+        personId: resolvedPersonId,
+        linkedPerson: resolvedLinkedPerson,
+        type,
+        personName: personName.trim(),
+        contact: contact.trim(),
+        instagram: cleanSocialHandle(instagram),
+        telegram: cleanSocialHandle(telegram),
+        amount: numAmount,
+        currency,
+        wallet,
+        affectBalance,
+        date,
+        location: location.trim(),
+        reason: reason.trim(),
+        isDueDateUnknown,
+        dueDate: isDueDateUnknown ? null : dueDate,
+        repaymentProbability,
+        personalNote: personalNote.trim(),
+      });
+
+      onClose();
+    } catch (err) {
+      setError(err?.message || "Qarzni saqlashda xatolik yuz berdi");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -409,8 +465,8 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
             </div>
           </div>
 
-          {/* Bog'langan odam banneri */}
-          {selectedPersonObj && (
+          {/* Bog'langan odam banneri yoki Odamlar ro'yxatiga saqlash */}
+          {selectedPersonObj ? (
             <div className="debt-linked-person-banner">
               <div className="debt-linked-person-banner__left">
                 <Link2 size={14} color="var(--accent)" />
@@ -441,7 +497,58 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
                 <span>Uzish</span>
               </button>
             </div>
-          )}
+          ) : personName.trim() ? (
+            <div className="debt-quick-save-person-box">
+              <label className="debt-quick-save-person-toggle">
+                <input
+                  type="checkbox"
+                  checked={saveToPeople}
+                  onChange={(e) => setSaveToPeople(e.target.checked)}
+                  style={{ accentColor: "var(--accent)" }}
+                />
+                <UserPlus size={14} color="var(--accent)" />
+                <span>
+                  <strong>{personName.trim()}</strong>ni &ldquo;Odamlar&rdquo; roʻyxatiga ham saqlash va bogʻlash
+                </span>
+              </label>
+
+              {saveToPeople && (
+                <div className="debt-quick-save-person-fields">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="field-label" style={{ fontSize: "0.72rem" }}>Ishonish darajasi</label>
+                    <select
+                      className="field-input"
+                      value={newPersonTrust}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewPersonTrust(val);
+                        const tInfo = getTrustLevelInfo(val);
+                        if (tInfo?.suggestedProbability) {
+                          setRepaymentProbability(tInfo.suggestedProbability);
+                        }
+                      }}
+                    >
+                      {TRUST_LEVELS.map((t) => (
+                        <option key={t.key} value={t.key}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="field-label" style={{ fontSize: "0.72rem" }}>Toifasi</label>
+                    <select
+                      className="field-input"
+                      value={newPersonCategory}
+                      onChange={(e) => setNewPersonCategory(e.target.value)}
+                    >
+                      {Object.entries(CATEGORY_LABELS).map(([k, lbl]) => (
+                        <option key={k} value={k}>{lbl}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* Instagram & Telegram (Odam tanlanganda avtomatik to'ldiriladi) */}
           <div className="form-row form-row--2col">
@@ -845,9 +952,10 @@ export default function AddDebtModal({ isOpen, onClose, onAddDebt, initialData =
               <button
                 type="submit"
                 className="btn btn--primary debt-action-save"
+                disabled={isSubmitting}
               >
                 <CheckCircle2 size={16} />
-                <span>Qarzni saqlash</span>
+                <span>{isSubmitting ? "Saqlanmoqda..." : "Qarzni saqlash"}</span>
               </button>
             </div>
           </div>

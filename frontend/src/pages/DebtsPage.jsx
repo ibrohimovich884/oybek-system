@@ -77,6 +77,8 @@ export default function DebtsPage() {
   const [selectedDebt, setSelectedDebt] = useState(null);
   const [editingDebt, setEditingDebt] = useState(null);
   const [selectedPersonHistory, setSelectedPersonHistory] = useState(null);
+  const [isAutoLinking, setIsAutoLinking] = useState(false);
+  const [autoLinkNotice, setAutoLinkNotice] = useState("");
 
   const handleOpenPersonHistory = (personName, personId = null) => {
     if (!personName && !personId) return;
@@ -102,20 +104,74 @@ export default function DebtsPage() {
       .catch(() => {});
   }, []);
 
-  // Odamlar map'i (id bo'yicha va ism bo'yicha tezkor qidiruv)
-  const { peopleById, peopleByName } = useMemo(() => {
+  // Odamlar map'i (id bo'yicha va noyob ism bo'yicha tezkor qidiruv)
+  const { peopleById, uniquePeopleByName } = useMemo(() => {
     const byId = new Map();
-    const byName = new Map();
+    const nameBuckets = new Map();
     peopleList.forEach((p) => {
       if (!p?.id) return;
       byId.set(p.id, p);
       const nick = (p.nickname || "").trim().toLowerCase();
       const full = (p.fullName || "").trim().toLowerCase();
-      if (nick && !byName.has(nick)) byName.set(nick, p);
-      if (full && !byName.has(full)) byName.set(full, p);
+      if (nick) {
+        const list = nameBuckets.get(nick) || [];
+        if (!list.some((x) => x.id === p.id)) list.push(p);
+        nameBuckets.set(nick, list);
+      }
+      if (full) {
+        const list = nameBuckets.get(full) || [];
+        if (!list.some((x) => x.id === p.id)) list.push(p);
+        nameBuckets.set(full, list);
+      }
     });
-    return { peopleById: byId, peopleByName: byName };
+
+    const uniqueByName = new Map();
+    nameBuckets.forEach((list, key) => {
+      if (list.length === 1) {
+        uniqueByName.set(key, list[0]);
+      }
+    });
+
+    return { peopleById: byId, uniquePeopleByName: uniqueByName };
   }, [peopleList]);
+
+  // Bog'lanmagan, lekin Odamlar ro'yxatida noyob ism bilan mos keluvchi eski qarzlar
+  const autoLinkableDebts = useMemo(() => {
+    return debts
+      .map((d) => {
+        if (d.personId) return null;
+        const norm = (d.personName || "").trim().toLowerCase();
+        if (!norm) return null;
+        const matched = uniquePeopleByName.get(norm);
+        return matched ? { debt: d, person: matched } : null;
+      })
+      .filter(Boolean);
+  }, [debts, uniquePeopleByName]);
+
+  const handleAutoLinkDebts = async () => {
+    if (isAutoLinking || autoLinkableDebts.length === 0) return;
+    setIsAutoLinking(true);
+    let linkedCount = 0;
+    try {
+      for (const { debt, person } of autoLinkableDebts) {
+        const ig = cleanSocialHandle(debt.instagram || person.instagram || "");
+        const tg = cleanSocialHandle(debt.telegram || person.telegram || "");
+        await updateDebt(debt.id, {
+          personId: person.id,
+          contact: debt.contact || person.phone || "",
+          instagram: ig,
+          telegram: tg,
+          location: debt.location || person.profile?.area || person.metPlace || "",
+        });
+        linkedCount += 1;
+      }
+      setAutoLinkNotice(`${linkedCount} ta eski qarz Odamlar roʻyxatiga muvaffaqiyatli bogʻlandi.`);
+    } catch (err) {
+      setAutoLinkNotice("Ayrim qarzlarni bogʻlashda xatolik yuz berdi.");
+    } finally {
+      setIsAutoLinking(false);
+    }
+  };
 
   // Har bir qarzga odamlar ro'yxatidagi bog'langan shaxs ma'lumotini biriktirish
   const enrichedDebts = useMemo(() => {
@@ -125,10 +181,10 @@ export default function DebtsPage() {
         resolved = peopleById.get(debt.personId);
       } else if (debt.linkedPerson?.id && peopleById.has(debt.linkedPerson.id)) {
         resolved = peopleById.get(debt.linkedPerson.id);
-      } else if (!debt.personId && debt.personName) {
+      } else if (!debt.personId && !debt.linkedPerson?.id && debt.personName) {
         const norm = debt.personName.trim().toLowerCase();
-        if (peopleByName.has(norm)) {
-          resolved = peopleByName.get(norm);
+        if (uniquePeopleByName.has(norm)) {
+          resolved = uniquePeopleByName.get(norm);
         }
       }
 
@@ -152,12 +208,13 @@ export default function DebtsPage() {
         linkedPerson: mergedLinked,
       };
     });
-  }, [debts, peopleById, peopleByName]);
+  }, [debts, peopleById, uniquePeopleByName]);
 
-  // URL parametrlari (?addForPerson=... yoki ?personId=...) orqali kelganda modalni ochish
+  // URL parametrlari (?addForPerson=..., ?personId=... yoki ?debtId=...) orqali kelganda modalni ochish
   useEffect(() => {
     const addForPersonId = searchParams.get("addForPerson");
     const viewPersonId = searchParams.get("personId");
+    const viewDebtId = searchParams.get("debtId");
 
     if (addForPersonId) {
       const person = peopleById.get(addForPersonId);
@@ -182,6 +239,14 @@ export default function DebtsPage() {
 
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete("addForPerson");
+        setSearchParams(nextParams, { replace: true });
+      }
+    } else if (viewDebtId) {
+      const targetDebt = enrichedDebts.find((d) => d.id === viewDebtId);
+      if (targetDebt) {
+        setSelectedDebt(targetDebt);
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("debtId");
         setSearchParams(nextParams, { replace: true });
       }
     } else if (viewPersonId) {
@@ -238,8 +303,18 @@ export default function DebtsPage() {
           activeCount: 0,
           overdueCount: 0,
           soonCount: 0,
+          noDateCount: 0,
           settledCount: 0,
           forgivenCount: 0,
+          givenCount: 0,
+          takenCount: 0,
+          probHighCount: 0,
+          probMediumCount: 0,
+          probLowCount: 0,
+          activeGivenUzs: 0,
+          activeGivenUsd: 0,
+          activeTakenUzs: 0,
+          activeTakenUsd: 0,
           activeRemainingUzs: 0,
           activeRemainingUsd: 0,
           totalGivenUzs: 0,
@@ -277,9 +352,11 @@ export default function DebtsPage() {
       const isForgiven = debt.status === "forgiven";
 
       if (isGiven) {
+        pData.givenCount += 1;
         if (isUsd) pData.totalGivenUsd += totalAmt;
         else pData.totalGivenUzs += totalAmt;
       } else {
+        pData.takenCount += 1;
         if (isUsd) pData.totalTakenUsd += totalAmt;
         else pData.totalTakenUzs += totalAmt;
       }
@@ -303,12 +380,25 @@ export default function DebtsPage() {
       const remaining = isSettled || isForgiven ? 0 : Math.max(0, totalAmt - paid - forgiven);
       if (remaining > 0) {
         pData.activeCount += 1;
+        if (isGiven) {
+          if (isUsd) pData.activeGivenUsd += remaining;
+          else pData.activeGivenUzs += remaining;
+        } else {
+          if (isUsd) pData.activeTakenUsd += remaining;
+          else pData.activeTakenUzs += remaining;
+        }
         if (isUsd) pData.activeRemainingUsd += remaining;
         else pData.activeRemainingUzs += remaining;
 
         const dueInfo = getDebtDueInfo(debt);
         if (dueInfo.isOverdue) pData.overdueCount += 1;
         else if (dueInfo.stage === DUE_STAGES.SOON) pData.soonCount += 1;
+        else if (dueInfo.stage === DUE_STAGES.NO_DATE) pData.noDateCount += 1;
+
+        const prob = debt.repaymentProbability || "high";
+        if (prob === "low") pData.probLowCount += 1;
+        else if (prob === "medium") pData.probMediumCount += 1;
+        else pData.probHighCount += 1;
       } else if (isForgiven) {
         pData.forgivenCount += 1;
       } else {
@@ -342,6 +432,42 @@ export default function DebtsPage() {
     });
     return list;
   }, [personsMap, currentUsdRate]);
+
+  // Qidiruv va aktiv filtrlar bo'yicha saralangan Shaxslar ro'yxati
+  const filteredPersonsList = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    const qClean = q.replace(/^@/, "");
+
+    return personsList.filter((p) => {
+      if (filterType === "overdue" && p.overdueCount === 0) return false;
+      else if (filterType === "soon" && p.soonCount === 0) return false;
+      else if (filterType === "no_date" && p.noDateCount === 0) return false;
+      else if (filterType === "prob_high" && p.probHighCount === 0) return false;
+      else if (filterType === "prob_medium" && p.probMediumCount === 0) return false;
+      else if (filterType === "prob_low" && p.probLowCount === 0) return false;
+      else if (filterType === "given" && p.givenCount === 0) return false;
+      else if (filterType === "taken" && p.takenCount === 0) return false;
+      else if (filterType === "forgiven" && p.forgivenCount === 0) return false;
+      else if (filterType === "settled" && p.settledCount === 0) return false;
+      else if (filterType === "pending" && p.activeCount === 0) return false;
+
+      if (!q) return true;
+      return (
+        p.personName.toLowerCase().includes(q) ||
+        p.fullName.toLowerCase().includes(q) ||
+        p.contact.toLowerCase().includes(q) ||
+        p.location.toLowerCase().includes(q) ||
+        (qClean && p.instagram.toLowerCase().includes(qClean)) ||
+        (qClean && p.telegram.toLowerCase().includes(qClean)) ||
+        (p.linkedPerson?.otherContacts || "").toLowerCase().includes(q) ||
+        p.debts.some(
+          (d) =>
+            (d.reason || "").toLowerCase().includes(q) ||
+            (d.personalNote || "").toLowerCase().includes(q)
+        )
+      );
+    });
+  }, [personsList, filterType, searchQuery]);
 
   // Qidiruv bo'yicha mos kelgan shaxslar (Tezkor tarixni ochish uchun)
   const matchedPersons = useMemo(() => {
@@ -553,8 +679,9 @@ export default function DebtsPage() {
   const handleSettle = async (id, customOpts = {}) => {
     const debt = debts.find((d) => d.id === id);
     if (!debt) return;
-    const paid = (debt.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const rem = Math.max(0, Number(debt.amount || 0) - paid);
+    const paid = (debt.payments || []).reduce((sum, p) => sum + (p.isForgiven ? 0 : Number(p.amount || 0)), 0);
+    const forgiven = (debt.payments || []).reduce((sum, p) => sum + (p.isForgiven ? Number(p.amount || 0) : 0), 0);
+    const rem = Math.max(0, Number(debt.amount || 0) - paid - forgiven);
 
     await settleDebt(id, {
       amount: customOpts.amount !== undefined ? Number(customOpts.amount) : rem,
@@ -771,6 +898,45 @@ export default function DebtsPage() {
         </div>
       </div>
 
+      {/* Eski bog'lanmagan qarzlarni Odamlar bilan bog'lash banneri */}
+      {(autoLinkableDebts.length > 0 || autoLinkNotice) && (
+        <div className="debt-autolink-banner">
+          {autoLinkableDebts.length > 0 ? (
+            <>
+              <div className="debt-autolink-banner__text">
+                <Link2 size={15} color="var(--accent)" />
+                <span>
+                  <strong>{autoLinkableDebts.length} ta</strong> eski qarz Odamlar roʻyxatidagi shaxslar bilan ism boʻyicha mos keldi.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn--xs btn--primary"
+                onClick={handleAutoLinkDebts}
+                disabled={isAutoLinking}
+              >
+                <Link2 size={12} />
+                <span>{isAutoLinking ? "Bogʻlanmoqda..." : "Barchasini bogʻlash"}</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="debt-autolink-banner__text">
+                <CheckCircle2 size={15} color="var(--income)" />
+                <span>{autoLinkNotice}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn--xs btn--ghost"
+                onClick={() => setAutoLinkNotice("")}
+              >
+                <X size={12} />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* 3.1. Qidirilgan shaxslar bo'yicha tezkor tarix paneli (Search highlight) */}
       {searchQuery.trim() && matchedPersons.length > 0 && (
         <div className="debts-search-match-section">
@@ -782,6 +948,25 @@ export default function DebtsPage() {
           <div className="debts-search-match-grid">
             {matchedPersons.map((person) => {
               const trustInfo = person.trustLevel ? getTrustLevelInfo(person.trustLevel) : null;
+              const hasActiveGiven = person.activeGivenUzs > 0 || person.activeGivenUsd > 0;
+              const hasActiveTaken = person.activeTakenUzs > 0 || person.activeTakenUsd > 0;
+              const onlyTaken = hasActiveTaken && !hasActiveGiven;
+              const displayUzs = onlyTaken ? person.activeTakenUzs : person.activeGivenUzs - person.activeTakenUzs;
+              const displayUsd = onlyTaken ? person.activeTakenUsd : person.activeGivenUsd - person.activeTakenUsd;
+              const hasActive = hasActiveGiven || hasActiveTaken;
+
+              const renderAmountText = () => {
+                if (!hasActive) return "0 (Yopilgan)";
+                const absUzs = Math.abs(displayUzs);
+                const absUsd = Math.abs(displayUsd);
+                const prefix = onlyTaken ? "Berishim: " : hasActiveTaken ? "Sof: " : "Olishim: ";
+                if (absUzs > 0 && absUsd > 0) {
+                  return `${prefix}${displayUzs < 0 ? "-" : ""}${formatSum(absUzs)} + ${formatDollar(absUsd)}`;
+                }
+                if (absUzs > 0) return `${prefix}${displayUzs < 0 ? "-" : ""}${formatSum(absUzs)}`;
+                return `${prefix}${displayUsd < 0 ? "-" : ""}${formatDollar(absUsd)}`;
+              };
+
               return (
                 <div
                   key={person.key}
@@ -830,10 +1015,11 @@ export default function DebtsPage() {
                   </div>
 
                   <div className="debts-search-match-amount">
-                    <span className="debts-search-match-amount-val mono">
-                      {person.activeRemainingUzs > 0 || person.activeRemainingUsd > 0
-                        ? formatSum(person.activeRemainingUzs)
-                        : "0 (Yopilgan)"}
+                    <span
+                      className="debts-search-match-amount-val mono"
+                      style={onlyTaken ? { color: "var(--expense)" } : undefined}
+                    >
+                      {renderAmountText()}
                     </span>
                     <span className="debts-search-match-cta">
                       Tarixni ochish <ChevronRight size={12} />
@@ -857,10 +1043,18 @@ export default function DebtsPage() {
         />
       ) : viewMode === "persons" ? (
         /* Shaxslar (Qarzdorlar) Jamlangan Ko'rinishi */
-        personsList.length > 0 ? (
+        filteredPersonsList.length > 0 ? (
           <div className="debts-persons-grid">
-            {personsList.map((person) => {
-              const hasActive = person.activeRemainingUzs > 0 || person.activeRemainingUsd > 0;
+            {filteredPersonsList.map((person) => {
+              const hasActiveGiven = person.activeGivenUzs > 0 || person.activeGivenUsd > 0;
+              const hasActiveTaken = person.activeTakenUzs > 0 || person.activeTakenUsd > 0;
+              const hasActive = hasActiveGiven || hasActiveTaken;
+              const onlyTaken = hasActiveTaken && !hasActiveGiven;
+              const mixed = hasActiveGiven && hasActiveTaken;
+              const netUzs = person.activeGivenUzs - person.activeTakenUzs;
+              const netUsd = person.activeGivenUsd - person.activeTakenUsd;
+              const primaryUzs = onlyTaken ? person.activeTakenUzs : netUzs;
+              const primaryUsd = onlyTaken ? person.activeTakenUsd : netUsd;
               const trustInfo = person.trustLevel ? getTrustLevelInfo(person.trustLevel) : null;
 
               return (
@@ -920,19 +1114,41 @@ export default function DebtsPage() {
                       </div>
                     </div>
 
-                    {/* Qoldiq summa */}
+                    {/* Qoldiq summa (Yo'nalishi va USD bilan) */}
                     <div className="person-ledger-card__balance-block">
-                      <span className="person-ledger-card__bal-lbl">Qarz qoldig'i:</span>
+                      <span className="person-ledger-card__bal-lbl">
+                        {mixed
+                          ? "Sof qoldiq:"
+                          : onlyTaken
+                          ? "Qaytarishim:"
+                          : hasActiveGiven
+                          ? "Menga qaytishi:"
+                          : "Qarz qoldig'i:"}
+                      </span>
                       <div
                         className={`person-ledger-card__bal-val mono ${
-                          hasActive ? "person-ledger-card__bal-val--owed" : "person-ledger-card__bal-val--zero"
+                          onlyTaken
+                            ? "person-ledger-card__bal-val--taken"
+                            : hasActive
+                            ? "person-ledger-card__bal-val--owed"
+                            : "person-ledger-card__bal-val--zero"
                         }`}
                       >
-                        {hasActive ? formatSum(person.activeRemainingUzs) : "0 UZS"}
+                        {!hasActive
+                          ? "0 UZS"
+                          : Math.abs(primaryUzs) > 0
+                          ? `${primaryUzs < 0 ? "-" : ""}${formatSum(Math.abs(primaryUzs))}`
+                          : `${primaryUsd < 0 ? "-" : ""}${formatDollar(Math.abs(primaryUsd))}`}
                       </div>
-                      {person.activeRemainingUsd > 0 && (
+                      {hasActive && Math.abs(primaryUzs) > 0 && Math.abs(primaryUsd) > 0 && (
                         <div className="person-ledger-card__bal-sub mono">
-                          + {formatDollar(person.activeRemainingUsd)}
+                          {primaryUsd > 0 ? "+ " : "- "}
+                          {formatDollar(Math.abs(primaryUsd))}
+                        </div>
+                      )}
+                      {mixed && (
+                        <div className="person-ledger-card__bal-mix">
+                          Ber: {person.activeGivenUzs > 0 ? formatSum(person.activeGivenUzs) : formatDollar(person.activeGivenUsd)} · Ol: {person.activeTakenUzs > 0 ? formatSum(person.activeTakenUzs) : formatDollar(person.activeTakenUsd)}
                         </div>
                       )}
                     </div>
@@ -1023,9 +1239,15 @@ export default function DebtsPage() {
           <div className="debts-empty-state">
             <Users size={36} color="var(--text-muted)" />
             <div>
-              <h4 className="debts-empty-title">Shaxslar ro'yxati bo'sh</h4>
+              <h4 className="debts-empty-title">
+                {searchQuery || filterType !== "all"
+                  ? "Filtr bo'yicha shaxslar topilmadi"
+                  : "Shaxslar ro'yxati bo'sh"}
+              </h4>
               <p className="debts-empty-subtitle">
-                Qarz kiritilgach, barcha qarz oluvchilar shu yerda avtomatik jamlanadi.
+                {searchQuery || filterType !== "all"
+                  ? "Qidiruv so'zini o'zgartiring yoki filtrni «Barchasi» holatiga qaytaring."
+                  : "Qarz kiritilgach, barcha qarz oluvchilar shu yerda avtomatik jamlanadi."}
               </p>
             </div>
           </div>
@@ -1137,6 +1359,7 @@ export default function DebtsPage() {
         onClose={() => {
           setIsAddModalOpen(false);
           setAddDebtInitialData(null);
+          setPeopleList(readLocalPeople());
         }}
         onAddDebt={addDebt}
         initialData={addDebtInitialData}
@@ -1145,7 +1368,10 @@ export default function DebtsPage() {
       {/* Qarz ma'lumotlarini tahrirlash modali */}
       <EditDebtModal
         isOpen={Boolean(editingDebt)}
-        onClose={() => setEditingDebt(null)}
+        onClose={() => {
+          setEditingDebt(null);
+          setPeopleList(readLocalPeople());
+        }}
         debt={editingDebt}
         onUpdateDebt={updateDebt}
       />
